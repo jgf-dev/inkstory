@@ -1,0 +1,178 @@
+// InkStory Prisma schema — Epic 0 (Foundation)
+// See Linear project: https://linear.app/jgfdev/project/novel-writing-app-3c3f658f0d44
+//
+// This schema covers the STO-1150 acceptance criteria:
+//   - User, Series, Novel, Act, Chapter, Scene models
+//   - Hierarchical structure (Series → Novel → Act → Chapter → Scene)
+//   - Soft deletes + timestamps on all entities
+//   - POV / tense / content fields on Scene
+//   - Orderable positioning (drag-and-drop ready via `position`)
+//
+// Codex tables (CodexEntry, CodexAlias, CodexTag, CodexRelation, CodexProgression)
+// are intentionally NOT included here — they ship in Epic 1 (STO-1167).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  // Supabase Postgres connection. Override with DIRECT_URL for migrations if needed.
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ────────────────────────────────────────────────────────────────────
+
+enum Pov {
+  FIRST
+  SECOND
+  THIRD_LIMITED
+  THIRD_OMNISCIENT
+}
+
+enum Tense {
+  PAST
+  PRESENT
+  FUTURE
+}
+
+// ─── User ────────────────────────────────────────────────────────────────────
+//
+// Synced 1:1 from Supabase auth.users (see src/lib/supabase/auth.ts onAuthUser).
+// We don't duplicate auth state — Supabase owns passwords, sessions, OAuth.
+
+model User {
+  id        String   @id // Supabase auth user id (uuid)
+  email     String   @unique
+  name      String?
+  avatarUrl String?  @map("avatar_url")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  series  Series[]
+  novels  Novel[]
+
+  @@index([deletedAt])
+  @@map("users")
+}
+
+// ─── Series ──────────────────────────────────────────────────────────────────
+//
+// A series groups one or more Novels (e.g. a trilogy). Series Codex entries
+// are shared across books — that feature ships in Epic 5 (STO-1164).
+
+model Series {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  position    Int      @default(0)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  deletedAt   DateTime? @map("deleted_at")
+
+  ownerId String @map("owner_id")
+  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  novels Novel[]
+
+  @@index([ownerId, deletedAt])
+  @@index([ownerId, position])
+  @@map("series")
+}
+
+// ─── Novel ───────────────────────────────────────────────────────────────────
+
+model Novel {
+  id          String   @id @default(cuid())
+  title       String
+  subtitle    String?
+  description String?
+  position    Int      @default(0)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  deletedAt   DateTime? @map("deleted_at")
+
+  ownerId String @map("owner_id")
+  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  // Optional: a Novel may belong to a Series, or stand alone.
+  seriesId String? @map("series_id")
+  series   Series? @relation(fields: [seriesId], references: [id], onDelete: SetNull)
+
+  acts Act[]
+
+  @@index([ownerId, deletedAt])
+  @@index([seriesId])
+  @@index([ownerId, position])
+  @@map("novels")
+}
+
+// ─── Act ─────────────────────────────────────────────────────────────────────
+
+model Act {
+  id        String   @id @default(cuid())
+  title     String
+  position  Int      @default(0)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  novelId String @map("novel_id")
+  novel   Novel  @relation(fields: [novelId], references: [id], onDelete: Cascade)
+
+  chapters Chapter[]
+
+  @@index([novelId, deletedAt])
+  @@index([novelId, position])
+  @@map("acts")
+}
+
+// ─── Chapter ─────────────────────────────────────────────────────────────────
+
+model Chapter {
+  id        String   @id @default(cuid())
+  title     String
+  position  Int      @default(0)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  actId String @map("act_id")
+  act   Act    @relation(fields: [actId], references: [id], onDelete: Cascade)
+
+  scenes Scene[]
+
+  @@index([actId, deletedAt])
+  @@index([actId, position])
+  @@map("chapters")
+}
+
+// ─── Scene ───────────────────────────────────────────────────────────────────
+//
+// The atomic writing unit. `content` is plain text for Epic 0; the rich-text
+// editor + revision history land in Epic 3 (STO-1156) and Epic 6 (STO-1165).
+
+model Scene {
+  id          String   @id @default(cuid())
+  title       String
+  label       String?  // short tag (e.g. "Battle", "Reveal")
+  subtitle    String?
+  content     String   @default("") @db.Text
+  summary     String?  @db.Text
+  pov         Pov      @default(THIRD_LIMITED)
+  tense       Tense    @default(PAST)
+  position    Int      @default(0)
+  excludeFromAi Boolean @default(false) @map("exclude_from_ai")
+  wordCount   Int      @default(0) @map("word_count")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  deletedAt   DateTime? @map("deleted_at")
+
+  chapterId String  @map("chapter_id")
+  chapter   Chapter @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+
+  @@index([chapterId, deletedAt])
+  @@index([chapterId, position])
+  @@map("scenes")
+}

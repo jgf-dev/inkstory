@@ -1,0 +1,21 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: theme("colors.ink.50");
+  --foreground: theme("colors.ink.900");
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: theme("colors.ink.900");
+    --foreground: theme("colors.ink.100");
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: theme("fontFamily.serif");
+}
