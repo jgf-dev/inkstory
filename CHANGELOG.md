@@ -2,9 +2,9 @@
 
 All notable changes to InkStory are tracked here. This file follows [Keep a Changelog](https://keepachangelog.com/) and the project adheres to [Semantic Versioning](https://semver.org/).
 
-## [Unreleased] — Epic 0: Project Foundation
+## [Unreleased]
 
-Tracks: [STO-1149](https://linear.app/jgfdev/issue/STO-1149) (Project Scaffolding) and [STO-1150](https://linear.app/jgfdev/issue/STO-1150) (Core Database Schema).
+Epic 0: Project Foundation — Tracks: [STO-1149](https://linear.app/jgfdev/issue/STO-1149) (Project Scaffolding) and [STO-1150](https://linear.app/jgfdev/issue/STO-1150) (Core Database Schema).
 
 ### Added
 
