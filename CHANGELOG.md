@@ -21,14 +21,6 @@ Epic 0: Project Foundation — Tracks: [STO-1149](https://linear.app/jgfdev/issu
 - README with full Supabase setup walkthrough
 - `.env.example` documenting all required environment variables
 
-### Changed
-
-- n/a
-
-### Removed
-
-- n/a
-
 ### Notes
 
 - Codex tables (CodexEntry, CodexAlias, CodexTag, CodexRelation, CodexProgression) intentionally NOT included; they ship in Epic 1 (STO-1167).
