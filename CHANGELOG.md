@@ -4,6 +4,18 @@ All notable changes to InkStory are tracked here. This file follows [Keep a Chan
 
 ## [Unreleased]
 
+## [dc4b09f](https://github.com/jgf2/story-builder/commit/dc4b09f) - 2026-08-09
+
+### Summary
+Fixed `next build` type error caused by Prisma 7 removing `datasourceUrl` from `PrismaClient` constructor. Migrated to `PrismaPg` driver adapter pattern. Also fixed `db:migrate` / `db:push` by loading `.env.local` in `prisma.config.ts`.
+
+### Added
+- `@prisma/adapter-pg`, `pg`, `@types/pg` dependencies for driver adapter pattern
+
+### Fixed
+- TypeScript error: `Type 'string' is not assignable to type 'never'` on `datasourceUrl`
+- `db:migrate` / `db:push` error: `datasource.url property is required` — fixed by loading dotenv in `prisma.config.ts`
+
 ## [e092919](https://github.com/jgf2/story-builder/commit/e092919) - 2026-08-09
 
 ### Summary
