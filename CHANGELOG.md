@@ -4,6 +4,21 @@ All notable changes to InkStory are tracked here. This file follows [Keep a Chan
 
 ## [Unreleased]
 
+## [e092919](https://github.com/jgf2/story-builder/commit/e092919) - 2026-08-09
+
+### Summary
+Migrated to Prisma 7 config format to fix `P1012` validation error (`url` property removed from `datasource` block in schema files).
+
+### Added
+- `prisma.config.ts` at project root with `defineConfig` + `datasource.url` (Prisma 7 requirement)
+
+### Fixed
+- `P1012` error: `The datasource property url is no longer supported in schema files`
+- Removed `url = env("DATABASE_URL")` from `prisma/schema.prisma` datasource block
+- Updated `src/lib/prisma.ts` to pass `datasourceUrl` directly to `PrismaClient` constructor
+
+
+
 ### Added
 
 - InsForge backend project `inkstory` setup and link (`.insforge/project.json` and `.env.local` configuration)
