@@ -4,9 +4,12 @@ All notable changes to InkStory are tracked here. This file follows [Keep a Chan
 
 ## [Unreleased]
 
-Epic 0: Project Foundation — Tracks: [STO-1149](https://linear.app/jgfdev/issue/STO-1149) (Project Scaffolding) and [STO-1150](https://linear.app/jgfdev/issue/STO-1150) (Core Database Schema).
-
 ### Added
+
+- InsForge backend project `inkstory` setup and link (`.insforge/project.json` and `.env.local` configuration)
+- Installed `@insforge/sdk` package for Next.js app integration
+- Installed InsForge CLI agent skills and added `AGENTS.md`
+
 
 - Next.js 15 + React 19 + TypeScript strict + Tailwind CSS scaffold
 - Supabase integration (`@supabase/ssr`): browser, server, and middleware clients; session refresh on every request
