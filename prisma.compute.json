@@ -1,0 +1,11 @@
+{
+  "region": "us-east-1",
+  "app": {
+    "name": "inkstory",
+    "framework": "nextjs",
+    "httpPort": 3000,
+    "build": {
+      "command": "bun run build"
+    }
+  }
+}
