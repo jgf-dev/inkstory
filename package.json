@@ -11,8 +11,8 @@
     "format:check": "prettier --check \"**/*.{ts,tsx,md,json,css}\"",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "db:generate": "prisma generate",
-    "db:migrate": "prisma migrate dev",
-    "db:push": "prisma db push",
+    "db:migrate": "prisma migrate dev --url $(dotenv -e .env.local -e .env -p DIRECT_URL)",
+    "db:push": "prisma db push --url $(dotenv -e .env.local -e .env -p DIRECT_URL)",
     "db:studio": "prisma studio",
     "db:seed": "tsx prisma/seed.ts"
   },
@@ -33,6 +33,7 @@
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "autoprefixer": "^10.4.20",
+    "dotenv-cli": "^11.0.0",
     "eslint": "^9.14.0",
     "eslint-config-next": "15.5.23",
     "postcss": "^8.4.49",
