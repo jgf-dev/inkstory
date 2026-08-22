@@ -4,6 +4,21 @@ All notable changes to InkStory are tracked here. This file follows [Keep a Chan
 
 ## [Unreleased]
 
+## [PR-42](https://github.com/jgf-dev/inkstory/pull/42) - 2026-08-22
+
+### Summary
+
+Fixed failing Prisma Compute Deploy check by regenerating and syncing `package-lock.json` with updated Prisma 7 dependencies and formatted settings.
+
+### Added
+
+### Removed
+
+### Fixed
+
+- Re-synchronized `package-lock.json` so that `npm ci` succeeds during Prisma Compute deployment without missing dependency errors
+- Formatted `.vscode/settings.json` with Prettier
+
 ## [8b2c604](https://github.com/jgf-dev/inkstory/commit/8b2c604) - 2026-08-10
 
 ### Summary
