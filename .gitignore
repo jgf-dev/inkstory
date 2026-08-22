@@ -1,7 +1,10 @@
 node_modules
 .next
+# Environment files
 .env
 .env*.local
+.env.*.local
+!.env.example
 *.log
 .DS_Store
 .vercel
@@ -25,5 +28,4 @@ next-env.d.ts
 .roo
 .trae
 .windsurf
-.env*
 .prisma/

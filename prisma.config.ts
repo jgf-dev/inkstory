@@ -12,9 +12,9 @@ config({ path: ".env", override: false });
 export default defineConfig({
   schema: "prisma/schema.prisma",
   datasource: {
-    // Transaction pooler (port 6543) — for app runtime via PrismaClient adapter.
-    // CLI commands that need DDL (migrate, db push) override this via --url $DIRECT_URL.
-    url: process.env.DATABASE_URL as string,
+    // CLI operations (migrate, push) require direct connection/session pooler (DDL support).
+    // Runtime PrismaClient in src/lib/prisma.ts uses DATABASE_URL (transaction pooler).
+    url: (process.env.DIRECT_URL ?? process.env.DATABASE_URL) as string,
   },
   migrations: {
     seed: "tsx prisma/seed.ts",
