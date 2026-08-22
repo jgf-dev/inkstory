@@ -16,9 +16,10 @@ generator client {
 }
 
 datasource db {
-  // Supabase Postgres connection. Override with DIRECT_URL for migrations if needed.
+  // Supabase Postgres connection.
+  // URL is declared in prisma.config.ts (required by Prisma 7).
+  // See: https://pris.ly/d/config-datasource
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 // ─── Enums ────────────────────────────────────────────────────────────────────
