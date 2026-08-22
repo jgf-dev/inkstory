@@ -1,7 +1,10 @@
 node_modules
 .next
+# Environment files
 .env
 .env*.local
+.env.*.local
+!.env.example
 *.log
 .DS_Store
 .vercel
@@ -10,3 +13,19 @@ dist
 coverage
 next-env.d.ts
 *.tsbuildinfo
+
+# InsForge & AI agent skills
+.insforge
+.agent
+.agents
+.augment
+.claude
+.cline
+.github/copilot*
+.kilocode
+.qoder
+.qwen
+.roo
+.trae
+.windsurf
+.prisma/

@@ -1,13 +1,29 @@
 /**
  * Seed script — creates a demo user, series, novel, act, chapter, scene.
- * Run with: npm run db:seed
+ * Run with: bun db:seed
  *
  * The seed user is `seed@inkstory.local` (no password — for local dev only).
  * Sign up a real account via the app instead.
  */
+
+// tsx runs this directly (not via prisma.config.ts), so we load env manually.
+import { config } from "dotenv";
+config({ path: ".env.local", override: false });
+config({ path: ".env", override: false });
+
+import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
 
-const prisma = new PrismaClient();
+// Use DIRECT_URL (session pooler, port 5432) for seeding.
+// SESSION pooler supports DDL + prepared statements; TRANSACTION pooler (port 6543) does not.
+// Fall back to DATABASE_URL if DIRECT_URL is not set.
+const adapter = new PrismaPg({
+  connectionString: process.env.DIRECT_URL ?? process.env.DATABASE_URL,
+});
+const prisma = new PrismaClient({
+  adapter,
+  log: process.env.NODE_ENV === "development" ? ["info", "query", "error", "warn"] : ["error"],
+});
 
 async function main() {
   // Use a stable seed user id; Supabase auth sync creates the row at first login

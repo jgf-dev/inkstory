@@ -1,0 +1,6 @@
+{
+	"sonarlint.connectedMode.project": {
+		"connectionId": "jgf-dev",
+		"projectKey": "jgf-dev_inkstory"
+	}
+}
