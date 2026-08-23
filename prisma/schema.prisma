@@ -1,15 +1,14 @@
-// InkStory Prisma schema — Epic 0 (Foundation)
+// InkStory Prisma schema — Epic 0 (Foundation) & Epic 1 (Codex)
 // See Linear project: https://linear.app/jgfdev/project/novel-writing-app-3c3f658f0d44
 //
-// This schema covers the STO-1150 acceptance criteria:
-//   - User, Series, Novel, Act, Chapter, Scene models
-//   - Hierarchical structure (Series → Novel → Act → Chapter → Scene)
+// This schema covers:
+//   - STO-1150 (Core Database Schema): User, Series, Novel, Act, Chapter, Scene
+//   - STO-1167 (Codex Database Schema): CodexEntry, CodexAlias, CodexTag, CodexRelation, CodexProgression
+//   - Hierarchical story structure (Series → Novel → Act → Chapter → Scene)
 //   - Soft deletes + timestamps on all entities
 //   - POV / tense / content fields on Scene
 //   - Orderable positioning (drag-and-drop ready via `position`)
-//
-// Codex tables (CodexEntry, CodexAlias, CodexTag, CodexRelation, CodexProgression)
-// are intentionally NOT included here — they ship in Epic 1 (STO-1167).
+//   - Full Codex story bible models with aliases, tags, graph relations, and scene progressions
 
 generator client {
   provider = "prisma-client-js"
@@ -37,22 +36,44 @@ enum Tense {
   FUTURE
 }
 
+enum CodexType {
+  CHARACTER
+  LOCATION
+  ITEM
+  LORE
+  FACTION
+  CONCEPT
+  OTHER
+}
+
+enum CodexTrackingMode {
+  ALWAYS
+  DETECTED
+  NEVER
+}
+
+enum ProgressionMode {
+  ADDITION
+  REPLACEMENT
+}
+
 // ─── User ────────────────────────────────────────────────────────────────────
 //
 // Synced 1:1 from Supabase auth.users (see src/lib/supabase/auth.ts onAuthUser).
 // We don't duplicate auth state — Supabase owns passwords, sessions, OAuth.
 
 model User {
-  id        String   @id // Supabase auth user id (uuid)
-  email     String   @unique
+  id        String    @id // Supabase auth user id (uuid)
+  email     String    @unique
   name      String?
-  avatarUrl String?  @map("avatar_url")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  avatarUrl String?   @map("avatar_url")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
   deletedAt DateTime? @map("deleted_at")
 
-  series  Series[]
-  novels  Novel[]
+  series       Series[]
+  novels       Novel[]
+  codexEntries CodexEntry[]
 
   @@index([deletedAt])
   @@map("users")
@@ -64,18 +85,19 @@ model User {
 // are shared across books — that feature ships in Epic 5 (STO-1164).
 
 model Series {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   title       String
   description String?
-  position    Int      @default(0)
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  position    Int       @default(0)
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
   deletedAt   DateTime? @map("deleted_at")
 
   ownerId String @map("owner_id")
   owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
 
-  novels Novel[]
+  novels       Novel[]
+  codexEntries CodexEntry[]
 
   @@index([ownerId, deletedAt])
   @@index([ownerId, position])
@@ -85,13 +107,13 @@ model Series {
 // ─── Novel ───────────────────────────────────────────────────────────────────
 
 model Novel {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   title       String
   subtitle    String?
   description String?
-  position    Int      @default(0)
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  position    Int       @default(0)
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
   deletedAt   DateTime? @map("deleted_at")
 
   ownerId String @map("owner_id")
@@ -101,7 +123,8 @@ model Novel {
   seriesId String? @map("series_id")
   series   Series? @relation(fields: [seriesId], references: [id], onDelete: SetNull)
 
-  acts Act[]
+  acts         Act[]
+  codexEntries CodexEntry[]
 
   @@index([ownerId, deletedAt])
   @@index([seriesId])
@@ -112,11 +135,11 @@ model Novel {
 // ─── Act ─────────────────────────────────────────────────────────────────────
 
 model Act {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   title     String
-  position  Int      @default(0)
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  position  Int       @default(0)
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
   deletedAt DateTime? @map("deleted_at")
 
   novelId String @map("novel_id")
@@ -132,11 +155,11 @@ model Act {
 // ─── Chapter ─────────────────────────────────────────────────────────────────
 
 model Chapter {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   title     String
-  position  Int      @default(0)
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  position  Int       @default(0)
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
   deletedAt DateTime? @map("deleted_at")
 
   actId String @map("act_id")
@@ -155,25 +178,162 @@ model Chapter {
 // editor + revision history land in Epic 3 (STO-1156) and Epic 6 (STO-1165).
 
 model Scene {
-  id          String   @id @default(cuid())
-  title       String
-  label       String?  // short tag (e.g. "Battle", "Reveal")
-  subtitle    String?
-  content     String   @default("") @db.Text
-  summary     String?  @db.Text
-  pov         Pov      @default(THIRD_LIMITED)
-  tense       Tense    @default(PAST)
-  position    Int      @default(0)
-  excludeFromAi Boolean @default(false) @map("exclude_from_ai")
-  wordCount   Int      @default(0) @map("word_count")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
-  deletedAt   DateTime? @map("deleted_at")
+  id            String    @id @default(cuid())
+  title         String
+  label         String?   // short tag (e.g. "Battle", "Reveal")
+  subtitle      String?
+  content       String    @default("") @db.Text
+  summary       String?   @db.Text
+  pov           Pov       @default(THIRD_LIMITED)
+  tense         Tense     @default(PAST)
+  position      Int       @default(0)
+  excludeFromAi Boolean   @default(false) @map("exclude_from_ai")
+  wordCount     Int       @default(0) @map("word_count")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+  deletedAt     DateTime? @map("deleted_at")
 
   chapterId String  @map("chapter_id")
   chapter   Chapter @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+
+  progressions CodexProgression[]
 
   @@index([chapterId, deletedAt])
   @@index([chapterId, position])
   @@map("scenes")
 }
+
+// ─── Codex Entry ─────────────────────────────────────────────────────────────
+//
+// The core building block of the story bible (Character, Location, Item, etc.).
+// Entries can be scoped to a specific novel or shared across an entire series.
+
+model CodexEntry {
+  id           String            @id @default(cuid())
+  name         String
+  type         CodexType         @default(CHARACTER)
+  description  String            @default("") @db.Text
+  notes        String?           @db.Text
+  trackingMode CodexTrackingMode @default(DETECTED) @map("tracking_mode")
+  seriesScoped Boolean           @default(false) @map("series_scoped")
+  customFields Json?             @map("custom_fields")
+  color        String?
+  thumbnailUrl String?           @map("thumbnail_url")
+  position     Int               @default(0)
+  createdAt    DateTime          @default(now()) @map("created_at")
+  updatedAt    DateTime          @updatedAt @map("updated_at")
+  deletedAt    DateTime?         @map("deleted_at")
+
+  ownerId String @map("owner_id")
+  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  novelId String? @map("novel_id")
+  novel   Novel?  @relation(fields: [novelId], references: [id], onDelete: Cascade)
+
+  seriesId String? @map("series_id")
+  series   Series? @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+
+  aliases         CodexAlias[]
+  tags            CodexTag[]
+  sourceRelations CodexRelation[]    @relation("SourceRelations")
+  targetRelations CodexRelation[]    @relation("TargetRelations")
+  progressions    CodexProgression[]
+
+  @@index([ownerId, deletedAt])
+  @@index([novelId, deletedAt])
+  @@index([seriesId, deletedAt])
+  @@index([type])
+  @@index([trackingMode])
+  @@map("codex_entries")
+}
+
+// ─── Codex Alias ─────────────────────────────────────────────────────────────
+//
+// Alternative names / monikers for mention detection (e.g. "The White Wolf").
+
+model CodexAlias {
+  id        String    @id @default(cuid())
+  name      String
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  entryId String     @map("entry_id")
+  entry   CodexEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+
+  @@index([entryId, deletedAt])
+  @@index([name])
+  @@map("codex_aliases")
+}
+
+// ─── Codex Tag ───────────────────────────────────────────────────────────────
+//
+// Category / thematic labels attached to codex entries (e.g. "Protagonist", "Nobility").
+
+model CodexTag {
+  id        String    @id @default(cuid())
+  name      String
+  color     String?
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  entryId String     @map("entry_id")
+  entry   CodexEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+
+  @@index([entryId, deletedAt])
+  @@index([name])
+  @@map("codex_tags")
+}
+
+// ─── Codex Relation ──────────────────────────────────────────────────────────
+//
+// Directed graph relationship between two codex entries (e.g. Alice -> SIBLING -> Bob).
+
+model CodexRelation {
+  id           String    @id @default(cuid())
+  relationType String    @map("relation_type")
+  reverseType  String?   @map("reverse_type")
+  description  String?   @db.Text
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  deletedAt    DateTime? @map("deleted_at")
+
+  sourceEntryId String     @map("source_entry_id")
+  sourceEntry   CodexEntry @relation("SourceRelations", fields: [sourceEntryId], references: [id], onDelete: Cascade)
+
+  targetEntryId String     @map("target_entry_id")
+  targetEntry   CodexEntry @relation("TargetRelations", fields: [targetEntryId], references: [id], onDelete: Cascade)
+
+  @@index([sourceEntryId, deletedAt])
+  @@index([targetEntryId, deletedAt])
+  @@index([relationType])
+  @@map("codex_relations")
+}
+
+// ─── Codex Progression ───────────────────────────────────────────────────────
+//
+// Scene-linked temporal evolution of a Codex entry (addition or replacement of state).
+
+model CodexProgression {
+  id          String          @id @default(cuid())
+  mode        ProgressionMode @default(ADDITION)
+  description String          @db.Text
+  notes       String?         @db.Text
+  position    Int             @default(0)
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
+  deletedAt   DateTime?       @map("deleted_at")
+
+  entryId String     @map("entry_id")
+  entry   CodexEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+
+  sceneId String @map("scene_id")
+  scene   Scene  @relation(fields: [sceneId], references: [id], onDelete: Cascade)
+
+  @@index([entryId, deletedAt])
+  @@index([sceneId, deletedAt])
+  @@index([sceneId, position])
+  @@map("codex_progressions")
+}
+

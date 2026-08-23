@@ -16,13 +16,14 @@ This is **Epic 0 — Project Foundation** ([Linear project](https://linear.app/j
 | Styling   | Tailwind CSS                          | Utility-first, dark-mode friendly                |
 | Hosting   | Vercel                                | Native Next.js support, free tier                |
 
-## Acceptance criteria covered (Epic 0)
+## Acceptance criteria covered
 
 - [x] App boots successfully (`npm run dev`)
 - [x] User can sign up and log in (Supabase email + password)
 - [x] Empty dashboard renders after login
-- [x] Core tables exist: `User`, `Series`, `Novel`, `Act`, `Chapter`, `Scene`
-- [x] Can create a Novel with hierarchical structure via seed script (`npm run db:seed`)
+- [x] Core tables exist: `User`, `Series`, `Novel`, `Act`, `Chapter`, `Scene` (STO-1150)
+- [x] Codex tables exist: `CodexEntry`, `CodexAlias`, `CodexTag`, `CodexRelation`, `CodexProgression` (STO-1167)
+- [x] Can create a Novel with hierarchical structure and Codex entries via seed script (`npm run db:seed`)
 
 ## Local setup
 
@@ -98,4 +99,10 @@ prisma/
 
 ## What's next (Epic 1)
 
-Codex data model (`CodexEntry`, `CodexAlias`, `CodexTag`, `CodexRelation`, `CodexProgression`) ships in [STO-1167](https://linear.app/jgfdev/issue/STO-1167).
+- [x] Codex database schema & models ([STO-1167](https://linear.app/jgfdev/issue/STO-1167))
+- [ ] Codex CRUD API & Server Actions ([STO-1168](https://linear.app/jgfdev/issue/STO-1168))
+- [ ] Basic Codex UI List + Editor ([STO-1169](https://linear.app/jgfdev/issue/STO-1169))
+- [ ] Mention Detection Service ([STO-1152](https://linear.app/jgfdev/issue/STO-1152))
+- [ ] Relations Graph Engine ([STO-1154](https://linear.app/jgfdev/issue/STO-1154))
+- [ ] Temporal Progressions ([STO-1153](https://linear.app/jgfdev/issue/STO-1153))
+- [ ] Context Assembler ([STO-1170](https://linear.app/jgfdev/issue/STO-1170) / [STO-1171](https://linear.app/jgfdev/issue/STO-1171))

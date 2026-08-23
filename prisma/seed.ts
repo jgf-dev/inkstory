@@ -87,7 +87,7 @@ async function main() {
     },
   });
 
-  await prisma.scene.upsert({
+  const scene = await prisma.scene.upsert({
     where: { id: "seed-scene-1" },
     update: {},
     create: {
@@ -96,14 +96,201 @@ async function main() {
       title: "A Quiet Morning",
       label: "Opening",
       content:
-        "The rain had been falling since before dawn. By the time Mara opened her eyes, the city already sounded like it was drowning.",
+        "The rain had been falling since before dawn. By the time Mara opened her eyes, the city already sounded like it was drowning. She reached for the Glass Weaver's Quill on her nightstand, feeling the hum of Master Corvus's wards echoing from the Sunken Archives.",
       summary: "Protagonist wakes to a storm that foreshadows the larger conflict.",
       position: 0,
-      wordCount: 26,
+      wordCount: 52,
     },
   });
 
-  console.log("✅ Seeded:", { user: user.email, novel: novel.title });
+  // ─── Epic 1: Codex Entities (STO-1167) ─────────────────────────────────────
+
+  const maraEntry = await prisma.codexEntry.upsert({
+    where: { id: "seed-codex-mara" },
+    update: {},
+    create: {
+      id: "seed-codex-mara",
+      ownerId: user.id,
+      novelId: novel.id,
+      name: "Mara Vance",
+      type: "CHARACTER",
+      description: "A young archivist possessing the forbidden art of glass weaving.",
+      notes: "Central protagonist. Secretly apprenticed to Master Corvus.",
+      trackingMode: "ALWAYS",
+      seriesScoped: false,
+      color: "#3b82f6",
+      customFields: {
+        age: 21,
+        element: "Glass / Light",
+      },
+    },
+  });
+
+  await prisma.codexAlias.upsert({
+    where: { id: "seed-alias-mara-1" },
+    update: {},
+    create: {
+      id: "seed-alias-mara-1",
+      entryId: maraEntry.id,
+      name: "The Glass Weaver",
+    },
+  });
+
+  await prisma.codexTag.upsert({
+    where: { id: "seed-tag-mara-1" },
+    update: {},
+    create: {
+      id: "seed-tag-mara-1",
+      entryId: maraEntry.id,
+      name: "Protagonist",
+      color: "#3b82f6",
+    },
+  });
+
+  const corvusEntry = await prisma.codexEntry.upsert({
+    where: { id: "seed-codex-corvus" },
+    update: {},
+    create: {
+      id: "seed-codex-corvus",
+      ownerId: user.id,
+      novelId: novel.id,
+      name: "Master Corvus",
+      type: "CHARACTER",
+      description: "Senior keeper of the Sunken Archives and Mara's clandestine mentor.",
+      notes: "Speaks in riddles; harbors secrets regarding the Great Fracture.",
+      trackingMode: "DETECTED",
+      seriesScoped: false,
+      color: "#8b5cf6",
+    },
+  });
+
+  await prisma.codexAlias.upsert({
+    where: { id: "seed-alias-corvus-1" },
+    update: {},
+    create: {
+      id: "seed-alias-corvus-1",
+      entryId: corvusEntry.id,
+      name: "The Raven Keeper",
+    },
+  });
+
+  const archivesEntry = await prisma.codexEntry.upsert({
+    where: { id: "seed-codex-archives" },
+    update: {},
+    create: {
+      id: "seed-codex-archives",
+      ownerId: user.id,
+      novelId: novel.id,
+      name: "The Sunken Archives",
+      type: "LOCATION",
+      description: "Subterranean repository of forbidden knowledge beneath the drowned city.",
+      notes: "Protected by ancient elemental wards.",
+      trackingMode: "DETECTED",
+      seriesScoped: false,
+      color: "#10b981",
+    },
+  });
+
+  const quillEntry = await prisma.codexEntry.upsert({
+    where: { id: "seed-codex-quill" },
+    update: {},
+    create: {
+      id: "seed-codex-quill",
+      ownerId: user.id,
+      novelId: novel.id,
+      name: "Glass Weaver's Quill",
+      type: "ITEM",
+      description: "An iridescent stylus capable of etching light onto raw glass.",
+      notes: "Heritage artifact passed down from the First Order.",
+      trackingMode: "DETECTED",
+      seriesScoped: false,
+      color: "#f59e0b",
+    },
+  });
+
+  const fractureEntry = await prisma.codexEntry.upsert({
+    where: { id: "seed-codex-fracture" },
+    update: {},
+    create: {
+      id: "seed-codex-fracture",
+      ownerId: user.id,
+      seriesId: series.id,
+      name: "The Great Fracture",
+      type: "LORE",
+      description: "The cataclysmic event three centuries ago that sundered the continent.",
+      notes: "Universal lore across all books in the Inkwell Chronicles.",
+      trackingMode: "DETECTED",
+      seriesScoped: true,
+      color: "#ef4444",
+    },
+  });
+
+  // Relations
+  await prisma.codexRelation.upsert({
+    where: { id: "seed-rel-mara-corvus" },
+    update: {},
+    create: {
+      id: "seed-rel-mara-corvus",
+      sourceEntryId: maraEntry.id,
+      targetEntryId: corvusEntry.id,
+      relationType: "APPRENTICE_OF",
+      reverseType: "MENTOR_TO",
+      description: "Corvus teaches Mara the forbidden arts in secret.",
+    },
+  });
+
+  await prisma.codexRelation.upsert({
+    where: { id: "seed-rel-corvus-archives" },
+    update: {},
+    create: {
+      id: "seed-rel-corvus-archives",
+      sourceEntryId: corvusEntry.id,
+      targetEntryId: archivesEntry.id,
+      relationType: "KEEPER_OF",
+      reverseType: "GUARDED_BY",
+      description: "Corvus maintains and guards the Sunken Archives.",
+    },
+  });
+
+  await prisma.codexRelation.upsert({
+    where: { id: "seed-rel-mara-quill" },
+    update: {},
+    create: {
+      id: "seed-rel-mara-quill",
+      sourceEntryId: maraEntry.id,
+      targetEntryId: quillEntry.id,
+      relationType: "OWNS",
+      reverseType: "WIELDED_BY",
+      description: "Mara inherited the quill from her mother.",
+    },
+  });
+
+  // Progression
+  await prisma.codexProgression.upsert({
+    where: { id: "seed-prog-mara-scene-1" },
+    update: {},
+    create: {
+      id: "seed-prog-mara-scene-1",
+      entryId: maraEntry.id,
+      sceneId: scene.id,
+      mode: "ADDITION",
+      description: "Noticed an unusual vibration from the quill coinciding with the storm.",
+      notes: "Initial trigger for Mara's quest.",
+      position: 0,
+    },
+  });
+
+  console.log("✅ Seeded:", {
+    user: user.email,
+    novel: novel.title,
+    codexEntries: [
+      maraEntry.name,
+      corvusEntry.name,
+      archivesEntry.name,
+      quillEntry.name,
+      fractureEntry.name,
+    ],
+  });
 }
 
 main()

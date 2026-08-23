@@ -4,6 +4,21 @@ All notable changes to InkStory are tracked here. This file follows [Keep a Chan
 
 ## [Unreleased]
 
+### Summary
+
+Implemented the complete database schema for the Codex system (Epic 1 / [STO-1167](https://linear.app/jgfdev/issue/STO-1167)), introducing entities for story bible entries, aliases, tags, directed graph relations, and scene-linked temporal progressions.
+
+### Added
+
+- Prisma models:
+  - `CodexEntry`: story bible entities (Character, Location, Item, Lore, Faction, Concept, Other) supporting book vs. series scoping, tracking modes (`ALWAYS`, `DETECTED`, `NEVER`), custom JSON fields, colors, and thumbnails.
+  - `CodexAlias`: entity aliases and monikers for mention detection.
+  - `CodexTag`: tag categorization.
+  - `CodexRelation`: directed graph relationships with labels/reverse labels and cycle prevention support.
+  - `CodexProgression`: temporal narrative state evolutions linked to specific scenes with addition/replacement modes.
+- Enums: `CodexType`, `CodexTrackingMode`, `ProgressionMode`.
+- Extended seed script (`prisma/seed.ts`) with rich demo Codex fixtures (Mara Vance, Master Corvus, Sunken Archives, Glass Weaver's Quill, The Great Fracture lore, relations, and scene progression).
+
 ## [PR-42](https://github.com/jgf-dev/inkstory/pull/42) - 2026-08-22
 
 ### Summary
