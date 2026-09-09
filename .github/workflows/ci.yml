@@ -37,6 +37,10 @@ jobs:
         env:
           DATABASE_URL: "postgresql://placeholder@localhost:5432/placeholder"
 
+      # prisma contract emit writes single-quoted TS/JSON; vp fmt expects double quotes.
+      - name: Format generated Prisma contract
+        run: npx vp fmt prisma/contract.d.ts prisma/contract.json
+
       - run: npm run lint
       - run: npm run typecheck
       - run: npm run format:check
