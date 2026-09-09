@@ -2,7 +2,5 @@
   "sonarlint.connectedMode.project": {
     "connectionId": "jgf-dev",
     "projectKey": "jgf-dev_inkstory"
-  },
-  "WillLuke.nextjs.addTypesOnSave": true,
-  "WillLuke.nextjs.hasPrompted": true
+  }
 }
