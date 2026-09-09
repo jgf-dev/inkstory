@@ -4,6 +4,26 @@ All notable changes to InkStory are tracked here. This file follows [Keep a Chan
 
 ## [Unreleased]
 
+### Summary
+
+Implemented the complete database schema for the Codex system (Epic 1 / [STO-1167](https://linear.app/jgfdev/issue/STO-1167)), introducing entities for story bible entries, aliases, tags, directed graph relations, and scene-linked temporal progressions.
+
+### Added
+
+- Prisma models:
+  - `CodexEntry`: story bible entities (Character, Location, Item, Lore, Faction, Concept, Other) supporting book vs. series scoping, tracking modes (`ALWAYS`, `DETECTED`, `NEVER`), custom JSON fields, colors, and thumbnails.
+  - `CodexAlias`: entity aliases and monikers for mention detection.
+  - `CodexTag`: per-entry category labels (not a shared vocabulary + join; shared tag picker can come later if CRUD needs it).
+  - `CodexRelation`: directed graph relationships with labels/reverse labels (cycle prevention is out of scope here; tracked separately, e.g. STO-1154).
+  - `CodexProgression`: temporal narrative state evolutions linked to specific scenes with addition/replacement modes.
+- Enums: `CodexType`, `CodexTrackingMode`, `ProgressionMode`.
+- Extended seed script (`prisma/seed.ts`) with rich demo Codex fixtures (Mara Vance, Master Corvus, Sunken Archives, Glass Weaver's Quill, The Great Fracture lore, relations, and scene progression).
+
+### Notes
+
+- Prisma Compute Deploy is the source of truth for applying this schema in the Prisma-managed environment. Authz for child Codex rows is join-to-entry / Prisma service role; RLS policies are intentionally deferred.
+- Novel XOR series (+ `seriesScoped` alignment), soft-delete-safe partial unique indexes, and self-relation CHECKs are parked for STO-1168 rather than half-enforced in this PR.
+
 ## [PR-42](https://github.com/jgf-dev/inkstory/pull/42) - 2026-08-22
 
 ### Summary

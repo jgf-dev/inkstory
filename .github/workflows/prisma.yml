@@ -1,0 +1,28 @@
+name: Deploy
+on:
+  push:
+    paths:
+      - prisma/migrations/**
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+      - name: Apply all pending migrations to the database
+        run: ./node_modules/.bin/prisma migrate deploy
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
