@@ -105,4 +105,4 @@ Migrated to Prisma 7 config format to fix `P1012` validation error (`url` proper
 ### Notes
 
 - Codex tables (CodexEntry, CodexAlias, CodexTag, CodexRelation, CodexProgression) intentionally NOT included; they ship in Epic 1 (STO-1167).
-- `npm audit` reports 3 transitive high-security advisories (PostCSS / sharp via Next 15). Fixing requires bumping to Next 16 (breaking); tracked as a follow-up.
+- `npm audit` reports 3 transitive high-severity advisories (PostCSS / sharp via Next 15). Fixing requires bumping to Next 16 (breaking); tracked as a follow-up.
