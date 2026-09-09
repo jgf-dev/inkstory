@@ -118,8 +118,12 @@
               "chapters": {
                 "cardinality": "1:N",
                 "on": {
-                  "localFields": ["id"],
-                  "targetFields": ["actId"]
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "actId"
+                  ]
                 },
                 "to": {
                   "model": "Chapter",
@@ -129,8 +133,12 @@
               "novel": {
                 "cardinality": "N:1",
                 "on": {
-                  "localFields": ["novelId"],
-                  "targetFields": ["id"]
+                  "localFields": [
+                    "novelId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
                 },
                 "to": {
                   "model": "Novel",
@@ -231,8 +239,12 @@
               "act": {
                 "cardinality": "N:1",
                 "on": {
-                  "localFields": ["actId"],
-                  "targetFields": ["id"]
+                  "localFields": [
+                    "actId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
                 },
                 "to": {
                   "model": "Act",
@@ -242,8 +254,12 @@
               "scenes": {
                 "cardinality": "1:N",
                 "on": {
-                  "localFields": ["id"],
-                  "targetFields": ["chapterId"]
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "chapterId"
+                  ]
                 },
                 "to": {
                   "model": "Scene",
@@ -337,8 +353,12 @@
               "entry": {
                 "cardinality": "N:1",
                 "on": {
-                  "localFields": ["entryId"],
-                  "targetFields": ["id"]
+                  "localFields": [
+                    "entryId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
                 },
                 "to": {
                   "model": "CodexEntry",
@@ -512,8 +532,12 @@
               "aliases": {
                 "cardinality": "1:N",
                 "on": {
-                  "localFields": ["id"],
-                  "targetFields": ["entryId"]
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "entryId"
+                  ]
                 },
                 "to": {
                   "model": "CodexAlias",
@@ -523,8 +547,12 @@
               "novel": {
                 "cardinality": "N:1",
                 "on": {
-                  "localFields": ["novelId"],
-                  "targetFields": ["id"]
+                  "localFields": [
+                    "novelId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
                 },
                 "to": {
                   "model": "Novel",
@@ -534,8 +562,12 @@
               "owner": {
                 "cardinality": "N:1",
                 "on": {
-                  "localFields": ["ownerId"],
-                  "targetFields": ["id"]
+                  "localFields": [
+                    "ownerId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
                 },
                 "to": {
                   "model": "User",
@@ -545,8 +577,12 @@
               "progressions": {
                 "cardinality": "1:N",
                 "on": {
-                  "localFields": ["id"],
-                  "targetFields": ["entryId"]
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "entryId"
+                  ]
                 },
                 "to": {
                   "model": "CodexProgression",
@@ -556,8 +592,12 @@
               "series": {
                 "cardinality": "N:1",
                 "on": {
-                  "localFields": ["seriesId"],
-                  "targetFields": ["id"]
+                  "localFields": [
+                    "seriesId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
                 },
                 "to": {
                   "model": "Series",
@@ -567,8 +607,12 @@
               "sourceRelations": {
                 "cardinality": "1:N",
                 "on": {
-                  "localFields": ["id"],
-                  "targetFields": ["sourceEntryId"]
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "sourceEntryId"
+                  ]
                 },
                 "to": {
                   "model": "CodexRelation",
@@ -578,8 +622,12 @@
               "tags": {
                 "cardinality": "1:N",
                 "on": {
-                  "localFields": ["id"],
-                  "targetFields": ["entryId"]
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "entryId"
+                  ]
                 },
                 "to": {
                   "model": "CodexTag",
@@ -589,8 +637,12 @@
               "targetRelations": {
                 "cardinality": "1:N",
                 "on": {
-                  "localFields": ["id"],
-                  "targetFields": ["targetEntryId"]
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "targetEntryId"
+                  ]
                 },
                 "to": {
                   "model": "CodexRelation",
@@ -745,8 +797,12 @@
               "entry": {
                 "cardinality": "N:1",
                 "on": {
-                  "localFields": ["entryId"],
-                  "targetFields": ["id"]
+                  "localFields": [
+                    "entryId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
                 },
                 "to": {
                   "model": "CodexEntry",
@@ -756,8 +812,12 @@
               "scene": {
                 "cardinality": "N:1",
                 "on": {
-                  "localFields": ["sceneId"],
-                  "targetFields": ["id"]
+                  "localFields": [
+                    "sceneId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
                 },
                 "to": {
                   "model": "Scene",
@@ -881,8 +941,12 @@
               "sourceEntry": {
                 "cardinality": "N:1",
                 "on": {
-                  "localFields": ["sourceEntryId"],
-                  "targetFields": ["id"]
+                  "localFields": [
+                    "sourceEntryId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
                 },
                 "to": {
                   "model": "CodexEntry",
@@ -892,8 +956,12 @@
               "targetEntry": {
                 "cardinality": "N:1",
                 "on": {
-                  "localFields": ["targetEntryId"],
-                  "targetFields": ["id"]
+                  "localFields": [
+                    "targetEntryId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
                 },
                 "to": {
                   "model": "CodexEntry",
@@ -1000,8 +1068,12 @@
               "entry": {
                 "cardinality": "N:1",
                 "on": {
-                  "localFields": ["entryId"],
-                  "targetFields": ["id"]
+                  "localFields": [
+                    "entryId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
                 },
                 "to": {
                   "model": "CodexEntry",
@@ -1123,8 +1195,12 @@
               "acts": {
                 "cardinality": "1:N",
                 "on": {
-                  "localFields": ["id"],
-                  "targetFields": ["novelId"]
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "novelId"
+                  ]
                 },
                 "to": {
                   "model": "Act",
@@ -1134,8 +1210,12 @@
               "codexEntries": {
                 "cardinality": "1:N",
                 "on": {
-                  "localFields": ["id"],
-                  "targetFields": ["novelId"]
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "novelId"
+                  ]
                 },
                 "to": {
                   "model": "CodexEntry",
@@ -1145,8 +1225,12 @@
               "owner": {
                 "cardinality": "N:1",
                 "on": {
-                  "localFields": ["ownerId"],
-                  "targetFields": ["id"]
+                  "localFields": [
+                    "ownerId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
                 },
                 "to": {
                   "model": "User",
@@ -1156,8 +1240,12 @@
               "series": {
                 "cardinality": "N:1",
                 "on": {
-                  "localFields": ["seriesId"],
-                  "targetFields": ["id"]
+                  "localFields": [
+                    "seriesId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
                 },
                 "to": {
                   "model": "Series",
@@ -1329,8 +1417,12 @@
               "chapter": {
                 "cardinality": "N:1",
                 "on": {
-                  "localFields": ["chapterId"],
-                  "targetFields": ["id"]
+                  "localFields": [
+                    "chapterId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
                 },
                 "to": {
                   "model": "Chapter",
@@ -1340,8 +1432,12 @@
               "codexProgressions": {
                 "cardinality": "1:N",
                 "on": {
-                  "localFields": ["id"],
-                  "targetFields": ["sceneId"]
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "sceneId"
+                  ]
                 },
                 "to": {
                   "model": "CodexProgression",
@@ -1473,8 +1569,12 @@
               "codexEntries": {
                 "cardinality": "1:N",
                 "on": {
-                  "localFields": ["id"],
-                  "targetFields": ["seriesId"]
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "seriesId"
+                  ]
                 },
                 "to": {
                   "model": "CodexEntry",
@@ -1484,8 +1584,12 @@
               "novels": {
                 "cardinality": "1:N",
                 "on": {
-                  "localFields": ["id"],
-                  "targetFields": ["seriesId"]
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "seriesId"
+                  ]
                 },
                 "to": {
                   "model": "Novel",
@@ -1495,8 +1599,12 @@
               "owner": {
                 "cardinality": "N:1",
                 "on": {
-                  "localFields": ["ownerId"],
-                  "targetFields": ["id"]
+                  "localFields": [
+                    "ownerId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
                 },
                 "to": {
                   "model": "User",
@@ -1600,8 +1708,12 @@
               "codexEntries": {
                 "cardinality": "1:N",
                 "on": {
-                  "localFields": ["id"],
-                  "targetFields": ["ownerId"]
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "ownerId"
+                  ]
                 },
                 "to": {
                   "model": "CodexEntry",
@@ -1611,8 +1723,12 @@
               "novels": {
                 "cardinality": "1:N",
                 "on": {
-                  "localFields": ["id"],
-                  "targetFields": ["ownerId"]
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "ownerId"
+                  ]
                 },
                 "to": {
                   "model": "Novel",
@@ -1622,8 +1738,12 @@
               "series": {
                 "cardinality": "1:N",
                 "on": {
-                  "localFields": ["id"],
-                  "targetFields": ["ownerId"]
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "ownerId"
+                  ]
                 },
                 "to": {
                   "model": "Series",
@@ -1670,27 +1790,51 @@
           "native_enum": {
             "CodexTrackingMode": {
               "kind": "postgres-enum",
-              "members": ["ALWAYS", "DETECTED", "NEVER"],
+              "members": [
+                "ALWAYS",
+                "DETECTED",
+                "NEVER"
+              ],
               "typeName": "CodexTrackingMode"
             },
             "CodexType": {
               "kind": "postgres-enum",
-              "members": ["CHARACTER", "LOCATION", "ITEM", "LORE", "FACTION", "CONCEPT", "OTHER"],
+              "members": [
+                "CHARACTER",
+                "LOCATION",
+                "ITEM",
+                "LORE",
+                "FACTION",
+                "CONCEPT",
+                "OTHER"
+              ],
               "typeName": "CodexType"
             },
             "Pov": {
               "kind": "postgres-enum",
-              "members": ["FIRST", "SECOND", "THIRD_LIMITED", "THIRD_OMNISCIENT"],
+              "members": [
+                "FIRST",
+                "SECOND",
+                "THIRD_LIMITED",
+                "THIRD_OMNISCIENT"
+              ],
               "typeName": "Pov"
             },
             "ProgressionMode": {
               "kind": "postgres-enum",
-              "members": ["ADDITION", "REPLACEMENT"],
+              "members": [
+                "ADDITION",
+                "REPLACEMENT"
+              ],
               "typeName": "ProgressionMode"
             },
             "Tense": {
               "kind": "postgres-enum",
-              "members": ["PAST", "PRESENT", "FUTURE"],
+              "members": [
+                "PAST",
+                "PRESENT",
+                "FUTURE"
+              ],
               "typeName": "Tense"
             }
           },
@@ -1756,12 +1900,16 @@
                   "onDelete": "cascade",
                   "onUpdate": "cascade",
                   "source": {
-                    "columns": ["novel_id"],
+                    "columns": [
+                      "novel_id"
+                    ],
                     "namespaceId": "public",
                     "tableName": "acts"
                   },
                   "target": {
-                    "columns": ["id"],
+                    "columns": [
+                      "id"
+                    ],
                     "namespaceId": "public",
                     "tableName": "novels"
                   }
@@ -1769,18 +1917,26 @@
               ],
               "indexes": [
                 {
-                  "columns": ["novel_id", "deleted_at"],
+                  "columns": [
+                    "novel_id",
+                    "deleted_at"
+                  ],
                   "name": "acts_novel_id_deleted_at_idx",
                   "unique": false
                 },
                 {
-                  "columns": ["novel_id", "position"],
+                  "columns": [
+                    "novel_id",
+                    "position"
+                  ],
                   "name": "acts_novel_id_position_idx",
                   "unique": false
                 }
               ],
               "primaryKey": {
-                "columns": ["id"],
+                "columns": [
+                  "id"
+                ],
                 "name": "acts_pkey"
               },
               "uniques": []
@@ -1846,12 +2002,16 @@
                   "onDelete": "cascade",
                   "onUpdate": "cascade",
                   "source": {
-                    "columns": ["act_id"],
+                    "columns": [
+                      "act_id"
+                    ],
                     "namespaceId": "public",
                     "tableName": "chapters"
                   },
                   "target": {
-                    "columns": ["id"],
+                    "columns": [
+                      "id"
+                    ],
                     "namespaceId": "public",
                     "tableName": "acts"
                   }
@@ -1859,18 +2019,26 @@
               ],
               "indexes": [
                 {
-                  "columns": ["act_id", "deleted_at"],
+                  "columns": [
+                    "act_id",
+                    "deleted_at"
+                  ],
                   "name": "chapters_act_id_deleted_at_idx",
                   "unique": false
                 },
                 {
-                  "columns": ["act_id", "position"],
+                  "columns": [
+                    "act_id",
+                    "position"
+                  ],
                   "name": "chapters_act_id_position_idx",
                   "unique": false
                 }
               ],
               "primaryKey": {
-                "columns": ["id"],
+                "columns": [
+                  "id"
+                ],
                 "name": "chapters_pkey"
               },
               "uniques": []
@@ -1927,12 +2095,16 @@
                   "onDelete": "cascade",
                   "onUpdate": "cascade",
                   "source": {
-                    "columns": ["entry_id"],
+                    "columns": [
+                      "entry_id"
+                    ],
                     "namespaceId": "public",
                     "tableName": "codex_aliases"
                   },
                   "target": {
-                    "columns": ["id"],
+                    "columns": [
+                      "id"
+                    ],
                     "namespaceId": "public",
                     "tableName": "codex_entries"
                   }
@@ -1940,18 +2112,25 @@
               ],
               "indexes": [
                 {
-                  "columns": ["entry_id", "deleted_at"],
+                  "columns": [
+                    "entry_id",
+                    "deleted_at"
+                  ],
                   "name": "codex_aliases_entry_id_deleted_at_idx",
                   "unique": false
                 },
                 {
-                  "columns": ["name"],
+                  "columns": [
+                    "name"
+                  ],
                   "name": "codex_aliases_name_idx",
                   "unique": false
                 }
               ],
               "primaryKey": {
-                "columns": ["id"],
+                "columns": [
+                  "id"
+                ],
                 "name": "codex_aliases_pkey"
               },
               "uniques": []
@@ -2101,12 +2280,16 @@
                   "onDelete": "cascade",
                   "onUpdate": "cascade",
                   "source": {
-                    "columns": ["owner_id"],
+                    "columns": [
+                      "owner_id"
+                    ],
                     "namespaceId": "public",
                     "tableName": "codex_entries"
                   },
                   "target": {
-                    "columns": ["id"],
+                    "columns": [
+                      "id"
+                    ],
                     "namespaceId": "public",
                     "tableName": "users"
                   }
@@ -2116,12 +2299,16 @@
                   "onDelete": "cascade",
                   "onUpdate": "cascade",
                   "source": {
-                    "columns": ["novel_id"],
+                    "columns": [
+                      "novel_id"
+                    ],
                     "namespaceId": "public",
                     "tableName": "codex_entries"
                   },
                   "target": {
-                    "columns": ["id"],
+                    "columns": [
+                      "id"
+                    ],
                     "namespaceId": "public",
                     "tableName": "novels"
                   }
@@ -2131,12 +2318,16 @@
                   "onDelete": "cascade",
                   "onUpdate": "cascade",
                   "source": {
-                    "columns": ["series_id"],
+                    "columns": [
+                      "series_id"
+                    ],
                     "namespaceId": "public",
                     "tableName": "codex_entries"
                   },
                   "target": {
-                    "columns": ["id"],
+                    "columns": [
+                      "id"
+                    ],
                     "namespaceId": "public",
                     "tableName": "series"
                   }
@@ -2144,33 +2335,48 @@
               ],
               "indexes": [
                 {
-                  "columns": ["novel_id", "deleted_at"],
+                  "columns": [
+                    "novel_id",
+                    "deleted_at"
+                  ],
                   "name": "codex_entries_novel_id_deleted_at_idx",
                   "unique": false
                 },
                 {
-                  "columns": ["owner_id", "deleted_at"],
+                  "columns": [
+                    "owner_id",
+                    "deleted_at"
+                  ],
                   "name": "codex_entries_owner_id_deleted_at_idx",
                   "unique": false
                 },
                 {
-                  "columns": ["series_id", "deleted_at"],
+                  "columns": [
+                    "series_id",
+                    "deleted_at"
+                  ],
                   "name": "codex_entries_series_id_deleted_at_idx",
                   "unique": false
                 },
                 {
-                  "columns": ["tracking_mode"],
+                  "columns": [
+                    "tracking_mode"
+                  ],
                   "name": "codex_entries_tracking_mode_idx",
                   "unique": false
                 },
                 {
-                  "columns": ["type"],
+                  "columns": [
+                    "type"
+                  ],
                   "name": "codex_entries_type_idx",
                   "unique": false
                 }
               ],
               "primaryKey": {
-                "columns": ["id"],
+                "columns": [
+                  "id"
+                ],
                 "name": "codex_entries_pkey"
               },
               "uniques": []
@@ -2264,12 +2470,16 @@
                   "onDelete": "cascade",
                   "onUpdate": "cascade",
                   "source": {
-                    "columns": ["entry_id"],
+                    "columns": [
+                      "entry_id"
+                    ],
                     "namespaceId": "public",
                     "tableName": "codex_progressions"
                   },
                   "target": {
-                    "columns": ["id"],
+                    "columns": [
+                      "id"
+                    ],
                     "namespaceId": "public",
                     "tableName": "codex_entries"
                   }
@@ -2279,12 +2489,16 @@
                   "onDelete": "cascade",
                   "onUpdate": "cascade",
                   "source": {
-                    "columns": ["scene_id"],
+                    "columns": [
+                      "scene_id"
+                    ],
                     "namespaceId": "public",
                     "tableName": "codex_progressions"
                   },
                   "target": {
-                    "columns": ["id"],
+                    "columns": [
+                      "id"
+                    ],
                     "namespaceId": "public",
                     "tableName": "scenes"
                   }
@@ -2292,23 +2506,34 @@
               ],
               "indexes": [
                 {
-                  "columns": ["entry_id", "deleted_at"],
+                  "columns": [
+                    "entry_id",
+                    "deleted_at"
+                  ],
                   "name": "codex_progressions_entry_id_deleted_at_idx",
                   "unique": false
                 },
                 {
-                  "columns": ["scene_id", "deleted_at"],
+                  "columns": [
+                    "scene_id",
+                    "deleted_at"
+                  ],
                   "name": "codex_progressions_scene_id_deleted_at_idx",
                   "unique": false
                 },
                 {
-                  "columns": ["scene_id", "position"],
+                  "columns": [
+                    "scene_id",
+                    "position"
+                  ],
                   "name": "codex_progressions_scene_id_position_idx",
                   "unique": false
                 }
               ],
               "primaryKey": {
-                "columns": ["id"],
+                "columns": [
+                  "id"
+                ],
                 "name": "codex_progressions_pkey"
               },
               "uniques": []
@@ -2380,12 +2605,16 @@
                   "onDelete": "cascade",
                   "onUpdate": "cascade",
                   "source": {
-                    "columns": ["source_entry_id"],
+                    "columns": [
+                      "source_entry_id"
+                    ],
                     "namespaceId": "public",
                     "tableName": "codex_relations"
                   },
                   "target": {
-                    "columns": ["id"],
+                    "columns": [
+                      "id"
+                    ],
                     "namespaceId": "public",
                     "tableName": "codex_entries"
                   }
@@ -2395,12 +2624,16 @@
                   "onDelete": "cascade",
                   "onUpdate": "cascade",
                   "source": {
-                    "columns": ["target_entry_id"],
+                    "columns": [
+                      "target_entry_id"
+                    ],
                     "namespaceId": "public",
                     "tableName": "codex_relations"
                   },
                   "target": {
-                    "columns": ["id"],
+                    "columns": [
+                      "id"
+                    ],
                     "namespaceId": "public",
                     "tableName": "codex_entries"
                   }
@@ -2408,23 +2641,33 @@
               ],
               "indexes": [
                 {
-                  "columns": ["relation_type"],
+                  "columns": [
+                    "relation_type"
+                  ],
                   "name": "codex_relations_relation_type_idx",
                   "unique": false
                 },
                 {
-                  "columns": ["source_entry_id", "deleted_at"],
+                  "columns": [
+                    "source_entry_id",
+                    "deleted_at"
+                  ],
                   "name": "codex_relations_source_entry_id_deleted_at_idx",
                   "unique": false
                 },
                 {
-                  "columns": ["target_entry_id", "deleted_at"],
+                  "columns": [
+                    "target_entry_id",
+                    "deleted_at"
+                  ],
                   "name": "codex_relations_target_entry_id_deleted_at_idx",
                   "unique": false
                 }
               ],
               "primaryKey": {
-                "columns": ["id"],
+                "columns": [
+                  "id"
+                ],
                 "name": "codex_relations_pkey"
               },
               "uniques": []
@@ -2486,12 +2729,16 @@
                   "onDelete": "cascade",
                   "onUpdate": "cascade",
                   "source": {
-                    "columns": ["entry_id"],
+                    "columns": [
+                      "entry_id"
+                    ],
                     "namespaceId": "public",
                     "tableName": "codex_tags"
                   },
                   "target": {
-                    "columns": ["id"],
+                    "columns": [
+                      "id"
+                    ],
                     "namespaceId": "public",
                     "tableName": "codex_entries"
                   }
@@ -2499,18 +2746,25 @@
               ],
               "indexes": [
                 {
-                  "columns": ["entry_id", "deleted_at"],
+                  "columns": [
+                    "entry_id",
+                    "deleted_at"
+                  ],
                   "name": "codex_tags_entry_id_deleted_at_idx",
                   "unique": false
                 },
                 {
-                  "columns": ["name"],
+                  "columns": [
+                    "name"
+                  ],
                   "name": "codex_tags_name_idx",
                   "unique": false
                 }
               ],
               "primaryKey": {
-                "columns": ["id"],
+                "columns": [
+                  "id"
+                ],
                 "name": "codex_tags_pkey"
               },
               "uniques": []
@@ -2591,12 +2845,16 @@
                   "onDelete": "cascade",
                   "onUpdate": "cascade",
                   "source": {
-                    "columns": ["owner_id"],
+                    "columns": [
+                      "owner_id"
+                    ],
                     "namespaceId": "public",
                     "tableName": "novels"
                   },
                   "target": {
-                    "columns": ["id"],
+                    "columns": [
+                      "id"
+                    ],
                     "namespaceId": "public",
                     "tableName": "users"
                   }
@@ -2606,12 +2864,16 @@
                   "onDelete": "setNull",
                   "onUpdate": "cascade",
                   "source": {
-                    "columns": ["series_id"],
+                    "columns": [
+                      "series_id"
+                    ],
                     "namespaceId": "public",
                     "tableName": "novels"
                   },
                   "target": {
-                    "columns": ["id"],
+                    "columns": [
+                      "id"
+                    ],
                     "namespaceId": "public",
                     "tableName": "series"
                   }
@@ -2619,23 +2881,33 @@
               ],
               "indexes": [
                 {
-                  "columns": ["owner_id", "deleted_at"],
+                  "columns": [
+                    "owner_id",
+                    "deleted_at"
+                  ],
                   "name": "novels_owner_id_deleted_at_idx",
                   "unique": false
                 },
                 {
-                  "columns": ["owner_id", "position"],
+                  "columns": [
+                    "owner_id",
+                    "position"
+                  ],
                   "name": "novels_owner_id_position_idx",
                   "unique": false
                 },
                 {
-                  "columns": ["series_id"],
+                  "columns": [
+                    "series_id"
+                  ],
                   "name": "novels_series_id_idx",
                   "unique": false
                 }
               ],
               "primaryKey": {
-                "columns": ["id"],
+                "columns": [
+                  "id"
+                ],
                 "name": "novels_pkey"
               },
               "uniques": []
@@ -2779,12 +3051,16 @@
                   "onDelete": "cascade",
                   "onUpdate": "cascade",
                   "source": {
-                    "columns": ["chapter_id"],
+                    "columns": [
+                      "chapter_id"
+                    ],
                     "namespaceId": "public",
                     "tableName": "scenes"
                   },
                   "target": {
-                    "columns": ["id"],
+                    "columns": [
+                      "id"
+                    ],
                     "namespaceId": "public",
                     "tableName": "chapters"
                   }
@@ -2792,18 +3068,26 @@
               ],
               "indexes": [
                 {
-                  "columns": ["chapter_id", "deleted_at"],
+                  "columns": [
+                    "chapter_id",
+                    "deleted_at"
+                  ],
                   "name": "scenes_chapter_id_deleted_at_idx",
                   "unique": false
                 },
                 {
-                  "columns": ["chapter_id", "position"],
+                  "columns": [
+                    "chapter_id",
+                    "position"
+                  ],
                   "name": "scenes_chapter_id_position_idx",
                   "unique": false
                 }
               ],
               "primaryKey": {
-                "columns": ["id"],
+                "columns": [
+                  "id"
+                ],
                 "name": "scenes_pkey"
               },
               "uniques": []
@@ -2874,12 +3158,16 @@
                   "onDelete": "cascade",
                   "onUpdate": "cascade",
                   "source": {
-                    "columns": ["owner_id"],
+                    "columns": [
+                      "owner_id"
+                    ],
                     "namespaceId": "public",
                     "tableName": "series"
                   },
                   "target": {
-                    "columns": ["id"],
+                    "columns": [
+                      "id"
+                    ],
                     "namespaceId": "public",
                     "tableName": "users"
                   }
@@ -2887,18 +3175,26 @@
               ],
               "indexes": [
                 {
-                  "columns": ["owner_id", "deleted_at"],
+                  "columns": [
+                    "owner_id",
+                    "deleted_at"
+                  ],
                   "name": "series_owner_id_deleted_at_idx",
                   "unique": false
                 },
                 {
-                  "columns": ["owner_id", "position"],
+                  "columns": [
+                    "owner_id",
+                    "position"
+                  ],
                   "name": "series_owner_id_position_idx",
                   "unique": false
                 }
               ],
               "primaryKey": {
-                "columns": ["id"],
+                "columns": [
+                  "id"
+                ],
                 "name": "series_pkey"
               },
               "uniques": []
@@ -2957,18 +3253,24 @@
               "foreignKeys": [],
               "indexes": [
                 {
-                  "columns": ["deleted_at"],
+                  "columns": [
+                    "deleted_at"
+                  ],
                   "name": "users_deleted_at_idx",
                   "unique": false
                 },
                 {
-                  "columns": ["email"],
+                  "columns": [
+                    "email"
+                  ],
                   "name": "users_email_key",
                   "unique": true
                 }
               ],
               "primaryKey": {
-                "columns": ["id"],
+                "columns": [
+                  "id"
+                ],
                 "name": "users_pkey"
               },
               "uniques": []
@@ -2977,23 +3279,47 @@
           "valueSet": {
             "CodexTrackingMode": {
               "kind": "valueSet",
-              "values": ["ALWAYS", "DETECTED", "NEVER"]
+              "values": [
+                "ALWAYS",
+                "DETECTED",
+                "NEVER"
+              ]
             },
             "CodexType": {
               "kind": "valueSet",
-              "values": ["CHARACTER", "LOCATION", "ITEM", "LORE", "FACTION", "CONCEPT", "OTHER"]
+              "values": [
+                "CHARACTER",
+                "LOCATION",
+                "ITEM",
+                "LORE",
+                "FACTION",
+                "CONCEPT",
+                "OTHER"
+              ]
             },
             "Pov": {
               "kind": "valueSet",
-              "values": ["FIRST", "SECOND", "THIRD_LIMITED", "THIRD_OMNISCIENT"]
+              "values": [
+                "FIRST",
+                "SECOND",
+                "THIRD_LIMITED",
+                "THIRD_OMNISCIENT"
+              ]
             },
             "ProgressionMode": {
               "kind": "valueSet",
-              "values": ["ADDITION", "REPLACEMENT"]
+              "values": [
+                "ADDITION",
+                "REPLACEMENT"
+              ]
             },
             "Tense": {
               "kind": "valueSet",
-              "values": ["PAST", "PRESENT", "FUTURE"]
+              "values": [
+                "PAST",
+                "PRESENT",
+                "FUTURE"
+              ]
             }
           }
         },
