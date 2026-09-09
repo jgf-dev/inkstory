@@ -44,7 +44,7 @@ export function LoginForm() {
           required
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="mt-1 block w-full rounded-md border border-ink-300 px-3 py-2 text-sm"
+          className="border-ink-300 mt-1 block w-full rounded-md border px-3 py-2 text-sm"
         />
       </div>
       <div>
@@ -58,7 +58,7 @@ export function LoginForm() {
           minLength={6}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="mt-1 block w-full rounded-md border border-ink-300 px-3 py-2 text-sm"
+          className="border-ink-300 mt-1 block w-full rounded-md border px-3 py-2 text-sm"
         />
       </div>
 
@@ -67,7 +67,7 @@ export function LoginForm() {
       <button
         type="submit"
         disabled={loading}
-        className="w-full rounded-md bg-ink-700 px-4 py-2 text-sm font-medium text-ink-50 hover:bg-ink-800 disabled:opacity-50"
+        className="bg-ink-700 text-ink-50 hover:bg-ink-800 w-full rounded-md px-4 py-2 text-sm font-medium disabled:opacity-50"
       >
         {loading ? "Logging in…" : "Log in"}
       </button>

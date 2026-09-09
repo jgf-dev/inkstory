@@ -16,13 +16,13 @@ export default async function LoginPage() {
   return (
     <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-6">
       <h1 className="mb-2 text-3xl font-semibold">Welcome back</h1>
-      <p className="mb-8 text-ink-500">Log in to continue writing.</p>
+      <p className="text-ink-500 mb-8">Log in to continue writing.</p>
 
       <LoginForm />
 
-      <p className="mt-6 text-center text-sm text-ink-500">
+      <p className="text-ink-500 mt-6 text-center text-sm">
         New here?{" "}
-        <Link href="/signup" className="font-medium text-ink-700 underline">
+        <Link href="/signup" className="text-ink-700 font-medium underline">
           Create an account
         </Link>
       </p>
