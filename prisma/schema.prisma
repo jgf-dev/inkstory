@@ -9,6 +9,13 @@
 //   - POV / tense / content fields on Scene
 //   - Orderable positioning (drag-and-drop ready via `position`)
 //   - Full Codex story bible models with aliases, tags, graph relations, and scene progressions
+//
+// Authz / deploy notes (STO-1167):
+//   - Prisma Compute is the source of truth for applying this schema.
+//   - Child Codex rows have no ownerId; authz is join-to-entry via Prisma service role.
+//   - RLS policies are intentionally deferred.
+//   - Novel XOR series (+ seriesScoped alignment), soft-delete-safe partial unique
+//     indexes, and source!=target relation CHECKs are parked for STO-1168.
 
 generator client {
   provider = "prisma-client-js"
@@ -207,6 +214,8 @@ model Scene {
 //
 // The core building block of the story bible (Character, Location, Item, etc.).
 // Entries can be scoped to a specific novel or shared across an entire series.
+// Invariant (parked for STO-1168): exactly one of novelId / seriesId should be
+// set, and seriesScoped must match that choice. Seed data follows this today.
 
 model CodexEntry {
   id           String            @id @default(cuid())
@@ -240,16 +249,17 @@ model CodexEntry {
   progressions    CodexProgression[]
 
   @@index([ownerId, deletedAt])
+  @@index([ownerId, novelId, deletedAt])
+  @@index([ownerId, seriesId, deletedAt])
   @@index([novelId, deletedAt])
   @@index([seriesId, deletedAt])
-  @@index([type])
-  @@index([trackingMode])
   @@map("codex_entries")
 }
 
 // ─── Codex Alias ─────────────────────────────────────────────────────────────
 //
 // Alternative names / monikers for mention detection (e.g. "The White Wolf").
+// Soft-delete-safe unique (entryId, name) WHERE deleted_at IS NULL → STO-1168.
 
 model CodexAlias {
   id        String    @id @default(cuid())
@@ -262,13 +272,15 @@ model CodexAlias {
   entry   CodexEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
 
   @@index([entryId, deletedAt])
-  @@index([name])
+  @@index([entryId, name])
   @@map("codex_aliases")
 }
 
 // ─── Codex Tag ───────────────────────────────────────────────────────────────
 //
-// Category / thematic labels attached to codex entries (e.g. "Protagonist", "Nobility").
+// Per-entry category / thematic labels (e.g. "Protagonist", "Nobility").
+// Not a shared vocabulary + join table; STO-1167 intentionally uses child rows.
+// Soft-delete-safe unique (entryId, name) WHERE deleted_at IS NULL → STO-1168.
 
 model CodexTag {
   id        String    @id @default(cuid())
@@ -282,13 +294,15 @@ model CodexTag {
   entry   CodexEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
 
   @@index([entryId, deletedAt])
-  @@index([name])
+  @@index([entryId, name])
   @@map("codex_tags")
 }
 
 // ─── Codex Relation ──────────────────────────────────────────────────────────
 //
 // Directed graph relationship between two codex entries (e.g. Alice -> SIBLING -> Bob).
+// Cycle prevention and source!=target CHECK are out of scope here (STO-1154 / STO-1168).
+// Soft-delete-safe unique (source, target, relationType) WHERE deleted_at IS NULL → STO-1168.
 
 model CodexRelation {
   id           String    @id @default(cuid())
@@ -307,7 +321,7 @@ model CodexRelation {
 
   @@index([sourceEntryId, deletedAt])
   @@index([targetEntryId, deletedAt])
-  @@index([relationType])
+  @@index([sourceEntryId, targetEntryId, relationType])
   @@map("codex_relations")
 }
 
@@ -332,8 +346,8 @@ model CodexProgression {
   scene   Scene  @relation(fields: [sceneId], references: [id], onDelete: Cascade)
 
   @@index([entryId, deletedAt])
+  @@index([entryId, position])
   @@index([sceneId, deletedAt])
   @@index([sceneId, position])
   @@map("codex_progressions")
 }
-
