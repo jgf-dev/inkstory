@@ -11,26 +11,38 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
-      - uses: actions/setup-node@v4
+      # package.json prefers npm 12 via devEngines; Node 22 ships npm 10.
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: "22"
-          cache: "npm"
 
-      - run: npm ci
+      - name: Use npm 12 (matches package.json devEngines)
+        run: npm install -g npm@12.0.2 --ignore-scripts
+
+      - name: Cache npm
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-
+
+      # Skip lifecycle scripts during install; emit Prisma contract explicitly below.
+      - run: npm ci --ignore-scripts
+
+      - name: Emit Prisma contract
+        run: ./node_modules/.bin/prisma contract emit
+        env:
+          DATABASE_URL: "postgresql://placeholder@localhost:5432/placeholder"
 
       - run: npm run lint
       - run: npm run typecheck
       - run: npm run format:check
       - run: npm run build
 
-      - name: Check Prisma schema is valid
-        run: npx prisma validate
-        env:
-          # CI doesn't talk to a real DB; validate against a placeholder URL.
-          DATABASE_URL: "postgresql://placeholder@localhost:5432/placeholder"
       - name: "notify vercel"
-        uses: "vercel/repository-dispatch/actions/status@v1"
+        uses: vercel/repository-dispatch/actions/status@44f4d342ebc265c58167a2aa77d5a0d5a6eb20fd # actions/status/v1
         with:
           name: "Vercel - inkstory: lint"

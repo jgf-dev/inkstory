@@ -1,0 +1,5 @@
+prisma/contract.d.ts
+prisma/contract.json
+prisma/contract.prisma
+.next
+node_modules
