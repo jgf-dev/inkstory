@@ -2,6 +2,29 @@
 
 All notable changes to InkStory are tracked here. This file follows [Keep a Changelog](https://keepachangelog.com/) and the project adheres to [Semantic Versioning](https://semver.org/).
 
+## [PR-44](https://github.com/jgf2/story-builder/pull/44) - 2026-09-09
+
+### Summary
+
+Synchronized and updated GitHub Actions workflows to align with Node.js 24, Vite+, and Prisma 8 (Prisma Next).
+
+### Added
+
+- Migration triggers for `migrations/**` and `prisma/contract.prisma` in `prisma.yml`
+- Explicit `prisma contract emit` step before database migration execution in `prisma.yml`
+- OIDC token exchange and Next.js Prisma Compute deployment steps restored in `prisma-deploy.yml`
+
+### Removed
+
+- Deprecated `./node_modules/.bin/prisma migrate deploy` Prisma 7 command in `prisma.yml`
+- Outdated Node.js 22 pin in `ci.yml`
+
+### Fixed
+
+- Replaced obsolete `prisma migrate deploy` with Prisma 8 `prisma db migrate` in `prisma.yml`
+- Standardized Node.js 24 and npm 12 across `ci.yml`, `prisma.yml`, and `prisma-deploy.yml`
+- Restored truncated GitHub OIDC authentication and Compute deployment steps in `prisma-deploy.yml`
+
 ## [PR-43](https://github.com/jgf2/story-builder/pull/43) - 2026-09-09
 
 ### Summary

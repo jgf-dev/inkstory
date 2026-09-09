@@ -35,3 +35,51 @@ jobs:
         run: ./node_modules/.bin/prisma contract emit
         env:
           DATABASE_URL: postgresql://placeholder@localhost:5432/placeholder
+
+      - name: Exchange GitHub OIDC for Prisma workspace token
+        id: prisma_auth
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7
+        with:
+          script: |
+            const apiUrl = 'https://api.prisma.io'
+            const requestUrl = process.env.ACTIONS_ID_TOKEN_REQUEST_URL
+            const requestToken = process.env.ACTIONS_ID_TOKEN_REQUEST_TOKEN
+            if (!requestUrl || !requestToken) {
+              core.setFailed('GitHub OIDC request URL/token missing; need id-token: write')
+              return
+            }
+            const oidcRes = await fetch(`${requestUrl}&audience=prisma-cloud`, {
+              headers: { authorization: `Bearer ${requestToken}` },
+            })
+            if (!oidcRes.ok) {
+              core.setFailed(`GitHub OIDC token request responded ${oidcRes.status}`)
+              return
+            }
+            const oidcToken = (await oidcRes.json()).value
+            const exchangeRes = await fetch(`${apiUrl}/v1/auth/github-actions/token`, {
+              method: 'POST',
+              headers: { 'content-type': 'application/json' },
+              body: JSON.stringify({ token: oidcToken }),
+            })
+            if (exchangeRes.status === 401) {
+              core.setFailed('Prisma OIDC exchange denied (repo not connected in Console)')
+              return
+            }
+            if (!exchangeRes.ok) {
+              core.setFailed(`Prisma credential exchange responded ${exchangeRes.status}`)
+              return
+            }
+            const { data } = await exchangeRes.json()
+            core.setSecret(data.value)
+            core.exportVariable('PRISMA_SERVICE_TOKEN', data.value)
+            core.info(`OIDC exchange ok (workspace ${data.workspaceId})`)
+
+      - name: Deploy to Prisma Compute
+        run: |
+          BRANCH="${GITHUB_REF_NAME}"
+          CLI="npx --yes @prisma/cli@preview"
+          if [ "$BRANCH" = "main" ]; then
+            $CLI app deploy --framework nextjs --json
+          else
+            $CLI app deploy --framework nextjs --branch "$BRANCH" --json
+          fi
