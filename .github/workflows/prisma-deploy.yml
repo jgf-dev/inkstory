@@ -1,6 +1,6 @@
 name: prisma-deploy
 
-# Next.js Compute apps deploy with `prisma app deploy` (prisma.compute.json),
+# Next.js Compute apps deploy with `@prisma/cli app deploy` (prisma.compute.json),
 # not prisma/cloud-deploy-action (Composer `deploy module.ts`).
 on:
   push:
