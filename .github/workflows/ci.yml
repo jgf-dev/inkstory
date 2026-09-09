@@ -13,10 +13,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # package.json pins npm 12 via devEngines; Node 22 ships npm 10, and
+      # setup-node's npm cache probe fails before onFail:download can help.
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-          cache: "npm"
+
+      - name: Use npm 12 (matches package.json devEngines)
+        run: npm install -g npm@12.0.2
+
+      - name: Cache npm
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-
 
       - run: npm ci
 
