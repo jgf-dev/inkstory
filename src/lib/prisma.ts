@@ -14,10 +14,25 @@ const globalForPrisma = globalThis as unknown as {
   db: DbClient | undefined;
 };
 
+function getValidDbUrl(): string | undefined {
+  const raw = process.env.DIRECT_URL ?? process.env.DATABASE_URL;
+  if (!raw) return undefined;
+  try {
+    const parsed = new URL(raw);
+    if (parsed.protocol === "postgres:" || parsed.protocol === "postgresql:") {
+      return raw;
+    }
+  } catch {
+    // If unparseable (e.g. masked "[SENSITIVE]" in local Vercel builds), return undefined for lazy connection
+    return undefined;
+  }
+  return undefined;
+}
+
 function createDbClient(): DbClient {
   return postgres<Contract>({
     contractJson,
-    url: process.env.DIRECT_URL ?? process.env.DATABASE_URL,
+    url: getValidDbUrl(),
   });
 }
 
