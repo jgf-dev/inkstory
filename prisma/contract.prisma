@@ -1,0 +1,265 @@
+// use prisma-next
+// InkStory Prisma 8 Contract (PostgreSQL PSL)
+
+namespace public {
+  model User {
+    id           String             @id(map: "users_pkey")
+    email        String
+    name         String?
+    avatarUrl    String?            @map("avatar_url")
+    createdAt    Timestamp(3)       @default(now()) @map("created_at")
+    updatedAt    Timestamp(3)       @map("updated_at")
+    deletedAt    Timestamp(3)?      @map("deleted_at")
+
+    series       Series[]
+    novels       Novel[]
+    codexEntries CodexEntry[]
+
+    @@index([deletedAt], map: "users_deleted_at_idx")
+    @@index([email], map: "users_email_key", unique: true)
+    @@map("users")
+  }
+
+  model Series {
+    id           String             @id(map: "series_pkey")
+    title        String
+    description  String?
+    position     Int                @default(0)
+    createdAt    Timestamp(3)       @default(now()) @map("created_at")
+    updatedAt    Timestamp(3)       @map("updated_at")
+    deletedAt    Timestamp(3)?      @map("deleted_at")
+    ownerId      String             @map("owner_id")
+
+    owner        User               @relation(fields: [ownerId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "series_owner_id_fkey", index: false)
+    novels       Novel[]
+    codexEntries CodexEntry[]
+
+    @@index([ownerId, deletedAt], map: "series_owner_id_deleted_at_idx")
+    @@index([ownerId, position], map: "series_owner_id_position_idx")
+    @@map("series")
+  }
+
+  model Novel {
+    id           String             @id(map: "novels_pkey")
+    title        String
+    subtitle     String?
+    description  String?
+    position     Int                @default(0)
+    createdAt    Timestamp(3)       @default(now()) @map("created_at")
+    updatedAt    Timestamp(3)       @map("updated_at")
+    deletedAt    Timestamp(3)?      @map("deleted_at")
+    ownerId      String             @map("owner_id")
+    seriesId     String?            @map("series_id")
+
+    owner        User               @relation(fields: [ownerId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "novels_owner_id_fkey", index: false)
+    series       Series?            @relation(fields: [seriesId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "novels_series_id_fkey")
+    acts         Act[]
+    codexEntries CodexEntry[]
+
+    @@index([ownerId, deletedAt], map: "novels_owner_id_deleted_at_idx")
+    @@index([ownerId, position], map: "novels_owner_id_position_idx")
+    @@index([seriesId], map: "novels_series_id_idx")
+    @@map("novels")
+  }
+
+  model Act {
+    id        String        @id(map: "acts_pkey")
+    title     String
+    position  Int           @default(0)
+    createdAt Timestamp(3)  @default(now()) @map("created_at")
+    updatedAt Timestamp(3)  @map("updated_at")
+    deletedAt Timestamp(3)? @map("deleted_at")
+    novelId   String        @map("novel_id")
+
+    novel     Novel         @relation(fields: [novelId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "acts_novel_id_fkey", index: false)
+    chapters  Chapter[]
+
+    @@index([novelId, deletedAt], map: "acts_novel_id_deleted_at_idx")
+    @@index([novelId, position], map: "acts_novel_id_position_idx")
+    @@map("acts")
+  }
+
+  model Chapter {
+    id        String        @id(map: "chapters_pkey")
+    title     String
+    position  Int           @default(0)
+    createdAt Timestamp(3)  @default(now()) @map("created_at")
+    updatedAt Timestamp(3)  @map("updated_at")
+    deletedAt Timestamp(3)? @map("deleted_at")
+    actId     String        @map("act_id")
+
+    act       Act           @relation(fields: [actId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "chapters_act_id_fkey", index: false)
+    scenes    Scene[]
+
+    @@index([actId, deletedAt], map: "chapters_act_id_deleted_at_idx")
+    @@index([actId, position], map: "chapters_act_id_position_idx")
+    @@map("chapters")
+  }
+
+  model Scene {
+    id                String              @id(map: "scenes_pkey")
+    title             String
+    label             String?
+    subtitle          String?
+    content           String              @default("")
+    summary           String?
+    pov               pg.enum(Pov)        @default("THIRD_LIMITED")
+    tense             pg.enum(Tense)      @default("PAST")
+    position          Int                 @default(0)
+    excludeFromAi     Boolean             @default(false) @map("exclude_from_ai")
+    wordCount         Int                 @default(0) @map("word_count")
+    createdAt         Timestamp(3)        @default(now()) @map("created_at")
+    updatedAt         Timestamp(3)        @map("updated_at")
+    deletedAt         Timestamp(3)?       @map("deleted_at")
+    chapterId         String              @map("chapter_id")
+
+    chapter           Chapter             @relation(fields: [chapterId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "scenes_chapter_id_fkey", index: false)
+    codexProgressions CodexProgression[]
+
+    @@index([chapterId, deletedAt], map: "scenes_chapter_id_deleted_at_idx")
+    @@index([chapterId, position], map: "scenes_chapter_id_position_idx")
+    @@map("scenes")
+  }
+
+  model CodexEntry {
+    id                           String                     @id(map: "codex_entries_pkey")
+    name                         String
+    type                         pg.enum(CodexType)         @default("CHARACTER")
+    description                  String                     @default("")
+    notes                        String?
+    trackingMode                 pg.enum(CodexTrackingMode) @default("DETECTED") @map("tracking_mode")
+    seriesScoped                 Boolean                    @default(false) @map("series_scoped")
+    customFields                 Jsonb?                     @map("custom_fields")
+    color                        String?
+    thumbnailUrl                 String?                    @map("thumbnail_url")
+    position                     Int                        @default(0)
+    createdAt                    Timestamp(3)               @default(now()) @map("created_at")
+    updatedAt                    Timestamp(3)               @map("updated_at")
+    deletedAt                    Timestamp(3)?              @map("deleted_at")
+    ownerId                      String                     @map("owner_id")
+    novelId                      String?                    @map("novel_id")
+    seriesId                     String?                    @map("series_id")
+
+    owner                        User                       @relation(fields: [ownerId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "codex_entries_owner_id_fkey", index: false)
+    novel                        Novel?                     @relation(fields: [novelId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "codex_entries_novel_id_fkey", index: false)
+    series                       Series?                    @relation(fields: [seriesId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "codex_entries_series_id_fkey", index: false)
+    aliases                      CodexAlias[]
+    tags                         CodexTag[]
+    progressions                 CodexProgression[]
+    sourceRelations              CodexRelation[]            @relation(name: "codex_relations_source_entry_id_fkey")
+    targetRelations              CodexRelation[]            @relation(name: "codex_relations_target_entry_id_fkey")
+
+    @@index([novelId, deletedAt], map: "codex_entries_novel_id_deleted_at_idx")
+    @@index([ownerId, deletedAt], map: "codex_entries_owner_id_deleted_at_idx")
+    @@index([seriesId, deletedAt], map: "codex_entries_series_id_deleted_at_idx")
+    @@index([trackingMode], map: "codex_entries_tracking_mode_idx")
+    @@index([type], map: "codex_entries_type_idx")
+    @@map("codex_entries")
+  }
+
+  model CodexAlias {
+    id        String        @id(map: "codex_aliases_pkey")
+    name      String
+    createdAt Timestamp(3)  @default(now()) @map("created_at")
+    updatedAt Timestamp(3)  @map("updated_at")
+    deletedAt Timestamp(3)? @map("deleted_at")
+    entryId   String        @map("entry_id")
+
+    entry     CodexEntry    @relation(fields: [entryId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "codex_aliases_entry_id_fkey", index: false)
+
+    @@index([entryId, deletedAt], map: "codex_aliases_entry_id_deleted_at_idx")
+    @@index([name], map: "codex_aliases_name_idx")
+    @@map("codex_aliases")
+  }
+
+  model CodexTag {
+    id        String        @id(map: "codex_tags_pkey")
+    name      String
+    color     String?
+    createdAt Timestamp(3)  @default(now()) @map("created_at")
+    updatedAt Timestamp(3)  @map("updated_at")
+    deletedAt Timestamp(3)? @map("deleted_at")
+    entryId   String        @map("entry_id")
+
+    entry     CodexEntry    @relation(fields: [entryId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "codex_tags_entry_id_fkey", index: false)
+
+    @@index([entryId, deletedAt], map: "codex_tags_entry_id_deleted_at_idx")
+    @@index([name], map: "codex_tags_name_idx")
+    @@map("codex_tags")
+  }
+
+  model CodexRelation {
+    id            String        @id(map: "codex_relations_pkey")
+    relationType  String        @map("relation_type")
+    reverseType   String?       @map("reverse_type")
+    description   String?
+    createdAt     Timestamp(3)  @default(now()) @map("created_at")
+    updatedAt     Timestamp(3)  @map("updated_at")
+    deletedAt     Timestamp(3)? @map("deleted_at")
+    sourceEntryId String        @map("source_entry_id")
+    targetEntryId String        @map("target_entry_id")
+
+    sourceEntry   CodexEntry    @relation(name: "codex_relations_source_entry_id_fkey", fields: [sourceEntryId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "codex_relations_source_entry_id_fkey", index: false)
+    targetEntry   CodexEntry    @relation(name: "codex_relations_target_entry_id_fkey", fields: [targetEntryId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "codex_relations_target_entry_id_fkey", index: false)
+
+    @@index([relationType], map: "codex_relations_relation_type_idx")
+    @@index([sourceEntryId, deletedAt], map: "codex_relations_source_entry_id_deleted_at_idx")
+    @@index([targetEntryId, deletedAt], map: "codex_relations_target_entry_id_deleted_at_idx")
+    @@map("codex_relations")
+  }
+
+  model CodexProgression {
+    id          String                   @id(map: "codex_progressions_pkey")
+    mode        pg.enum(ProgressionMode) @default("ADDITION")
+    description String
+    notes       String?
+    position    Int                      @default(0)
+    createdAt   Timestamp(3)             @default(now()) @map("created_at")
+    updatedAt   Timestamp(3)             @map("updated_at")
+    deletedAt   Timestamp(3)?            @map("deleted_at")
+    entryId     String                   @map("entry_id")
+    sceneId     String                   @map("scene_id")
+
+    entry       CodexEntry               @relation(fields: [entryId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "codex_progressions_entry_id_fkey", index: false)
+    scene       Scene                    @relation(fields: [sceneId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "codex_progressions_scene_id_fkey", index: false)
+
+    @@index([entryId, deletedAt], map: "codex_progressions_entry_id_deleted_at_idx")
+    @@index([sceneId, deletedAt], map: "codex_progressions_scene_id_deleted_at_idx")
+    @@index([sceneId, position], map: "codex_progressions_scene_id_position_idx")
+    @@map("codex_progressions")
+  }
+
+  native_enum CodexTrackingMode {
+    ALWAYS = "ALWAYS"
+    DETECTED = "DETECTED"
+    NEVER = "NEVER"
+  }
+
+  native_enum CodexType {
+    CHARACTER = "CHARACTER"
+    LOCATION = "LOCATION"
+    ITEM = "ITEM"
+    LORE = "LORE"
+    FACTION = "FACTION"
+    CONCEPT = "CONCEPT"
+    OTHER = "OTHER"
+  }
+
+  native_enum Pov {
+    FIRST = "FIRST"
+    SECOND = "SECOND"
+    THIRD_LIMITED = "THIRD_LIMITED"
+    THIRD_OMNISCIENT = "THIRD_OMNISCIENT"
+  }
+
+  native_enum ProgressionMode {
+    ADDITION = "ADDITION"
+    REPLACEMENT = "REPLACEMENT"
+  }
+
+  native_enum Tense {
+    PAST = "PAST"
+    PRESENT = "PRESENT"
+    FUTURE = "FUTURE"
+  }
+}

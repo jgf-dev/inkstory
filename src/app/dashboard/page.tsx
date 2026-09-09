@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { syncAuthUser } from "@/lib/supabase/auth";
-import { prisma } from "@/lib/prisma";
+import { db } from "@/lib/prisma";
 import { LogoutButton } from "./_components/LogoutButton";
 
 export default async function DashboardPage() {
@@ -19,10 +19,19 @@ export default async function DashboardPage() {
 
   // Epic 0 acceptance: empty dashboard renders. We'll add "create novel" UI in
   // Epic 2 (STO-1160). For now, show the seed data if present.
-  const [seriesCount, novelCount] = await Promise.all([
-    prisma.series.count({ where: { ownerId: user.id, deletedAt: null } }),
-    prisma.novel.count({ where: { ownerId: user.id, deletedAt: null } }),
+  const [seriesRes, novelRes] = await Promise.all([
+    db.orm.public.Series
+      .where((s) => s.ownerId.eq(user.id))
+      .where((s) => s.deletedAt.isNull())
+      .aggregate((a) => ({ count: a.count() })),
+    db.orm.public.Novel
+      .where((n) => n.ownerId.eq(user.id))
+      .where((n) => n.deletedAt.isNull())
+      .aggregate((a) => ({ count: a.count() })),
   ]);
+
+  const seriesCount = seriesRes.count;
+  const novelCount = novelRes.count;
 
   return (
     <main className="mx-auto max-w-3xl px-6 py-12">

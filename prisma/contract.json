@@ -1,0 +1,3357 @@
+{
+  "schemaVersion": "1",
+  "targetFamily": "sql",
+  "target": "postgres",
+  "profileHash": "3916f444a8a17ad749191acf9e08dad97d1a327b88c2f1d45d12f240296aa8b2",
+  "roots": {
+    "acts": {
+      "model": "Act",
+      "namespace": "public"
+    },
+    "chapters": {
+      "model": "Chapter",
+      "namespace": "public"
+    },
+    "codex_aliases": {
+      "model": "CodexAlias",
+      "namespace": "public"
+    },
+    "codex_entries": {
+      "model": "CodexEntry",
+      "namespace": "public"
+    },
+    "codex_progressions": {
+      "model": "CodexProgression",
+      "namespace": "public"
+    },
+    "codex_relations": {
+      "model": "CodexRelation",
+      "namespace": "public"
+    },
+    "codex_tags": {
+      "model": "CodexTag",
+      "namespace": "public"
+    },
+    "novels": {
+      "model": "Novel",
+      "namespace": "public"
+    },
+    "scenes": {
+      "model": "Scene",
+      "namespace": "public"
+    },
+    "series": {
+      "model": "Series",
+      "namespace": "public"
+    },
+    "users": {
+      "model": "User",
+      "namespace": "public"
+    }
+  },
+  "domain": {
+    "namespaces": {
+      "public": {
+        "models": {
+          "Act": {
+            "fields": {
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamp-temporal@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "deletedAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamp-temporal@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "novelId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "position": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "title": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "updatedAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamp-temporal@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              }
+            },
+            "relations": {
+              "chapters": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "actId"
+                  ]
+                },
+                "to": {
+                  "model": "Chapter",
+                  "namespace": "public"
+                }
+              },
+              "novel": {
+                "cardinality": "N:1",
+                "on": {
+                  "localFields": [
+                    "novelId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Novel",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "createdAt": {
+                  "column": "created_at"
+                },
+                "deletedAt": {
+                  "column": "deleted_at"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "novelId": {
+                  "column": "novel_id"
+                },
+                "position": {
+                  "column": "position"
+                },
+                "title": {
+                  "column": "title"
+                },
+                "updatedAt": {
+                  "column": "updated_at"
+                }
+              },
+              "namespaceId": "public",
+              "table": "acts"
+            }
+          },
+          "Chapter": {
+            "fields": {
+              "actId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamp-temporal@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "deletedAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamp-temporal@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "position": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "title": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "updatedAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamp-temporal@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              }
+            },
+            "relations": {
+              "act": {
+                "cardinality": "N:1",
+                "on": {
+                  "localFields": [
+                    "actId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Act",
+                  "namespace": "public"
+                }
+              },
+              "scenes": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "chapterId"
+                  ]
+                },
+                "to": {
+                  "model": "Scene",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "actId": {
+                  "column": "act_id"
+                },
+                "createdAt": {
+                  "column": "created_at"
+                },
+                "deletedAt": {
+                  "column": "deleted_at"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "position": {
+                  "column": "position"
+                },
+                "title": {
+                  "column": "title"
+                },
+                "updatedAt": {
+                  "column": "updated_at"
+                }
+              },
+              "namespaceId": "public",
+              "table": "chapters"
+            }
+          },
+          "CodexAlias": {
+            "fields": {
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamp-temporal@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "deletedAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamp-temporal@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "entryId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "name": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "updatedAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamp-temporal@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              }
+            },
+            "relations": {
+              "entry": {
+                "cardinality": "N:1",
+                "on": {
+                  "localFields": [
+                    "entryId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "CodexEntry",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "createdAt": {
+                  "column": "created_at"
+                },
+                "deletedAt": {
+                  "column": "deleted_at"
+                },
+                "entryId": {
+                  "column": "entry_id"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "name": {
+                  "column": "name"
+                },
+                "updatedAt": {
+                  "column": "updated_at"
+                }
+              },
+              "namespaceId": "public",
+              "table": "codex_aliases"
+            }
+          },
+          "CodexEntry": {
+            "fields": {
+              "color": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamp-temporal@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "customFields": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/jsonb@1",
+                  "kind": "scalar"
+                }
+              },
+              "deletedAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamp-temporal@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "description": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "name": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "notes": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "novelId": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "ownerId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "position": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "seriesId": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "seriesScoped": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/bool@1",
+                  "kind": "scalar"
+                }
+              },
+              "thumbnailUrl": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "trackingMode": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/enum@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "typeName": "CodexTrackingMode"
+                  }
+                }
+              },
+              "type": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/enum@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "typeName": "CodexType"
+                  }
+                }
+              },
+              "updatedAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamp-temporal@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              }
+            },
+            "relations": {
+              "aliases": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "entryId"
+                  ]
+                },
+                "to": {
+                  "model": "CodexAlias",
+                  "namespace": "public"
+                }
+              },
+              "novel": {
+                "cardinality": "N:1",
+                "on": {
+                  "localFields": [
+                    "novelId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Novel",
+                  "namespace": "public"
+                }
+              },
+              "owner": {
+                "cardinality": "N:1",
+                "on": {
+                  "localFields": [
+                    "ownerId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "User",
+                  "namespace": "public"
+                }
+              },
+              "progressions": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "entryId"
+                  ]
+                },
+                "to": {
+                  "model": "CodexProgression",
+                  "namespace": "public"
+                }
+              },
+              "series": {
+                "cardinality": "N:1",
+                "on": {
+                  "localFields": [
+                    "seriesId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Series",
+                  "namespace": "public"
+                }
+              },
+              "sourceRelations": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "sourceEntryId"
+                  ]
+                },
+                "to": {
+                  "model": "CodexRelation",
+                  "namespace": "public"
+                }
+              },
+              "tags": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "entryId"
+                  ]
+                },
+                "to": {
+                  "model": "CodexTag",
+                  "namespace": "public"
+                }
+              },
+              "targetRelations": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "targetEntryId"
+                  ]
+                },
+                "to": {
+                  "model": "CodexRelation",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "color": {
+                  "column": "color"
+                },
+                "createdAt": {
+                  "column": "created_at"
+                },
+                "customFields": {
+                  "column": "custom_fields"
+                },
+                "deletedAt": {
+                  "column": "deleted_at"
+                },
+                "description": {
+                  "column": "description"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "name": {
+                  "column": "name"
+                },
+                "notes": {
+                  "column": "notes"
+                },
+                "novelId": {
+                  "column": "novel_id"
+                },
+                "ownerId": {
+                  "column": "owner_id"
+                },
+                "position": {
+                  "column": "position"
+                },
+                "seriesId": {
+                  "column": "series_id"
+                },
+                "seriesScoped": {
+                  "column": "series_scoped"
+                },
+                "thumbnailUrl": {
+                  "column": "thumbnail_url"
+                },
+                "trackingMode": {
+                  "column": "tracking_mode"
+                },
+                "type": {
+                  "column": "type"
+                },
+                "updatedAt": {
+                  "column": "updated_at"
+                }
+              },
+              "namespaceId": "public",
+              "table": "codex_entries"
+            }
+          },
+          "CodexProgression": {
+            "fields": {
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamp-temporal@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "deletedAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamp-temporal@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "description": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "entryId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "mode": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/enum@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "typeName": "ProgressionMode"
+                  }
+                }
+              },
+              "notes": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "position": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "sceneId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "updatedAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamp-temporal@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              }
+            },
+            "relations": {
+              "entry": {
+                "cardinality": "N:1",
+                "on": {
+                  "localFields": [
+                    "entryId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "CodexEntry",
+                  "namespace": "public"
+                }
+              },
+              "scene": {
+                "cardinality": "N:1",
+                "on": {
+                  "localFields": [
+                    "sceneId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Scene",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "createdAt": {
+                  "column": "created_at"
+                },
+                "deletedAt": {
+                  "column": "deleted_at"
+                },
+                "description": {
+                  "column": "description"
+                },
+                "entryId": {
+                  "column": "entry_id"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "mode": {
+                  "column": "mode"
+                },
+                "notes": {
+                  "column": "notes"
+                },
+                "position": {
+                  "column": "position"
+                },
+                "sceneId": {
+                  "column": "scene_id"
+                },
+                "updatedAt": {
+                  "column": "updated_at"
+                }
+              },
+              "namespaceId": "public",
+              "table": "codex_progressions"
+            }
+          },
+          "CodexRelation": {
+            "fields": {
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamp-temporal@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "deletedAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamp-temporal@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "description": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "relationType": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "reverseType": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "sourceEntryId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "targetEntryId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "updatedAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamp-temporal@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              }
+            },
+            "relations": {
+              "sourceEntry": {
+                "cardinality": "N:1",
+                "on": {
+                  "localFields": [
+                    "sourceEntryId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "CodexEntry",
+                  "namespace": "public"
+                }
+              },
+              "targetEntry": {
+                "cardinality": "N:1",
+                "on": {
+                  "localFields": [
+                    "targetEntryId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "CodexEntry",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "createdAt": {
+                  "column": "created_at"
+                },
+                "deletedAt": {
+                  "column": "deleted_at"
+                },
+                "description": {
+                  "column": "description"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "relationType": {
+                  "column": "relation_type"
+                },
+                "reverseType": {
+                  "column": "reverse_type"
+                },
+                "sourceEntryId": {
+                  "column": "source_entry_id"
+                },
+                "targetEntryId": {
+                  "column": "target_entry_id"
+                },
+                "updatedAt": {
+                  "column": "updated_at"
+                }
+              },
+              "namespaceId": "public",
+              "table": "codex_relations"
+            }
+          },
+          "CodexTag": {
+            "fields": {
+              "color": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamp-temporal@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "deletedAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamp-temporal@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "entryId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "name": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "updatedAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamp-temporal@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              }
+            },
+            "relations": {
+              "entry": {
+                "cardinality": "N:1",
+                "on": {
+                  "localFields": [
+                    "entryId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "CodexEntry",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "color": {
+                  "column": "color"
+                },
+                "createdAt": {
+                  "column": "created_at"
+                },
+                "deletedAt": {
+                  "column": "deleted_at"
+                },
+                "entryId": {
+                  "column": "entry_id"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "name": {
+                  "column": "name"
+                },
+                "updatedAt": {
+                  "column": "updated_at"
+                }
+              },
+              "namespaceId": "public",
+              "table": "codex_tags"
+            }
+          },
+          "Novel": {
+            "fields": {
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamp-temporal@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "deletedAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamp-temporal@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "description": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "ownerId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "position": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "seriesId": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "subtitle": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "title": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "updatedAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamp-temporal@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              }
+            },
+            "relations": {
+              "acts": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "novelId"
+                  ]
+                },
+                "to": {
+                  "model": "Act",
+                  "namespace": "public"
+                }
+              },
+              "codexEntries": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "novelId"
+                  ]
+                },
+                "to": {
+                  "model": "CodexEntry",
+                  "namespace": "public"
+                }
+              },
+              "owner": {
+                "cardinality": "N:1",
+                "on": {
+                  "localFields": [
+                    "ownerId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "User",
+                  "namespace": "public"
+                }
+              },
+              "series": {
+                "cardinality": "N:1",
+                "on": {
+                  "localFields": [
+                    "seriesId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Series",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "createdAt": {
+                  "column": "created_at"
+                },
+                "deletedAt": {
+                  "column": "deleted_at"
+                },
+                "description": {
+                  "column": "description"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "ownerId": {
+                  "column": "owner_id"
+                },
+                "position": {
+                  "column": "position"
+                },
+                "seriesId": {
+                  "column": "series_id"
+                },
+                "subtitle": {
+                  "column": "subtitle"
+                },
+                "title": {
+                  "column": "title"
+                },
+                "updatedAt": {
+                  "column": "updated_at"
+                }
+              },
+              "namespaceId": "public",
+              "table": "novels"
+            }
+          },
+          "Scene": {
+            "fields": {
+              "chapterId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "content": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamp-temporal@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "deletedAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamp-temporal@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "excludeFromAi": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/bool@1",
+                  "kind": "scalar"
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "label": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "position": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "pov": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/enum@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "typeName": "Pov"
+                  }
+                }
+              },
+              "subtitle": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "summary": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "tense": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/enum@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "typeName": "Tense"
+                  }
+                }
+              },
+              "title": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "updatedAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamp-temporal@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "wordCount": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "chapter": {
+                "cardinality": "N:1",
+                "on": {
+                  "localFields": [
+                    "chapterId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Chapter",
+                  "namespace": "public"
+                }
+              },
+              "codexProgressions": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "sceneId"
+                  ]
+                },
+                "to": {
+                  "model": "CodexProgression",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "chapterId": {
+                  "column": "chapter_id"
+                },
+                "content": {
+                  "column": "content"
+                },
+                "createdAt": {
+                  "column": "created_at"
+                },
+                "deletedAt": {
+                  "column": "deleted_at"
+                },
+                "excludeFromAi": {
+                  "column": "exclude_from_ai"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "label": {
+                  "column": "label"
+                },
+                "position": {
+                  "column": "position"
+                },
+                "pov": {
+                  "column": "pov"
+                },
+                "subtitle": {
+                  "column": "subtitle"
+                },
+                "summary": {
+                  "column": "summary"
+                },
+                "tense": {
+                  "column": "tense"
+                },
+                "title": {
+                  "column": "title"
+                },
+                "updatedAt": {
+                  "column": "updated_at"
+                },
+                "wordCount": {
+                  "column": "word_count"
+                }
+              },
+              "namespaceId": "public",
+              "table": "scenes"
+            }
+          },
+          "Series": {
+            "fields": {
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamp-temporal@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "deletedAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamp-temporal@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "description": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "ownerId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "position": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "title": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "updatedAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamp-temporal@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              }
+            },
+            "relations": {
+              "codexEntries": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "seriesId"
+                  ]
+                },
+                "to": {
+                  "model": "CodexEntry",
+                  "namespace": "public"
+                }
+              },
+              "novels": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "seriesId"
+                  ]
+                },
+                "to": {
+                  "model": "Novel",
+                  "namespace": "public"
+                }
+              },
+              "owner": {
+                "cardinality": "N:1",
+                "on": {
+                  "localFields": [
+                    "ownerId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "User",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "createdAt": {
+                  "column": "created_at"
+                },
+                "deletedAt": {
+                  "column": "deleted_at"
+                },
+                "description": {
+                  "column": "description"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "ownerId": {
+                  "column": "owner_id"
+                },
+                "position": {
+                  "column": "position"
+                },
+                "title": {
+                  "column": "title"
+                },
+                "updatedAt": {
+                  "column": "updated_at"
+                }
+              },
+              "namespaceId": "public",
+              "table": "series"
+            }
+          },
+          "User": {
+            "fields": {
+              "avatarUrl": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamp-temporal@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "deletedAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamp-temporal@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "email": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "name": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "updatedAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamp-temporal@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              }
+            },
+            "relations": {
+              "codexEntries": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "ownerId"
+                  ]
+                },
+                "to": {
+                  "model": "CodexEntry",
+                  "namespace": "public"
+                }
+              },
+              "novels": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "ownerId"
+                  ]
+                },
+                "to": {
+                  "model": "Novel",
+                  "namespace": "public"
+                }
+              },
+              "series": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "ownerId"
+                  ]
+                },
+                "to": {
+                  "model": "Series",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "avatarUrl": {
+                  "column": "avatar_url"
+                },
+                "createdAt": {
+                  "column": "created_at"
+                },
+                "deletedAt": {
+                  "column": "deleted_at"
+                },
+                "email": {
+                  "column": "email"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "name": {
+                  "column": "name"
+                },
+                "updatedAt": {
+                  "column": "updated_at"
+                }
+              },
+              "namespaceId": "public",
+              "table": "users"
+            }
+          }
+        }
+      }
+    }
+  },
+  "storage": {
+    "namespaces": {
+      "public": {
+        "entries": {
+          "native_enum": {
+            "CodexTrackingMode": {
+              "kind": "postgres-enum",
+              "members": [
+                "ALWAYS",
+                "DETECTED",
+                "NEVER"
+              ],
+              "typeName": "CodexTrackingMode"
+            },
+            "CodexType": {
+              "kind": "postgres-enum",
+              "members": [
+                "CHARACTER",
+                "LOCATION",
+                "ITEM",
+                "LORE",
+                "FACTION",
+                "CONCEPT",
+                "OTHER"
+              ],
+              "typeName": "CodexType"
+            },
+            "Pov": {
+              "kind": "postgres-enum",
+              "members": [
+                "FIRST",
+                "SECOND",
+                "THIRD_LIMITED",
+                "THIRD_OMNISCIENT"
+              ],
+              "typeName": "Pov"
+            },
+            "ProgressionMode": {
+              "kind": "postgres-enum",
+              "members": [
+                "ADDITION",
+                "REPLACEMENT"
+              ],
+              "typeName": "ProgressionMode"
+            },
+            "Tense": {
+              "kind": "postgres-enum",
+              "members": [
+                "PAST",
+                "PRESENT",
+                "FUTURE"
+              ],
+              "typeName": "Tense"
+            }
+          },
+          "table": {
+            "acts": {
+              "columns": {
+                "created_at": {
+                  "codecId": "pg/timestamp-temporal@1",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nativeType": "timestamp",
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "deleted_at": {
+                  "codecId": "pg/timestamp-temporal@1",
+                  "nativeType": "timestamp",
+                  "nullable": true,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "id": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "novel_id": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "position": {
+                  "codecId": "pg/int4@1",
+                  "default": {
+                    "kind": "literal",
+                    "value": 0
+                  },
+                  "nativeType": "int4",
+                  "nullable": false
+                },
+                "title": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "updated_at": {
+                  "codecId": "pg/timestamp-temporal@1",
+                  "nativeType": "timestamp",
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "foreignKeys": [
+                {
+                  "name": "acts_novel_id_fkey",
+                  "onDelete": "cascade",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "novel_id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "acts"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "novels"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "novel_id",
+                    "deleted_at"
+                  ],
+                  "name": "acts_novel_id_deleted_at_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "novel_id",
+                    "position"
+                  ],
+                  "name": "acts_novel_id_position_idx",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ],
+                "name": "acts_pkey"
+              },
+              "uniques": []
+            },
+            "chapters": {
+              "columns": {
+                "act_id": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "created_at": {
+                  "codecId": "pg/timestamp-temporal@1",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nativeType": "timestamp",
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "deleted_at": {
+                  "codecId": "pg/timestamp-temporal@1",
+                  "nativeType": "timestamp",
+                  "nullable": true,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "id": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "position": {
+                  "codecId": "pg/int4@1",
+                  "default": {
+                    "kind": "literal",
+                    "value": 0
+                  },
+                  "nativeType": "int4",
+                  "nullable": false
+                },
+                "title": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "updated_at": {
+                  "codecId": "pg/timestamp-temporal@1",
+                  "nativeType": "timestamp",
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "foreignKeys": [
+                {
+                  "name": "chapters_act_id_fkey",
+                  "onDelete": "cascade",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "act_id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "chapters"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "acts"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "act_id",
+                    "deleted_at"
+                  ],
+                  "name": "chapters_act_id_deleted_at_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "act_id",
+                    "position"
+                  ],
+                  "name": "chapters_act_id_position_idx",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ],
+                "name": "chapters_pkey"
+              },
+              "uniques": []
+            },
+            "codex_aliases": {
+              "columns": {
+                "created_at": {
+                  "codecId": "pg/timestamp-temporal@1",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nativeType": "timestamp",
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "deleted_at": {
+                  "codecId": "pg/timestamp-temporal@1",
+                  "nativeType": "timestamp",
+                  "nullable": true,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "entry_id": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "id": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "name": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "updated_at": {
+                  "codecId": "pg/timestamp-temporal@1",
+                  "nativeType": "timestamp",
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "foreignKeys": [
+                {
+                  "name": "codex_aliases_entry_id_fkey",
+                  "onDelete": "cascade",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "entry_id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "codex_aliases"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "codex_entries"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "entry_id",
+                    "deleted_at"
+                  ],
+                  "name": "codex_aliases_entry_id_deleted_at_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "name"
+                  ],
+                  "name": "codex_aliases_name_idx",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ],
+                "name": "codex_aliases_pkey"
+              },
+              "uniques": []
+            },
+            "codex_entries": {
+              "columns": {
+                "color": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "created_at": {
+                  "codecId": "pg/timestamp-temporal@1",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nativeType": "timestamp",
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "custom_fields": {
+                  "codecId": "pg/jsonb@1",
+                  "nativeType": "jsonb",
+                  "nullable": true
+                },
+                "deleted_at": {
+                  "codecId": "pg/timestamp-temporal@1",
+                  "nativeType": "timestamp",
+                  "nullable": true,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "description": {
+                  "codecId": "pg/text@1",
+                  "default": {
+                    "kind": "literal",
+                    "value": ""
+                  },
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "id": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "name": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "notes": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "novel_id": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "owner_id": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "position": {
+                  "codecId": "pg/int4@1",
+                  "default": {
+                    "kind": "literal",
+                    "value": 0
+                  },
+                  "nativeType": "int4",
+                  "nullable": false
+                },
+                "series_id": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "series_scoped": {
+                  "codecId": "pg/bool@1",
+                  "default": {
+                    "kind": "literal",
+                    "value": false
+                  },
+                  "nativeType": "bool",
+                  "nullable": false
+                },
+                "thumbnail_url": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "tracking_mode": {
+                  "codecId": "pg/enum@1",
+                  "default": {
+                    "kind": "literal",
+                    "value": "DETECTED"
+                  },
+                  "nativeType": "CodexTrackingMode",
+                  "nullable": false,
+                  "typeParams": {
+                    "typeName": "CodexTrackingMode"
+                  },
+                  "valueSet": {
+                    "entityKind": "valueSet",
+                    "entityName": "CodexTrackingMode",
+                    "namespaceId": "public",
+                    "plane": "storage"
+                  }
+                },
+                "type": {
+                  "codecId": "pg/enum@1",
+                  "default": {
+                    "kind": "literal",
+                    "value": "CHARACTER"
+                  },
+                  "nativeType": "CodexType",
+                  "nullable": false,
+                  "typeParams": {
+                    "typeName": "CodexType"
+                  },
+                  "valueSet": {
+                    "entityKind": "valueSet",
+                    "entityName": "CodexType",
+                    "namespaceId": "public",
+                    "plane": "storage"
+                  }
+                },
+                "updated_at": {
+                  "codecId": "pg/timestamp-temporal@1",
+                  "nativeType": "timestamp",
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "foreignKeys": [
+                {
+                  "name": "codex_entries_owner_id_fkey",
+                  "onDelete": "cascade",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "owner_id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "codex_entries"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "users"
+                  }
+                },
+                {
+                  "name": "codex_entries_novel_id_fkey",
+                  "onDelete": "cascade",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "novel_id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "codex_entries"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "novels"
+                  }
+                },
+                {
+                  "name": "codex_entries_series_id_fkey",
+                  "onDelete": "cascade",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "series_id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "codex_entries"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "series"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "novel_id",
+                    "deleted_at"
+                  ],
+                  "name": "codex_entries_novel_id_deleted_at_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "owner_id",
+                    "deleted_at"
+                  ],
+                  "name": "codex_entries_owner_id_deleted_at_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "series_id",
+                    "deleted_at"
+                  ],
+                  "name": "codex_entries_series_id_deleted_at_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "tracking_mode"
+                  ],
+                  "name": "codex_entries_tracking_mode_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "type"
+                  ],
+                  "name": "codex_entries_type_idx",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ],
+                "name": "codex_entries_pkey"
+              },
+              "uniques": []
+            },
+            "codex_progressions": {
+              "columns": {
+                "created_at": {
+                  "codecId": "pg/timestamp-temporal@1",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nativeType": "timestamp",
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "deleted_at": {
+                  "codecId": "pg/timestamp-temporal@1",
+                  "nativeType": "timestamp",
+                  "nullable": true,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "description": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "entry_id": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "id": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "mode": {
+                  "codecId": "pg/enum@1",
+                  "default": {
+                    "kind": "literal",
+                    "value": "ADDITION"
+                  },
+                  "nativeType": "ProgressionMode",
+                  "nullable": false,
+                  "typeParams": {
+                    "typeName": "ProgressionMode"
+                  },
+                  "valueSet": {
+                    "entityKind": "valueSet",
+                    "entityName": "ProgressionMode",
+                    "namespaceId": "public",
+                    "plane": "storage"
+                  }
+                },
+                "notes": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "position": {
+                  "codecId": "pg/int4@1",
+                  "default": {
+                    "kind": "literal",
+                    "value": 0
+                  },
+                  "nativeType": "int4",
+                  "nullable": false
+                },
+                "scene_id": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "updated_at": {
+                  "codecId": "pg/timestamp-temporal@1",
+                  "nativeType": "timestamp",
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "foreignKeys": [
+                {
+                  "name": "codex_progressions_entry_id_fkey",
+                  "onDelete": "cascade",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "entry_id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "codex_progressions"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "codex_entries"
+                  }
+                },
+                {
+                  "name": "codex_progressions_scene_id_fkey",
+                  "onDelete": "cascade",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "scene_id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "codex_progressions"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "scenes"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "entry_id",
+                    "deleted_at"
+                  ],
+                  "name": "codex_progressions_entry_id_deleted_at_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "scene_id",
+                    "deleted_at"
+                  ],
+                  "name": "codex_progressions_scene_id_deleted_at_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "scene_id",
+                    "position"
+                  ],
+                  "name": "codex_progressions_scene_id_position_idx",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ],
+                "name": "codex_progressions_pkey"
+              },
+              "uniques": []
+            },
+            "codex_relations": {
+              "columns": {
+                "created_at": {
+                  "codecId": "pg/timestamp-temporal@1",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nativeType": "timestamp",
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "deleted_at": {
+                  "codecId": "pg/timestamp-temporal@1",
+                  "nativeType": "timestamp",
+                  "nullable": true,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "description": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "id": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "relation_type": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "reverse_type": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "source_entry_id": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "target_entry_id": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "updated_at": {
+                  "codecId": "pg/timestamp-temporal@1",
+                  "nativeType": "timestamp",
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "foreignKeys": [
+                {
+                  "name": "codex_relations_source_entry_id_fkey",
+                  "onDelete": "cascade",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "source_entry_id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "codex_relations"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "codex_entries"
+                  }
+                },
+                {
+                  "name": "codex_relations_target_entry_id_fkey",
+                  "onDelete": "cascade",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "target_entry_id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "codex_relations"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "codex_entries"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "relation_type"
+                  ],
+                  "name": "codex_relations_relation_type_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "source_entry_id",
+                    "deleted_at"
+                  ],
+                  "name": "codex_relations_source_entry_id_deleted_at_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "target_entry_id",
+                    "deleted_at"
+                  ],
+                  "name": "codex_relations_target_entry_id_deleted_at_idx",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ],
+                "name": "codex_relations_pkey"
+              },
+              "uniques": []
+            },
+            "codex_tags": {
+              "columns": {
+                "color": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "created_at": {
+                  "codecId": "pg/timestamp-temporal@1",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nativeType": "timestamp",
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "deleted_at": {
+                  "codecId": "pg/timestamp-temporal@1",
+                  "nativeType": "timestamp",
+                  "nullable": true,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "entry_id": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "id": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "name": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "updated_at": {
+                  "codecId": "pg/timestamp-temporal@1",
+                  "nativeType": "timestamp",
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "foreignKeys": [
+                {
+                  "name": "codex_tags_entry_id_fkey",
+                  "onDelete": "cascade",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "entry_id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "codex_tags"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "codex_entries"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "entry_id",
+                    "deleted_at"
+                  ],
+                  "name": "codex_tags_entry_id_deleted_at_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "name"
+                  ],
+                  "name": "codex_tags_name_idx",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ],
+                "name": "codex_tags_pkey"
+              },
+              "uniques": []
+            },
+            "novels": {
+              "columns": {
+                "created_at": {
+                  "codecId": "pg/timestamp-temporal@1",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nativeType": "timestamp",
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "deleted_at": {
+                  "codecId": "pg/timestamp-temporal@1",
+                  "nativeType": "timestamp",
+                  "nullable": true,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "description": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "id": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "owner_id": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "position": {
+                  "codecId": "pg/int4@1",
+                  "default": {
+                    "kind": "literal",
+                    "value": 0
+                  },
+                  "nativeType": "int4",
+                  "nullable": false
+                },
+                "series_id": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "subtitle": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "title": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "updated_at": {
+                  "codecId": "pg/timestamp-temporal@1",
+                  "nativeType": "timestamp",
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "foreignKeys": [
+                {
+                  "name": "novels_owner_id_fkey",
+                  "onDelete": "cascade",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "owner_id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "novels"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "users"
+                  }
+                },
+                {
+                  "name": "novels_series_id_fkey",
+                  "onDelete": "setNull",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "series_id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "novels"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "series"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "owner_id",
+                    "deleted_at"
+                  ],
+                  "name": "novels_owner_id_deleted_at_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "owner_id",
+                    "position"
+                  ],
+                  "name": "novels_owner_id_position_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "series_id"
+                  ],
+                  "name": "novels_series_id_idx",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ],
+                "name": "novels_pkey"
+              },
+              "uniques": []
+            },
+            "scenes": {
+              "columns": {
+                "chapter_id": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "content": {
+                  "codecId": "pg/text@1",
+                  "default": {
+                    "kind": "literal",
+                    "value": ""
+                  },
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "created_at": {
+                  "codecId": "pg/timestamp-temporal@1",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nativeType": "timestamp",
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "deleted_at": {
+                  "codecId": "pg/timestamp-temporal@1",
+                  "nativeType": "timestamp",
+                  "nullable": true,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "exclude_from_ai": {
+                  "codecId": "pg/bool@1",
+                  "default": {
+                    "kind": "literal",
+                    "value": false
+                  },
+                  "nativeType": "bool",
+                  "nullable": false
+                },
+                "id": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "label": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "position": {
+                  "codecId": "pg/int4@1",
+                  "default": {
+                    "kind": "literal",
+                    "value": 0
+                  },
+                  "nativeType": "int4",
+                  "nullable": false
+                },
+                "pov": {
+                  "codecId": "pg/enum@1",
+                  "default": {
+                    "kind": "literal",
+                    "value": "THIRD_LIMITED"
+                  },
+                  "nativeType": "Pov",
+                  "nullable": false,
+                  "typeParams": {
+                    "typeName": "Pov"
+                  },
+                  "valueSet": {
+                    "entityKind": "valueSet",
+                    "entityName": "Pov",
+                    "namespaceId": "public",
+                    "plane": "storage"
+                  }
+                },
+                "subtitle": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "summary": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "tense": {
+                  "codecId": "pg/enum@1",
+                  "default": {
+                    "kind": "literal",
+                    "value": "PAST"
+                  },
+                  "nativeType": "Tense",
+                  "nullable": false,
+                  "typeParams": {
+                    "typeName": "Tense"
+                  },
+                  "valueSet": {
+                    "entityKind": "valueSet",
+                    "entityName": "Tense",
+                    "namespaceId": "public",
+                    "plane": "storage"
+                  }
+                },
+                "title": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "updated_at": {
+                  "codecId": "pg/timestamp-temporal@1",
+                  "nativeType": "timestamp",
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "word_count": {
+                  "codecId": "pg/int4@1",
+                  "default": {
+                    "kind": "literal",
+                    "value": 0
+                  },
+                  "nativeType": "int4",
+                  "nullable": false
+                }
+              },
+              "foreignKeys": [
+                {
+                  "name": "scenes_chapter_id_fkey",
+                  "onDelete": "cascade",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "chapter_id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "scenes"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "chapters"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "chapter_id",
+                    "deleted_at"
+                  ],
+                  "name": "scenes_chapter_id_deleted_at_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "chapter_id",
+                    "position"
+                  ],
+                  "name": "scenes_chapter_id_position_idx",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ],
+                "name": "scenes_pkey"
+              },
+              "uniques": []
+            },
+            "series": {
+              "columns": {
+                "created_at": {
+                  "codecId": "pg/timestamp-temporal@1",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nativeType": "timestamp",
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "deleted_at": {
+                  "codecId": "pg/timestamp-temporal@1",
+                  "nativeType": "timestamp",
+                  "nullable": true,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "description": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "id": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "owner_id": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "position": {
+                  "codecId": "pg/int4@1",
+                  "default": {
+                    "kind": "literal",
+                    "value": 0
+                  },
+                  "nativeType": "int4",
+                  "nullable": false
+                },
+                "title": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "updated_at": {
+                  "codecId": "pg/timestamp-temporal@1",
+                  "nativeType": "timestamp",
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "foreignKeys": [
+                {
+                  "name": "series_owner_id_fkey",
+                  "onDelete": "cascade",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "owner_id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "series"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "users"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "owner_id",
+                    "deleted_at"
+                  ],
+                  "name": "series_owner_id_deleted_at_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "owner_id",
+                    "position"
+                  ],
+                  "name": "series_owner_id_position_idx",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ],
+                "name": "series_pkey"
+              },
+              "uniques": []
+            },
+            "users": {
+              "columns": {
+                "avatar_url": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "created_at": {
+                  "codecId": "pg/timestamp-temporal@1",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nativeType": "timestamp",
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "deleted_at": {
+                  "codecId": "pg/timestamp-temporal@1",
+                  "nativeType": "timestamp",
+                  "nullable": true,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "email": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "id": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "name": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "updated_at": {
+                  "codecId": "pg/timestamp-temporal@1",
+                  "nativeType": "timestamp",
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "foreignKeys": [],
+              "indexes": [
+                {
+                  "columns": [
+                    "deleted_at"
+                  ],
+                  "name": "users_deleted_at_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "email"
+                  ],
+                  "name": "users_email_key",
+                  "unique": true
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ],
+                "name": "users_pkey"
+              },
+              "uniques": []
+            }
+          },
+          "valueSet": {
+            "CodexTrackingMode": {
+              "kind": "valueSet",
+              "values": [
+                "ALWAYS",
+                "DETECTED",
+                "NEVER"
+              ]
+            },
+            "CodexType": {
+              "kind": "valueSet",
+              "values": [
+                "CHARACTER",
+                "LOCATION",
+                "ITEM",
+                "LORE",
+                "FACTION",
+                "CONCEPT",
+                "OTHER"
+              ]
+            },
+            "Pov": {
+              "kind": "valueSet",
+              "values": [
+                "FIRST",
+                "SECOND",
+                "THIRD_LIMITED",
+                "THIRD_OMNISCIENT"
+              ]
+            },
+            "ProgressionMode": {
+              "kind": "valueSet",
+              "values": [
+                "ADDITION",
+                "REPLACEMENT"
+              ]
+            },
+            "Tense": {
+              "kind": "valueSet",
+              "values": [
+                "PAST",
+                "PRESENT",
+                "FUTURE"
+              ]
+            }
+          }
+        },
+        "id": "public",
+        "kind": "postgres-schema"
+      }
+    },
+    "storageHash": "d4f818cad82796ef55c3f5ff808b80b253ae9eff43ecf4c0df65dd4975c385a6"
+  },
+  "capabilities": {
+    "postgres": {
+      "distinctOn": true,
+      "jsonAgg": true,
+      "lateral": true,
+      "limit": true,
+      "orderBy": true,
+      "returning": true
+    },
+    "sql": {
+      "checkConstraint": true,
+      "defaultInInsert": true,
+      "enums": true,
+      "lateral": true,
+      "returning": true,
+      "scalarList": true
+    }
+  },
+  "extensions": {},
+  "meta": {},
+  "_generated": {
+    "warning": "⚠️  GENERATED FILE - DO NOT EDIT",
+    "message": "This file is automatically generated by \"prisma contract emit\".",
+    "regenerate": "To regenerate, run: prisma contract emit"
+  }
+}

@@ -21,6 +21,8 @@ next-env.d.ts
 .augment
 .claude
 .cline
+.cursor
+.devin
 .github/copilot*
 .kilocode
 .qoder

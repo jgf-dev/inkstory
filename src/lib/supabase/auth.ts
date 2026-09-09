@@ -4,7 +4,8 @@
  * Called from the dashboard page (or any post-auth server boundary). Idempotent —
  * upserts so re-runs are safe.
  */
-import { prisma } from "@/lib/prisma";
+import { db } from "@/lib/prisma";
+import { Temporal } from "temporal-polyfill";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
 
 export async function syncAuthUser(supabaseUser: SupabaseUser) {
@@ -12,18 +13,23 @@ export async function syncAuthUser(supabaseUser: SupabaseUser) {
     throw new Error("Supabase user has no email — cannot sync to local users table.");
   }
 
-  return prisma.user.upsert({
-    where: { id: supabaseUser.id },
-    update: {
-      email: supabaseUser.email,
-      name: fullNameFromUser(supabaseUser),
-      avatarUrl: avatarUrlFromUser(supabaseUser),
-    },
+  const name = fullNameFromUser(supabaseUser);
+  const avatarUrl = avatarUrlFromUser(supabaseUser);
+  const now = Temporal.Now.plainDateTimeISO();
+
+  return db.orm.public.User.upsert({
     create: {
       id: supabaseUser.id,
       email: supabaseUser.email,
-      name: fullNameFromUser(supabaseUser),
-      avatarUrl: avatarUrlFromUser(supabaseUser),
+      name,
+      avatarUrl,
+      updatedAt: now,
+    },
+    update: {
+      email: supabaseUser.email,
+      name,
+      avatarUrl,
+      updatedAt: now,
     },
   });
 }

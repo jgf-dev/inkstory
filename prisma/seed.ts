@@ -1,5 +1,5 @@
 /**
- * Seed script — creates a demo user, series, novel, act, chapter, scene.
+ * Seed script — creates a demo user, series, novel, act, chapter, scene, and codex entities.
  * Run with: npm run db:seed
  *
  * The seed user is `seed@inkstory.local` (no password — for local dev only).
@@ -11,21 +11,21 @@ import { config } from "dotenv";
 config({ path: ".env.local", override: false });
 config({ path: ".env", override: false });
 
-import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient } from "@prisma/client";
+import { Temporal } from "temporal-polyfill";
+import postgres from "@prisma/orm-postgres/runtime";
+import type { Contract } from "./contract.d";
+import contractJson from "./contract.json" with { type: "json" };
 
 // Use DIRECT_URL (session pooler, port 5432) for seeding.
 // SESSION pooler supports DDL + prepared statements; TRANSACTION pooler (port 6543) does not.
 // Fall back to DATABASE_URL if DIRECT_URL is not set.
-const adapter = new PrismaPg({
-  connectionString: process.env.DIRECT_URL ?? process.env.DATABASE_URL,
-});
-const prisma = new PrismaClient({
-  adapter,
-  log: process.env.NODE_ENV === "development" ? ["info", "query", "error", "warn"] : ["error"],
+const db = postgres<Contract>({
+  contractJson,
+  url: process.env.DIRECT_URL ?? process.env.DATABASE_URL!,
 });
 
 async function main() {
+  const now = Temporal.Now.plainDateTimeISO();
   // Use a stable seed user id; Supabase auth sync creates the row at first login
   // for real users, but the seed user needs an explicit row to attach data to.
   const seedUserId = "00000000-0000-0000-0000-000000000001";
@@ -33,31 +33,31 @@ async function main() {
   const userFields = {
     email: "seed@inkstory.local",
     name: "Seed User",
+    updatedAt: now,
   } as const;
 
-  const user = await prisma.user.upsert({
-    where: { id: seedUserId },
-    update: userFields,
+  const user = await db.orm.public.User.upsert({
     create: {
       id: seedUserId,
       ...userFields,
     },
+    update: userFields,
   });
 
   const seriesFields = {
     title: "The Inkwell Chronicles",
     description: "Demo series created by `npm run db:seed`.",
     position: 0,
+    updatedAt: now,
   } as const;
 
-  const series = await prisma.series.upsert({
-    where: { id: "seed-series-1" },
-    update: seriesFields,
+  const series = await db.orm.public.Series.upsert({
     create: {
       id: "seed-series-1",
       ownerId: user.id,
       ...seriesFields,
     },
+    update: seriesFields,
   });
 
   const novelFields = {
@@ -65,46 +65,46 @@ async function main() {
     title: "The First Draft",
     subtitle: "A demo novel",
     position: 0,
+    updatedAt: now,
   } as const;
 
-  const novel = await prisma.novel.upsert({
-    where: { id: "seed-novel-1" },
-    update: novelFields,
+  const novel = await db.orm.public.Novel.upsert({
     create: {
       id: "seed-novel-1",
       ownerId: user.id,
       ...novelFields,
     },
+    update: novelFields,
   });
 
   const actFields = {
     title: "Act I — The Discovery",
     position: 0,
+    updatedAt: now,
   } as const;
 
-  const act = await prisma.act.upsert({
-    where: { id: "seed-act-1" },
-    update: actFields,
+  const act = await db.orm.public.Act.upsert({
     create: {
       id: "seed-act-1",
       novelId: novel.id,
       ...actFields,
     },
+    update: actFields,
   });
 
   const chapterFields = {
     title: "Chapter 1 — Opening",
     position: 0,
+    updatedAt: now,
   } as const;
 
-  const chapter = await prisma.chapter.upsert({
-    where: { id: "seed-chapter-1" },
-    update: chapterFields,
+  const chapter = await db.orm.public.Chapter.upsert({
     create: {
       id: "seed-chapter-1",
       actId: act.id,
       ...chapterFields,
     },
+    update: chapterFields,
   });
 
   const sceneFields = {
@@ -115,16 +115,16 @@ async function main() {
     summary: "Protagonist wakes to a storm that foreshadows the larger conflict.",
     position: 0,
     wordCount: 52,
+    updatedAt: now,
   } as const;
 
-  const scene = await prisma.scene.upsert({
-    where: { id: "seed-scene-1" },
-    update: sceneFields,
+  const scene = await db.orm.public.Scene.upsert({
     create: {
       id: "seed-scene-1",
       chapterId: chapter.id,
       ...sceneFields,
     },
+    update: sceneFields,
   });
 
   // ─── Epic 1: Codex Entities (STO-1167) ─────────────────────────────────────
@@ -143,38 +143,36 @@ async function main() {
       age: 21,
       element: "Glass / Light",
     },
+    updatedAt: now,
   };
 
-  const maraEntry = await prisma.codexEntry.upsert({
-    where: { id: "seed-codex-mara" },
-    update: maraFields,
+  const maraEntry = await db.orm.public.CodexEntry.upsert({
     create: {
       id: "seed-codex-mara",
       ownerId: user.id,
       ...maraFields,
     },
+    update: maraFields,
   });
 
-  const maraAliasFields = { name: "The Glass Weaver" } as const;
-  await prisma.codexAlias.upsert({
-    where: { id: "seed-alias-mara-1" },
-    update: maraAliasFields,
+  const maraAliasFields = { name: "The Glass Weaver", updatedAt: now } as const;
+  await db.orm.public.CodexAlias.upsert({
     create: {
       id: "seed-alias-mara-1",
       entryId: maraEntry.id,
       ...maraAliasFields,
     },
+    update: maraAliasFields,
   });
 
-  const maraTagFields = { name: "Protagonist", color: "#3b82f6" } as const;
-  await prisma.codexTag.upsert({
-    where: { id: "seed-tag-mara-1" },
-    update: maraTagFields,
+  const maraTagFields = { name: "Protagonist", color: "#3b82f6", updatedAt: now } as const;
+  await db.orm.public.CodexTag.upsert({
     create: {
       id: "seed-tag-mara-1",
       entryId: maraEntry.id,
       ...maraTagFields,
     },
+    update: maraTagFields,
   });
 
   const corvusFields = {
@@ -187,27 +185,26 @@ async function main() {
     trackingMode: "DETECTED" as const,
     seriesScoped: false,
     color: "#8b5cf6",
+    updatedAt: now,
   };
 
-  const corvusEntry = await prisma.codexEntry.upsert({
-    where: { id: "seed-codex-corvus" },
-    update: corvusFields,
+  const corvusEntry = await db.orm.public.CodexEntry.upsert({
     create: {
       id: "seed-codex-corvus",
       ownerId: user.id,
       ...corvusFields,
     },
+    update: corvusFields,
   });
 
-  const corvusAliasFields = { name: "The Raven Keeper" } as const;
-  await prisma.codexAlias.upsert({
-    where: { id: "seed-alias-corvus-1" },
-    update: corvusAliasFields,
+  const corvusAliasFields = { name: "The Raven Keeper", updatedAt: now } as const;
+  await db.orm.public.CodexAlias.upsert({
     create: {
       id: "seed-alias-corvus-1",
       entryId: corvusEntry.id,
       ...corvusAliasFields,
     },
+    update: corvusAliasFields,
   });
 
   const archivesFields = {
@@ -220,16 +217,16 @@ async function main() {
     trackingMode: "DETECTED" as const,
     seriesScoped: false,
     color: "#10b981",
+    updatedAt: now,
   };
 
-  const archivesEntry = await prisma.codexEntry.upsert({
-    where: { id: "seed-codex-archives" },
-    update: archivesFields,
+  const archivesEntry = await db.orm.public.CodexEntry.upsert({
     create: {
       id: "seed-codex-archives",
       ownerId: user.id,
       ...archivesFields,
     },
+    update: archivesFields,
   });
 
   const quillFields = {
@@ -242,16 +239,16 @@ async function main() {
     trackingMode: "DETECTED" as const,
     seriesScoped: false,
     color: "#f59e0b",
+    updatedAt: now,
   };
 
-  const quillEntry = await prisma.codexEntry.upsert({
-    where: { id: "seed-codex-quill" },
-    update: quillFields,
+  const quillEntry = await db.orm.public.CodexEntry.upsert({
     create: {
       id: "seed-codex-quill",
       ownerId: user.id,
       ...quillFields,
     },
+    update: quillFields,
   });
 
   const fractureFields = {
@@ -264,16 +261,16 @@ async function main() {
     trackingMode: "DETECTED" as const,
     seriesScoped: true,
     color: "#ef4444",
+    updatedAt: now,
   };
 
-  const fractureEntry = await prisma.codexEntry.upsert({
-    where: { id: "seed-codex-fracture" },
-    update: fractureFields,
+  const fractureEntry = await db.orm.public.CodexEntry.upsert({
     create: {
       id: "seed-codex-fracture",
       ownerId: user.id,
       ...fractureFields,
     },
+    update: fractureFields,
   });
 
   // Relations
@@ -281,48 +278,48 @@ async function main() {
     relationType: "APPRENTICE_OF",
     reverseType: "MENTOR_TO",
     description: "Corvus teaches Mara the forbidden arts in secret.",
+    updatedAt: now,
   } as const;
-  await prisma.codexRelation.upsert({
-    where: { id: "seed-rel-mara-corvus" },
-    update: maraCorvusRelation,
+  await db.orm.public.CodexRelation.upsert({
     create: {
       id: "seed-rel-mara-corvus",
       sourceEntryId: maraEntry.id,
       targetEntryId: corvusEntry.id,
       ...maraCorvusRelation,
     },
+    update: maraCorvusRelation,
   });
 
   const corvusArchivesRelation = {
     relationType: "KEEPER_OF",
     reverseType: "GUARDED_BY",
     description: "Corvus maintains and guards the Sunken Archives.",
+    updatedAt: now,
   } as const;
-  await prisma.codexRelation.upsert({
-    where: { id: "seed-rel-corvus-archives" },
-    update: corvusArchivesRelation,
+  await db.orm.public.CodexRelation.upsert({
     create: {
       id: "seed-rel-corvus-archives",
       sourceEntryId: corvusEntry.id,
       targetEntryId: archivesEntry.id,
       ...corvusArchivesRelation,
     },
+    update: corvusArchivesRelation,
   });
 
   const maraQuillRelation = {
     relationType: "OWNS",
     reverseType: "WIELDED_BY",
     description: "Mara inherited the quill from her mother.",
+    updatedAt: now,
   } as const;
-  await prisma.codexRelation.upsert({
-    where: { id: "seed-rel-mara-quill" },
-    update: maraQuillRelation,
+  await db.orm.public.CodexRelation.upsert({
     create: {
       id: "seed-rel-mara-quill",
       sourceEntryId: maraEntry.id,
       targetEntryId: quillEntry.id,
       ...maraQuillRelation,
     },
+    update: maraQuillRelation,
   });
 
   // Progression
@@ -331,16 +328,16 @@ async function main() {
     description: "Noticed an unusual vibration from the quill coinciding with the storm.",
     notes: "Initial trigger for Mara's quest.",
     position: 0,
+    updatedAt: now,
   };
-  await prisma.codexProgression.upsert({
-    where: { id: "seed-prog-mara-scene-1" },
-    update: maraProgression,
+  await db.orm.public.CodexProgression.upsert({
     create: {
       id: "seed-prog-mara-scene-1",
       entryId: maraEntry.id,
       sceneId: scene.id,
       ...maraProgression,
     },
+    update: maraProgression,
   });
 
   console.log("✅ Seeded:", {
@@ -362,5 +359,5 @@ main()
     process.exit(1);
   })
   .finally(async () => {
-    await prisma.$disconnect();
+    await db.close();
   });
