@@ -1,5 +1,7 @@
 name: prisma-deploy
 
+# Next.js Compute apps deploy with `prisma app deploy` (prisma.compute.json),
+# not prisma/cloud-deploy-action (Composer `deploy module.ts`).
 on:
   push:
 
@@ -10,6 +12,7 @@ concurrency:
 permissions:
   contents: read
   id-token: write
+  statuses: write
 
 jobs:
   deploy:
@@ -17,17 +20,65 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: "22"
+
       - name: Use npm 12 (matches package.json devEngines)
         run: npm install -g npm@12.0.2 --ignore-scripts
-      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
-      # Repo is npm-based but also has a stale bun.lock; force npm ci.
-      # Skip lifecycle scripts and emit the Prisma contract explicitly (matches CI).
-      - uses: prisma/cloud-deploy-action@cd0add6285e54968ae412e21c4b9ae2cb129497c # v1
-        with:
-          install-command: npm ci --ignore-scripts && ./node_modules/.bin/prisma contract emit
-          build-command: npm run build
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Emit Prisma contract
+        run: ./node_modules/.bin/prisma contract emit
         env:
           DATABASE_URL: postgresql://placeholder@localhost:5432/placeholder
+
+      - name: Exchange GitHub OIDC for Prisma workspace token
+        id: prisma_auth
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7
+        with:
+          script: |
+            const apiUrl = 'https://api.prisma.io'
+            const requestUrl = process.env.ACTIONS_ID_TOKEN_REQUEST_URL
+            const requestToken = process.env.ACTIONS_ID_TOKEN_REQUEST_TOKEN
+            if (!requestUrl || !requestToken) {
+              core.setFailed('GitHub OIDC request URL/token missing; need id-token: write')
+              return
+            }
+            const oidcRes = await fetch(`${requestUrl}&audience=prisma-cloud`, {
+              headers: { authorization: `Bearer ${requestToken}` },
+            })
+            if (!oidcRes.ok) {
+              core.setFailed(`GitHub OIDC token request responded ${oidcRes.status}`)
+              return
+            }
+            const oidcToken = (await oidcRes.json()).value
+            const exchangeRes = await fetch(`${apiUrl}/v1/auth/github-actions/token`, {
+              method: 'POST',
+              headers: { 'content-type': 'application/json' },
+              body: JSON.stringify({ token: oidcToken }),
+            })
+            if (exchangeRes.status === 401) {
+              core.setFailed('Prisma OIDC exchange denied (repo not connected in Console)')
+              return
+            }
+            if (!exchangeRes.ok) {
+              core.setFailed(`Prisma credential exchange responded ${exchangeRes.status}`)
+              return
+            }
+            const { data } = await exchangeRes.json()
+            core.setSecret(data.value)
+            core.exportVariable('PRISMA_SERVICE_TOKEN', data.value)
+            core.info(`OIDC exchange ok (workspace ${data.workspaceId})`)
+
+      - name: Deploy to Prisma Compute
+        run: |
+          BRANCH="${GITHUB_REF_NAME}"
+          if [ "$BRANCH" = "main" ]; then
+            ./node_modules/.bin/prisma app deploy --framework nextjs --json
+          else
+            ./node_modules/.bin/prisma app deploy --framework nextjs --branch "$BRANCH" --json
+          fi
