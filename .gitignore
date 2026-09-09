@@ -29,3 +29,5 @@ next-env.d.ts
 .trae
 .windsurf
 .prisma/
+supabase/.temp/*
+.repo_memory
