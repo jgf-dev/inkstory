@@ -13,12 +13,12 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
-      # package.json prefers npm 12 via devEngines; Node 22 ships npm 10.
+      # Node 24 matches repo runtime and other deployment workflows
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          node-version: "22"
+          node-version: "24"
 
-      - name: Use npm 12 (matches package.json devEngines)
+      - name: Use npm 12 (matches local tooling and lockfile)
         run: npm install -g npm@12.0.2 --ignore-scripts
 
       - name: Cache npm
@@ -39,7 +39,7 @@ jobs:
 
       # prisma contract emit writes single-quoted TS/JSON; vp fmt expects double quotes.
       - name: Format generated Prisma contract
-        run: npx vp fmt prisma/contract.d.ts prisma/contract.json
+        run: ./node_modules/.bin/vp fmt prisma/contract.d.ts prisma/contract.json
 
       - run: npm run lint
       - run: npm run typecheck

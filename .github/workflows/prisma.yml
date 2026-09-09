@@ -2,7 +2,9 @@ name: Deploy
 on:
   push:
     paths:
+      - migrations/**
       - prisma/migrations/**
+      - prisma/contract.prisma
     branches:
       - main
 
@@ -20,9 +22,15 @@ jobs:
         with:
           node-version: "24"
           cache: npm
+      - name: Use npm 12 (matches local tooling and lockfile)
+        run: npm install -g npm@12.0.2 --ignore-scripts
       - name: Install dependencies
         run: npm ci --ignore-scripts
+      - name: Emit Prisma contract
+        run: ./node_modules/.bin/prisma contract emit
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
       - name: Apply all pending migrations to the database
-        run: ./node_modules/.bin/prisma migrate deploy
+        run: ./node_modules/.bin/prisma db migrate
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
