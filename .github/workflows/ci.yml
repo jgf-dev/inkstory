@@ -30,18 +30,19 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-npm-
 
-      - run: npm ci
+      # Skip lifecycle scripts during install; emit Prisma contract explicitly below.
+      - run: npm ci --ignore-scripts
+
+      - name: Emit Prisma contract
+        run: ./node_modules/.bin/prisma contract emit
+        env:
+          DATABASE_URL: "postgresql://placeholder@localhost:5432/placeholder"
 
       - run: npm run lint
       - run: npm run typecheck
       - run: npm run format:check
       - run: npm run build
 
-      - name: Check Prisma contract emits
-        run: npx prisma contract emit
-        env:
-          # Keep a placeholder URL for any Prisma config that reads DATABASE_URL.
-          DATABASE_URL: "postgresql://placeholder@localhost:5432/placeholder"
       - name: "notify vercel"
         uses: vercel/repository-dispatch/actions/status@44f4d342ebc265c58167a2aa77d5a0d5a6eb20fd # actions/status/v1
         with:
