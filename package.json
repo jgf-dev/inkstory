@@ -2,6 +2,7 @@
   "name": "inkstory",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -10,7 +11,7 @@
     "format": "vp fmt",
     "format:check": "vp fmt --check",
     "typecheck": "vp check --no-fmt --no-lint",
-    "test": "dotenv -e .env.local -e .env -- tsx --test tests/**/*.test.ts",
+    "test": "vp test",
     "postinstall": "prisma contract emit",
     "contract:emit": "prisma contract emit",
     "db:verify": "prisma db verify",
