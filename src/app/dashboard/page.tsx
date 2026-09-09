@@ -20,12 +20,10 @@ export default async function DashboardPage() {
   // Epic 0 acceptance: empty dashboard renders. We'll add "create novel" UI in
   // Epic 2 (STO-1160). For now, show the seed data if present.
   const [seriesRes, novelRes] = await Promise.all([
-    db.orm.public.Series
-      .where((s) => s.ownerId.eq(user.id))
+    db.orm.public.Series.where((s) => s.ownerId.eq(user.id))
       .where((s) => s.deletedAt.isNull())
       .aggregate((a) => ({ count: a.count() })),
-    db.orm.public.Novel
-      .where((n) => n.ownerId.eq(user.id))
+    db.orm.public.Novel.where((n) => n.ownerId.eq(user.id))
       .where((n) => n.deletedAt.isNull())
       .aggregate((a) => ({ count: a.count() })),
   ]);

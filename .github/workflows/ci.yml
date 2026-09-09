@@ -30,9 +30,7 @@ jobs:
         env:
           # CI doesn't talk to a real DB; validate against a placeholder URL.
           DATABASE_URL: "postgresql://placeholder@localhost:5432/placeholder"
-      - name: 'notify vercel'
-        uses: 'vercel/repository-dispatch/actions/status@v1'
+      - name: "notify vercel"
+        uses: "vercel/repository-dispatch/actions/status@v1"
         with:
-          name: 'Vercel - inkstory: lint'
-
-
+          name: "Vercel - inkstory: lint"

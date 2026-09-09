@@ -5,9 +5,11 @@ All notable changes to InkStory are tracked here. This file follows [Keep a Chan
 ## [PR-43](https://github.com/jgf2/story-builder/pull/43) - 2026-09-09
 
 ### Summary
+
 Full upgrade to Prisma 8 (Prisma Next) and `@prisma/orm-postgres`. Migrated from Prisma 7 schema to Prisma 8 contract-first data contract (`prisma/contract.prisma`), emitted contract artifacts, signed database marker, updated database client singleton and ORM queries across the app, and added automated test suite.
 
 ### Added
+
 - `@prisma/orm-postgres` and `@prisma/cli-engine` runtime and toolchain packages
 - `prisma/contract.prisma` data contract declaring all public models, native enums, and foreign key relations
 - Emitted artifacts `prisma/contract.json` and `prisma/contract.d.ts`
@@ -16,10 +18,12 @@ Full upgrade to Prisma 8 (Prisma Next) and `@prisma/orm-postgres`. Migrated from
 - Package scripts: `contract:emit`, `db:verify`, `db:sign`, `db:update`, and `test`
 
 ### Removed
+
 - `@prisma/client` and `@prisma/adapter-pg` Prisma 7 dependencies
 - Deprecated Prisma 7 CLI scripts (`prisma generate`, `prisma db push`)
 
 ### Fixed
+
 - Resolved `[CLI.CONFIG_MISSING_MARKER]` error during `prisma skills sync`
 - Replaced legacy `@prisma/client` queries in `src/lib/supabase/auth.ts`, `src/app/dashboard/page.tsx`, and `prisma/seed.ts` with Prisma 8 `db.orm.public.*` query API
 
