@@ -1,6 +1,6 @@
 name: prisma-deploy
 
-# Next.js Compute apps deploy with `prisma app deploy` (prisma.compute.json),
+# Next.js Compute apps deploy with `@prisma/cli app deploy` (prisma.compute.json),
 # not prisma/cloud-deploy-action (Composer `deploy module.ts`).
 on:
   push:
@@ -78,7 +78,7 @@ jobs:
         run: |
           BRANCH="${GITHUB_REF_NAME}"
           if [ "$BRANCH" = "main" ]; then
-            ./node_modules/.bin/prisma app deploy --framework nextjs --json
+            ./node_modules/.bin/prisma-cli app deploy --framework nextjs --json
           else
-            ./node_modules/.bin/prisma app deploy --framework nextjs --branch "$BRANCH" --json
+            ./node_modules/.bin/prisma-cli app deploy --framework nextjs --branch "$BRANCH" --json
           fi
