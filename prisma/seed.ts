@@ -1,6 +1,6 @@
 /**
  * Seed script — creates a demo user, series, novel, act, chapter, scene.
- * Run with: bun db:seed
+ * Run with: npm run db:seed
  *
  * The seed user is `seed@inkstory.local` (no password — for local dev only).
  * Sign up a real account via the app instead.
@@ -32,7 +32,10 @@ async function main() {
 
   const user = await prisma.user.upsert({
     where: { id: seedUserId },
-    update: {},
+    update: {
+      email: "seed@inkstory.local",
+      name: "Seed User",
+    },
     create: {
       id: seedUserId,
       email: "seed@inkstory.local",
@@ -42,7 +45,11 @@ async function main() {
 
   const series = await prisma.series.upsert({
     where: { id: "seed-series-1" },
-    update: {},
+    update: {
+      title: "The Inkwell Chronicles",
+      description: "Demo series created by `npm run db:seed`.",
+      position: 0,
+    },
     create: {
       id: "seed-series-1",
       ownerId: user.id,
@@ -54,7 +61,12 @@ async function main() {
 
   const novel = await prisma.novel.upsert({
     where: { id: "seed-novel-1" },
-    update: {},
+    update: {
+      seriesId: series.id,
+      title: "The First Draft",
+      subtitle: "A demo novel",
+      position: 0,
+    },
     create: {
       id: "seed-novel-1",
       ownerId: user.id,
@@ -67,7 +79,10 @@ async function main() {
 
   const act = await prisma.act.upsert({
     where: { id: "seed-act-1" },
-    update: {},
+    update: {
+      title: "Act I — The Discovery",
+      position: 0,
+    },
     create: {
       id: "seed-act-1",
       novelId: novel.id,
@@ -78,7 +93,10 @@ async function main() {
 
   const chapter = await prisma.chapter.upsert({
     where: { id: "seed-chapter-1" },
-    update: {},
+    update: {
+      title: "Chapter 1 — Opening",
+      position: 0,
+    },
     create: {
       id: "seed-chapter-1",
       actId: act.id,
@@ -87,19 +105,31 @@ async function main() {
     },
   });
 
+  const sceneContent =
+    "The rain had been falling since before dawn. By the time Mara opened her eyes, the city already sounded like it was drowning. She reached for the Glass Weaver's Quill on her nightstand, feeling the hum of Master Corvus's wards echoing from the Sunken Archives.";
+  const sceneSummary =
+    "Protagonist wakes to a storm that foreshadows the larger conflict.";
+  const sceneWordCount = 52;
+
   const scene = await prisma.scene.upsert({
     where: { id: "seed-scene-1" },
-    update: {},
+    update: {
+      title: "A Quiet Morning",
+      label: "Opening",
+      content: sceneContent,
+      summary: sceneSummary,
+      position: 0,
+      wordCount: sceneWordCount,
+    },
     create: {
       id: "seed-scene-1",
       chapterId: chapter.id,
       title: "A Quiet Morning",
       label: "Opening",
-      content:
-        "The rain had been falling since before dawn. By the time Mara opened her eyes, the city already sounded like it was drowning. She reached for the Glass Weaver's Quill on her nightstand, feeling the hum of Master Corvus's wards echoing from the Sunken Archives.",
-      summary: "Protagonist wakes to a storm that foreshadows the larger conflict.",
+      content: sceneContent,
+      summary: sceneSummary,
       position: 0,
-      wordCount: 52,
+      wordCount: sceneWordCount,
     },
   });
 
@@ -107,7 +137,21 @@ async function main() {
 
   const maraEntry = await prisma.codexEntry.upsert({
     where: { id: "seed-codex-mara" },
-    update: {},
+    update: {
+      novelId: novel.id,
+      seriesId: null,
+      name: "Mara Vance",
+      type: "CHARACTER",
+      description: "A young archivist possessing the forbidden art of glass weaving.",
+      notes: "Central protagonist. Secretly apprenticed to Master Corvus.",
+      trackingMode: "ALWAYS",
+      seriesScoped: false,
+      color: "#3b82f6",
+      customFields: {
+        age: 21,
+        element: "Glass / Light",
+      },
+    },
     create: {
       id: "seed-codex-mara",
       ownerId: user.id,
@@ -128,7 +172,9 @@ async function main() {
 
   await prisma.codexAlias.upsert({
     where: { id: "seed-alias-mara-1" },
-    update: {},
+    update: {
+      name: "The Glass Weaver",
+    },
     create: {
       id: "seed-alias-mara-1",
       entryId: maraEntry.id,
@@ -138,7 +184,10 @@ async function main() {
 
   await prisma.codexTag.upsert({
     where: { id: "seed-tag-mara-1" },
-    update: {},
+    update: {
+      name: "Protagonist",
+      color: "#3b82f6",
+    },
     create: {
       id: "seed-tag-mara-1",
       entryId: maraEntry.id,
@@ -149,7 +198,17 @@ async function main() {
 
   const corvusEntry = await prisma.codexEntry.upsert({
     where: { id: "seed-codex-corvus" },
-    update: {},
+    update: {
+      novelId: novel.id,
+      seriesId: null,
+      name: "Master Corvus",
+      type: "CHARACTER",
+      description: "Senior keeper of the Sunken Archives and Mara's clandestine mentor.",
+      notes: "Speaks in riddles; harbors secrets regarding the Great Fracture.",
+      trackingMode: "DETECTED",
+      seriesScoped: false,
+      color: "#8b5cf6",
+    },
     create: {
       id: "seed-codex-corvus",
       ownerId: user.id,
@@ -166,7 +225,9 @@ async function main() {
 
   await prisma.codexAlias.upsert({
     where: { id: "seed-alias-corvus-1" },
-    update: {},
+    update: {
+      name: "The Raven Keeper",
+    },
     create: {
       id: "seed-alias-corvus-1",
       entryId: corvusEntry.id,
@@ -176,7 +237,17 @@ async function main() {
 
   const archivesEntry = await prisma.codexEntry.upsert({
     where: { id: "seed-codex-archives" },
-    update: {},
+    update: {
+      novelId: novel.id,
+      seriesId: null,
+      name: "The Sunken Archives",
+      type: "LOCATION",
+      description: "Subterranean repository of forbidden knowledge beneath the drowned city.",
+      notes: "Protected by ancient elemental wards.",
+      trackingMode: "DETECTED",
+      seriesScoped: false,
+      color: "#10b981",
+    },
     create: {
       id: "seed-codex-archives",
       ownerId: user.id,
@@ -193,7 +264,17 @@ async function main() {
 
   const quillEntry = await prisma.codexEntry.upsert({
     where: { id: "seed-codex-quill" },
-    update: {},
+    update: {
+      novelId: novel.id,
+      seriesId: null,
+      name: "Glass Weaver's Quill",
+      type: "ITEM",
+      description: "An iridescent stylus capable of etching light onto raw glass.",
+      notes: "Heritage artifact passed down from the First Order.",
+      trackingMode: "DETECTED",
+      seriesScoped: false,
+      color: "#f59e0b",
+    },
     create: {
       id: "seed-codex-quill",
       ownerId: user.id,
@@ -210,7 +291,17 @@ async function main() {
 
   const fractureEntry = await prisma.codexEntry.upsert({
     where: { id: "seed-codex-fracture" },
-    update: {},
+    update: {
+      novelId: null,
+      seriesId: series.id,
+      name: "The Great Fracture",
+      type: "LORE",
+      description: "The cataclysmic event three centuries ago that sundered the continent.",
+      notes: "Universal lore across all books in the Inkwell Chronicles.",
+      trackingMode: "DETECTED",
+      seriesScoped: true,
+      color: "#ef4444",
+    },
     create: {
       id: "seed-codex-fracture",
       ownerId: user.id,
@@ -228,7 +319,11 @@ async function main() {
   // Relations
   await prisma.codexRelation.upsert({
     where: { id: "seed-rel-mara-corvus" },
-    update: {},
+    update: {
+      relationType: "APPRENTICE_OF",
+      reverseType: "MENTOR_TO",
+      description: "Corvus teaches Mara the forbidden arts in secret.",
+    },
     create: {
       id: "seed-rel-mara-corvus",
       sourceEntryId: maraEntry.id,
@@ -241,7 +336,11 @@ async function main() {
 
   await prisma.codexRelation.upsert({
     where: { id: "seed-rel-corvus-archives" },
-    update: {},
+    update: {
+      relationType: "KEEPER_OF",
+      reverseType: "GUARDED_BY",
+      description: "Corvus maintains and guards the Sunken Archives.",
+    },
     create: {
       id: "seed-rel-corvus-archives",
       sourceEntryId: corvusEntry.id,
@@ -254,7 +353,11 @@ async function main() {
 
   await prisma.codexRelation.upsert({
     where: { id: "seed-rel-mara-quill" },
-    update: {},
+    update: {
+      relationType: "OWNS",
+      reverseType: "WIELDED_BY",
+      description: "Mara inherited the quill from her mother.",
+    },
     create: {
       id: "seed-rel-mara-quill",
       sourceEntryId: maraEntry.id,
@@ -268,7 +371,12 @@ async function main() {
   // Progression
   await prisma.codexProgression.upsert({
     where: { id: "seed-prog-mara-scene-1" },
-    update: {},
+    update: {
+      mode: "ADDITION",
+      description: "Noticed an unusual vibration from the quill coinciding with the storm.",
+      notes: "Initial trigger for Mara's quest.",
+      position: 0,
+    },
     create: {
       id: "seed-prog-mara-scene-1",
       entryId: maraEntry.id,
