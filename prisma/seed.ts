@@ -107,8 +107,7 @@ async function main() {
 
   const sceneContent =
     "The rain had been falling since before dawn. By the time Mara opened her eyes, the city already sounded like it was drowning. She reached for the Glass Weaver's Quill on her nightstand, feeling the hum of Master Corvus's wards echoing from the Sunken Archives.";
-  const sceneSummary =
-    "Protagonist wakes to a storm that foreshadows the larger conflict.";
+  const sceneSummary = "Protagonist wakes to a storm that foreshadows the larger conflict.";
   const sceneWordCount = 52;
 
   const scene = await prisma.scene.upsert({
