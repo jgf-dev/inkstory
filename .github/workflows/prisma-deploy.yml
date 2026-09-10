@@ -26,7 +26,7 @@ jobs:
           bun-version: "1.4.2"
 
       - name: Install dependencies
-        run: bun install --ignore-scripts
+        run: bun install --frozen-lockfile --ignore-scripts
 
       - name: Emit Prisma contract
         run: ./node_modules/.bin/prisma contract emit
