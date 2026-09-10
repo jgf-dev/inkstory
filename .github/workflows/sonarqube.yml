@@ -20,6 +20,24 @@ jobs:
         with:
           fetch-depth: 0
 
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: "1.4.2"
+
+      # Skip lifecycle scripts during install; emit Prisma contract explicitly below.
+      - run: bun install --ignore-scripts --frozen-lockfile
+
+      - name: Emit Prisma contract
+        run: ./node_modules/.bin/prisma contract emit
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+      - name: Run unit/integration tests with coverage
+        run: bun run test:cov
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.DATABASE_URL }}
+
       - name: Analyze with SonarQube
         uses: SonarSource/sonarqube-scan-action@22918119ff8e1ca75a623e15c8296b6ea4fbe28f # v8.2.1
         env:
@@ -27,4 +45,11 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
         with:
-          args: -Dsonar.projectKey=jgf-dev_inkstory -Dsonar.organization=jgf-dev
+          args: >-
+            -Dsonar.projectKey=jgf-dev_inkstory
+            -Dsonar.organization=jgf-dev
+            -Dsonar.sources=src
+            -Dsonar.tests=tests
+            -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
+            -Dsonar.coverage.exclusions=**/*.d.ts,**/supabase/types.ts
+            -Dsonar.cpd.exclusions=**/tests/**,**/*.test.ts,**/*.test.tsx
