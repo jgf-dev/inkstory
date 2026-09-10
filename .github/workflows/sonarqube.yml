@@ -33,5 +33,3 @@ jobs:
             # mandatory
             -Dsonar.projectKey=jgf-dev_inkstory
             -Dsonar.organization=jgf-dev
-            -sonar.projectName=inkstory
-            -sonar.projectVersion=${{secrets.VERSION}}
