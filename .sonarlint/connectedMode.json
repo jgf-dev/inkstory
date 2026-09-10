@@ -1,5 +1,5 @@
 {
-  "sonarCloudOrganization": "jgf-dev",
-  "projectKey": "jgf-dev_inkstory",
-  "region": "EU"
+    "sonarCloudOrganization": "jgf-dev",
+    "projectKey": "jgf-dev_inkstory",
+    "region": "EU"
 }
