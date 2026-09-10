@@ -32,6 +32,12 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
+      - name: Seed database for integration tests
+        run: bun run db:seed
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.DATABASE_URL }}
+
       - name: Run unit/integration tests with coverage
         run: bun run test:cov
         env:
