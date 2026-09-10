@@ -23,13 +23,13 @@ jobs:
 
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
-          bun-version: latest
+          bun-version: "1.4.2"
 
       - name: Install dependencies
         run: bun install --ignore-scripts
 
       - name: Emit Prisma contract
-        run: bunx prisma contract emit
+        run: ./node_modules/.bin/prisma contract emit
         env:
           DATABASE_URL: postgresql://placeholder@localhost:5432/placeholder
 
@@ -74,7 +74,7 @@ jobs:
       - name: Deploy to Prisma Compute
         run: |
           BRANCH="${GITHUB_REF_NAME}"
-          CLI="bunx @prisma/cli@preview"
+          CLI="./node_modules/.bin/prisma"
           set +e
           if [ "$BRANCH" = "main" ]; then
             OUT=$($CLI app deploy --framework nextjs --json 2>&1)
