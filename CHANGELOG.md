@@ -2,9 +2,32 @@
 
 All notable changes to InkStory are tracked here. This file follows [Keep a Changelog](https://keepachangelog.com/) and the project adheres to [Semantic Versioning](https://semver.org/).
 
+## [a7eb5b6](https://github.com/jgf2/story-builder/commit/a7eb5b62b083c213426e2e505500e572049e0e37) - 2026-09-10
+
+### Summary
+
+Implemented complete test coverage across the application using Vitest and Vite+, establishing 37 persistent unit and integration tests and reaching 100% line coverage and 99.25% statement coverage across all application source modules.
+
+### Added
+
+- `tests/api-health.test.ts`: automated tests for `GET /api/health` endpoint, checking 200 HTTP response, payload schema, dynamic flag, and version fallback
+- `tests/supabase-auth.test.ts`: unit and integration tests for `syncAuthUser`, covering validation errors, metadata resolution (full_name/name, avatar_url/picture), and database upserts
+- `tests/supabase-clients.test.ts`: tests for Supabase browser and server client factories (`createSupabaseBrowserClient`, `createSupabaseServerClient`), including cookie store adapters and server component error handling
+- `tests/supabase-middleware.test.ts`: tests for session cookie refreshes in `updateSession` and static route filtering in `proxy` middleware matcher
+- `tests/pages.test.ts`: server component and page tests covering `RootLayout`, `HomePage`, `DashboardPage` auth redirects and metrics rendering, and `LoginPage`/`SignupPage` auth gates
+- `tests/auth-components.test.ts`: client component tests for `LoginForm`, `SignupForm`, and `LogoutButton` covering input events, loading states, auth error handling, and redirection
+- Vitest coverage and resolve alias configurations in `vite.config.ts`
+
+### Removed
+
+### Fixed
+
+- Added test coverage for database URL parsing edge cases (`[SENSITIVE]`, non-postgres schemes, fallback envs) in `src/lib/prisma.ts`
+
 ## [ecf4397](https://github.com/jgf2/story-builder/commit/ecf4397e639905f508bd134a457bfebeda3a08a5) - 2026-09-09
 
 ### Summary
+
 Fixed the `oven-sh/setup-bun` GitHub action reference in the CI workflow by updating it to a valid commit SHA matching `v2.2.0`.
 
 ### Added
@@ -12,6 +35,7 @@ Fixed the `oven-sh/setup-bun` GitHub action reference in the CI workflow by upda
 ### Removed
 
 ### Fixed
+
 - Replaced non-existent commit SHA `4c1f1ad0c1c6b8cd5dc9b4da65fa6e6b1019fd5c` with valid `v2.2.0` commit SHA `0c5077e51419868618aeaa5fe8019c62421857d6` in `.github/workflows/ci.yml`
 
 ## [PR-44](https://github.com/jgf2/story-builder/pull/44) - 2026-09-09
