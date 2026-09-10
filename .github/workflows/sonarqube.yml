@@ -32,10 +32,8 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
-      # Exclude prisma-8 seed assertions: CI DATABASE_URL is reachable but unseeded,
-      # and db:seed needs a global Temporal polyfill the seed script does not load.
       - name: Run tests with coverage
-        run: bunx vp test --coverage --exclude 'tests/prisma-8.test.ts'
+        run: bun run test:cov
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           DIRECT_URL: ${{ secrets.DATABASE_URL }}
