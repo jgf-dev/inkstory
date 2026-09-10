@@ -2,6 +2,18 @@
 
 All notable changes to InkStory are tracked here. This file follows [Keep a Changelog](https://keepachangelog.com/) and the project adheres to [Semantic Versioning](https://semver.org/).
 
+## [ecf4397](https://github.com/jgf2/story-builder/commit/ecf4397e639905f508bd134a457bfebeda3a08a5) - 2026-09-09
+
+### Summary
+Fixed the `oven-sh/setup-bun` GitHub action reference in the CI workflow by updating it to a valid commit SHA matching `v2.2.0`.
+
+### Added
+
+### Removed
+
+### Fixed
+- Replaced non-existent commit SHA `4c1f1ad0c1c6b8cd5dc9b4da65fa6e6b1019fd5c` with valid `v2.2.0` commit SHA `0c5077e51419868618aeaa5fe8019c62421857d6` in `.github/workflows/ci.yml`
+
 ## [PR-44](https://github.com/jgf2/story-builder/pull/44) - 2026-09-09
 
 ### Summary
