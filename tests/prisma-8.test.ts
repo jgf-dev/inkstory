@@ -27,4 +27,42 @@ describe("Prisma 8 Database Integration", () => {
     expect(user?.email).toBe("seed@inkstory.local");
     expect(user?.name).toBe("Seed User");
   });
+
+  it("exports prisma as an alias pointing to db", async () => {
+    const { prisma } = await import("../src/lib/prisma");
+    expect(prisma).toBe(db);
+  });
+
+  describe("getValidDbUrl", () => {
+    it("returns the URL when given a valid postgres or postgresql URL", async () => {
+      const { getValidDbUrl } = await import("../src/lib/prisma");
+      expect(getValidDbUrl("postgresql://user:pass@localhost:5432/db")).toBe(
+        "postgresql://user:pass@localhost:5432/db",
+      );
+      expect(getValidDbUrl("postgres://user:pass@localhost:5432/db")).toBe(
+        "postgres://user:pass@localhost:5432/db",
+      );
+    });
+
+    it("returns undefined for unsupported protocols", async () => {
+      const { getValidDbUrl } = await import("../src/lib/prisma");
+      expect(getValidDbUrl("http://localhost:5432/db")).toBeUndefined();
+      expect(getValidDbUrl("mysql://user:pass@localhost:3306/db")).toBeUndefined();
+    });
+
+    it("returns undefined for unparseable strings (e.g. masked Vercel envs)", async () => {
+      const { getValidDbUrl } = await import("../src/lib/prisma");
+      expect(getValidDbUrl("[SENSITIVE]")).toBeUndefined();
+      expect(getValidDbUrl("not-a-valid-url")).toBeUndefined();
+    });
+
+    it("falls back to process.env variables when no argument is supplied", async () => {
+      const { getValidDbUrl } = await import("../src/lib/prisma");
+      const url = getValidDbUrl();
+      if (process.env.DIRECT_URL || process.env.DATABASE_URL) {
+        expect(typeof url).toBe("string");
+        expect(url?.startsWith("postgres")).toBe(true);
+      }
+    });
+  });
 });
