@@ -2,7 +2,7 @@
 
 A novel-writing and world-building platform with an AI-aware Codex.
 
-This is **Epic 0 — Project Foundation** ([Linear project](https://linear.app/jgfdev/project/novel-writing-app-3c3f658f0d44), tickets **STO-1149** and **STO-1150**).
+This is [Linear project](https://linear.app/jgfdev/project/novel-writing-app-3c3f658f0d44).
 
 ## Stack
 
