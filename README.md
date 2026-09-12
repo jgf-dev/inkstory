@@ -16,15 +16,6 @@ This is [Linear project](https://linear.app/jgfdev/project/novel-writing-app-3c3
 | Styling   | Tailwind CSS                          | Utility-first, dark-mode friendly                |
 | Hosting   | Vercel                                | Native Next.js support, free tier                |
 
-## Acceptance criteria covered
-
-- [x] App boots successfully (`npm run dev`)
-- [x] User can sign up and log in (Supabase email + password)
-- [x] Empty dashboard renders after login
-- [x] Core tables exist: `User`, `Series`, `Novel`, `Act`, `Chapter`, `Scene` (STO-1150)
-- [x] Codex tables exist: `CodexEntry`, `CodexAlias`, `CodexTag`, `CodexRelation`, `CodexProgression` (STO-1167)
-- [x] Can create a Novel with hierarchical structure and Codex entries via seed script (`npm run db:seed`)
-
 ## Local setup
 
 ### 1. Install
