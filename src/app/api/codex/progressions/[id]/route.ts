@@ -1,6 +1,10 @@
 import { NextRequest } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { CodexError, deleteCodexProgression, updateCodexProgression } from "@/lib/codex/service";
+import {
+  deleteCodexProgression,
+  handleCodexApiError,
+  updateCodexProgression,
+} from "@/lib/codex/service";
 import type { UpdateCodexProgressionInput } from "@/lib/codex/types";
 
 export const dynamic = "force-dynamic";
@@ -22,10 +26,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
     return Response.json({ progression });
   } catch (err) {
-    if (err instanceof CodexError) {
-      return Response.json({ error: err.message, code: err.code }, { status: err.status });
-    }
-    return Response.json({ error: "Internal server error" }, { status: 500 });
+    return handleCodexApiError(err);
   }
 }
 
@@ -48,9 +49,6 @@ export async function DELETE(
 
     return Response.json(result);
   } catch (err) {
-    if (err instanceof CodexError) {
-      return Response.json({ error: err.message, code: err.code }, { status: err.status });
-    }
-    return Response.json({ error: "Internal server error" }, { status: 500 });
+    return handleCodexApiError(err);
   }
 }

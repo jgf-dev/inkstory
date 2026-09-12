@@ -162,6 +162,51 @@ describe("Codex UI Components", () => {
 
       expect(html).toBeDefined();
     });
+
+    it("renders relations with related entity names", () => {
+      const entryData = {
+        id: "entry-1",
+        name: "Mara Vance",
+        type: "CHARACTER" as const,
+        trackingMode: "ALWAYS" as const,
+        seriesScoped: false,
+        description: "Glass weaver",
+        sourceRelations: [
+          {
+            id: "rel-1",
+            relationType: "MENTOR_TO",
+            targetEntryId: "entry-2",
+            targetEntry: { id: "entry-2", name: "Kaelen", type: "CHARACTER" },
+            description: "Taught arcane weaving",
+          },
+        ],
+        targetRelations: [
+          {
+            id: "rel-2",
+            relationType: "ALLY",
+            sourceEntryId: "entry-3",
+            sourceEntry: { id: "entry-3", name: "Theron", type: "CHARACTER" },
+          },
+        ],
+        progressions: [],
+        aliases: [],
+        tags: [],
+      };
+
+      const html = renderToStaticMarkup(
+        React.createElement(CodexEditor, {
+          entryId: "entry-1",
+          initialEntry: entryData,
+          onEntryUpdated: vi.fn(),
+          onEntryDeleted: vi.fn(),
+        }),
+      );
+
+      expect(html).toContain("MENTOR_TO");
+      expect(html).toContain("Kaelen");
+      expect(html).toContain("Theron");
+      expect(html).toContain("Taught arcane weaving");
+    });
   });
 
   describe("CodexCreateModal", () => {

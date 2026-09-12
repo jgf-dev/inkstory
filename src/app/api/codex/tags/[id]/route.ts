@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { CodexError, deleteCodexTag } from "@/lib/codex/service";
+import { deleteCodexTag, handleCodexApiError } from "@/lib/codex/service";
 
 export const dynamic = "force-dynamic";
 
@@ -23,9 +23,6 @@ export async function DELETE(
 
     return Response.json(result);
   } catch (err) {
-    if (err instanceof CodexError) {
-      return Response.json({ error: err.message, code: err.code }, { status: err.status });
-    }
-    return Response.json({ error: "Internal server error" }, { status: 500 });
+    return handleCodexApiError(err);
   }
 }

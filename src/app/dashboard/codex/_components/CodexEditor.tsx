@@ -14,6 +14,7 @@ import type { CodexTrackingMode, CodexType } from "@/lib/codex/types";
 
 interface CodexEditorProps {
   entryId: string;
+  initialEntry?: Record<string, any> | null;
   onEntryUpdated: (entry: any) => void;
   onEntryDeleted: (entryId: string) => void;
 }
@@ -30,20 +31,27 @@ const CODEX_TYPES: CodexType[] = [
 
 const TRACKING_MODES: CodexTrackingMode[] = ["ALWAYS", "DETECTED", "NEVER"];
 
-export function CodexEditor({ entryId, onEntryUpdated, onEntryDeleted }: CodexEditorProps) {
-  const [entry, setEntry] = useState<Record<string, any> | null>(null);
-  const [loading, setLoading] = useState(true);
+export function CodexEditor({
+  entryId,
+  initialEntry,
+  onEntryUpdated,
+  onEntryDeleted,
+}: CodexEditorProps) {
+  const [entry, setEntry] = useState<Record<string, any> | null>(initialEntry ?? null);
+  const [loading, setLoading] = useState(!initialEntry);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   // Form State
-  const [name, setName] = useState("");
-  const [type, setType] = useState<CodexType>("CHARACTER");
-  const [trackingMode, setTrackingMode] = useState<CodexTrackingMode>("DETECTED");
-  const [description, setDescription] = useState("");
-  const [notes, setNotes] = useState("");
-  const [color, setColor] = useState("#3b82f6");
+  const [name, setName] = useState(initialEntry?.name ?? "");
+  const [type, setType] = useState<CodexType>(initialEntry?.type ?? "CHARACTER");
+  const [trackingMode, setTrackingMode] = useState<CodexTrackingMode>(
+    initialEntry?.trackingMode ?? "DETECTED",
+  );
+  const [description, setDescription] = useState(initialEntry?.description ?? "");
+  const [notes, setNotes] = useState(initialEntry?.notes ?? "");
+  const [color, setColor] = useState(initialEntry?.color ?? "#3b82f6");
 
   // Sub-entity inputs
   const [newAliasName, setNewAliasName] = useState("");
@@ -53,7 +61,9 @@ export function CodexEditor({ entryId, onEntryUpdated, onEntryDeleted }: CodexEd
 
   useEffect(() => {
     let active = true;
-    setLoading(true);
+    if (!initialEntry || initialEntry.id !== entryId) {
+      setLoading(true);
+    }
     setError(null);
     setSuccessMsg(null);
 
@@ -448,7 +458,12 @@ export function CodexEditor({ entryId, onEntryUpdated, onEntryDeleted }: CodexEd
                   key={r.id}
                   className="rounded border border-ink-200 bg-ink-100 p-2 text-xs text-ink-700"
                 >
-                  <span className="font-semibold">{r.relationType}</span>
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold text-ink-900">{r.relationType}</span>
+                    <span className="font-medium text-ink-600">
+                      → {r.targetEntry?.name ?? r.targetEntryId}
+                    </span>
+                  </div>
                   {r.description && <p className="mt-0.5 text-ink-500">{r.description}</p>}
                 </div>
               ))}
@@ -457,7 +472,14 @@ export function CodexEditor({ entryId, onEntryUpdated, onEntryDeleted }: CodexEd
                   key={r.id}
                   className="rounded border border-ink-200 bg-ink-100 p-2 text-xs text-ink-700"
                 >
-                  <span className="font-semibold">{r.reverseType || r.relationType}</span>
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold text-ink-900">
+                      {r.reverseType || r.relationType}
+                    </span>
+                    <span className="font-medium text-ink-600">
+                      ← {r.sourceEntry?.name ?? r.sourceEntryId}
+                    </span>
+                  </div>
                   {r.description && <p className="mt-0.5 text-ink-500">{r.description}</p>}
                 </div>
               ))}

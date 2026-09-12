@@ -1,8 +1,8 @@
 import { NextRequest } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
-  CodexError,
   createCodexEntry,
+  handleCodexApiError,
   listCodexEntriesForNovel,
   listCodexEntriesForSeries,
 } from "@/lib/codex/service";
@@ -51,10 +51,7 @@ export async function GET(request: NextRequest) {
       { status: 400 },
     );
   } catch (err) {
-    if (err instanceof CodexError) {
-      return Response.json({ error: err.message, code: err.code }, { status: err.status });
-    }
-    return Response.json({ error: "Internal server error" }, { status: 500 });
+    return handleCodexApiError(err);
   }
 }
 
@@ -74,9 +71,6 @@ export async function POST(request: NextRequest) {
 
     return Response.json({ entry }, { status: 201 });
   } catch (err) {
-    if (err instanceof CodexError) {
-      return Response.json({ error: err.message, code: err.code }, { status: err.status });
-    }
-    return Response.json({ error: "Internal server error" }, { status: 500 });
+    return handleCodexApiError(err);
   }
 }

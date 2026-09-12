@@ -285,6 +285,32 @@ describe("Codex Service & Scoping Engine", () => {
       expect(seriesOnly.some((e) => e.name === "The First Sundering")).toBe(true);
       expect(seriesOnly.some((e) => e.name === "Eldrin the Mage")).toBe(false);
     });
+
+    it("populates aliases and tags on series listings identically to novel listings", async () => {
+      const entries = await listCodexEntriesForSeries(userId, seriesId);
+      expect(entries.length).toBeGreaterThan(0);
+      for (const e of entries) {
+        expect(Array.isArray(e.aliases)).toBe(true);
+        expect(Array.isArray(e.tags)).toBe(true);
+      }
+    });
+
+    it("strictly ignores provided seriesId when book-scoped novel has no series", async () => {
+      const entry = await createCodexEntry(userId, {
+        name: "Standalone Scope Check",
+        novelId: novelStandaloneId,
+        seriesScoped: false,
+        seriesId: "arbitrary-foreign-series-id",
+      });
+      expect(entry.novelId).toBe(novelStandaloneId);
+      expect(entry.seriesId).toBeNull();
+    });
+
+    it("enforces tenant isolation on series codex listings", async () => {
+      await expect(listCodexEntriesForSeries(otherUserId, seriesId)).rejects.toThrow(
+        /Unauthorized/,
+      );
+    });
   });
 
   describe("Update & Deletion", () => {
@@ -449,6 +475,35 @@ describe("Codex Service & Scoping Engine", () => {
       expect(del.success).toBe(true);
     });
 
+    it("resolves related entry details and cascades soft-delete to active relations", async () => {
+      const hero = await createCodexEntry(userId, {
+        name: "Test Cascade Hero",
+        novelId: novelAId,
+      });
+      const villain = await createCodexEntry(userId, {
+        name: "Test Cascade Villain",
+        novelId: novelAId,
+      });
+
+      await createCodexRelation(userId, {
+        sourceEntryId: hero.id,
+        targetEntryId: villain.id,
+        relationType: "NEMESIS",
+      });
+
+      const heroWithRelation = await getCodexEntry(userId, hero.id);
+      expect(heroWithRelation.sourceRelations.length).toBe(1);
+      expect(heroWithRelation.sourceRelations[0].targetEntry).toBeDefined();
+      expect(heroWithRelation.sourceRelations[0].targetEntry.name).toBe("Test Cascade Villain");
+
+      // Soft delete villain
+      await deleteCodexEntry(userId, villain.id);
+
+      // Hero should no longer display the relation to soft-deleted villain
+      const heroAfterVillainDelete = await getCodexEntry(userId, hero.id);
+      expect(heroAfterVillainDelete.sourceRelations.length).toBe(0);
+    });
+
     it("rejects relation between entries of different novels with no shared series", async () => {
       const bookAEntry = await createCodexEntry(userId, {
         name: "Character in Book A",
@@ -564,6 +619,20 @@ describe("Codex Service & Scoping Engine", () => {
     it("scans mentions in scene context including scene content and additional text", async () => {
       const result = await scanMentionsInScene(userId, sceneA1Id, "Eldrin was here.");
       expect(result.matchedEntryIds.length).toBeGreaterThan(0);
+    });
+
+    it("scans mentions in scene context with accurate character offsets when explicit text is provided", async () => {
+      const explicitText = "Eldrin the Mage appeared at the threshold.";
+      const result = await scanMentionsInScene(userId, sceneA1Id, explicitText);
+
+      expect(result.matches.length).toBeGreaterThan(0);
+      const firstMatch = result.matches[0];
+      expect(firstMatch.matchedText).toBe("Eldrin the Mage");
+      expect(firstMatch.startIndex).toBe(0);
+      expect(firstMatch.endIndex).toBe(15);
+      expect(explicitText.substring(firstMatch.startIndex, firstMatch.endIndex)).toBe(
+        firstMatch.matchedText,
+      );
     });
   });
 });

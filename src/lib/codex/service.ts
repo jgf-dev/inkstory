@@ -32,6 +32,23 @@ export class CodexError extends Error {
   }
 }
 
+/**
+ * Standardized API error handler for Codex REST routes.
+ * Ensures malformed JSON (SyntaxError) returns 400 instead of 500.
+ */
+export function handleCodexApiError(err: unknown): Response {
+  if (err instanceof SyntaxError) {
+    return Response.json(
+      { error: "Malformed or invalid JSON body", code: "INVALID_JSON" },
+      { status: 400 },
+    );
+  }
+  if (err instanceof CodexError) {
+    return Response.json({ error: err.message, code: err.code }, { status: err.status });
+  }
+  return Response.json({ error: "Internal server error" }, { status: 500 });
+}
+
 function nowTimestamp(): Temporal.PlainDateTime {
   return Temporal.Now.plainDateTimeISO();
 }
@@ -83,7 +100,7 @@ async function resolveAndValidateScope(
   // If the novel belongs to a series, inherit seriesId for cross-query optimization
   return {
     resolvedNovelId: novel.id,
-    resolvedSeriesId: novel.seriesId ?? seriesId ?? null,
+    resolvedSeriesId: novel.seriesId ?? null,
   };
 }
 
@@ -207,7 +224,7 @@ export async function getCodexEntry(userId: string, entryId: string) {
     throw new CodexError("Unauthorized to view this codex entry", "FORBIDDEN", 403);
   }
 
-  const [aliases, tags, sourceRelations, targetRelations, progressions] = await Promise.all([
+  const [aliases, tags, rawSourceRelations, rawTargetRelations, progressions] = await Promise.all([
     db.orm.public.CodexAlias.where((a) => a.entryId.eq(entryId))
       .where((a) => a.deletedAt.isNull())
       .all(),
@@ -225,6 +242,36 @@ export async function getCodexEntry(userId: string, entryId: string) {
       .orderBy((p) => p.position.asc())
       .all(),
   ]);
+
+  // Resolve related entries for active relations
+  const relatedTargetIds = rawSourceRelations.map((r) => r.targetEntryId);
+  const relatedSourceIds = rawTargetRelations.map((r) => r.sourceEntryId);
+  const allRelatedIds = Array.from(new Set([...relatedTargetIds, ...relatedSourceIds]));
+
+  const relatedEntries =
+    allRelatedIds.length > 0
+      ? await db.orm.public.CodexEntry.where((e) => e.id.in(allRelatedIds))
+          .where((e) => e.deletedAt.isNull())
+          .all()
+      : [];
+
+  const relatedMap = new Map(
+    relatedEntries.map((e) => [e.id, { id: e.id, name: e.name, type: e.type }]),
+  );
+
+  const sourceRelations = rawSourceRelations
+    .filter((r) => relatedMap.has(r.targetEntryId))
+    .map((r) => ({
+      ...r,
+      targetEntry: relatedMap.get(r.targetEntryId)!,
+    }));
+
+  const targetRelations = rawTargetRelations
+    .filter((r) => relatedMap.has(r.sourceEntryId))
+    .map((r) => ({
+      ...r,
+      sourceEntry: relatedMap.get(r.sourceEntryId)!,
+    }));
 
   return {
     ...entry,
@@ -320,7 +367,62 @@ export async function deleteCodexEntry(userId: string, entryId: string, hardDele
     updatedAt: now,
   });
 
+  // Soft-delete relations, aliases, tags, progressions for this entry
+  await Promise.all([
+    db.orm.public.CodexRelation.where((r) => r.sourceEntryId.eq(entryId))
+      .where((r) => r.deletedAt.isNull())
+      .update({ deletedAt: now, updatedAt: now }),
+    db.orm.public.CodexRelation.where((r) => r.targetEntryId.eq(entryId))
+      .where((r) => r.deletedAt.isNull())
+      .update({ deletedAt: now, updatedAt: now }),
+    db.orm.public.CodexAlias.where((a) => a.entryId.eq(entryId))
+      .where((a) => a.deletedAt.isNull())
+      .update({ deletedAt: now, updatedAt: now }),
+    db.orm.public.CodexTag.where((t) => t.entryId.eq(entryId))
+      .where((t) => t.deletedAt.isNull())
+      .update({ deletedAt: now, updatedAt: now }),
+    db.orm.public.CodexProgression.where((p) => p.entryId.eq(entryId))
+      .where((p) => p.deletedAt.isNull())
+      .update({ deletedAt: now, updatedAt: now }),
+  ]);
+
   return { success: true, id: entryId, deleted: "soft" as const };
+}
+
+async function attachAliasesAndTags<T extends { id: string }>(candidates: T[]) {
+  const candidateIds = candidates.map((c) => c.id);
+  if (candidateIds.length === 0) {
+    return [];
+  }
+
+  const [aliases, tags] = await Promise.all([
+    db.orm.public.CodexAlias.where((a) => a.entryId.in(candidateIds))
+      .where((a) => a.deletedAt.isNull())
+      .all(),
+    db.orm.public.CodexTag.where((t) => t.entryId.in(candidateIds))
+      .where((t) => t.deletedAt.isNull())
+      .all(),
+  ]);
+
+  const aliasByEntry = new Map<string, typeof aliases>();
+  for (const a of aliases) {
+    const list = aliasByEntry.get(a.entryId) ?? [];
+    list.push(a);
+    aliasByEntry.set(a.entryId, list);
+  }
+
+  const tagsByEntry = new Map<string, typeof tags>();
+  for (const t of tags) {
+    const list = tagsByEntry.get(t.entryId) ?? [];
+    list.push(t);
+    tagsByEntry.set(t.entryId, list);
+  }
+
+  return candidates.map((e) => ({
+    ...e,
+    aliases: aliasByEntry.get(e.id) ?? [],
+    tags: tagsByEntry.get(e.id) ?? [],
+  }));
 }
 
 /**
@@ -343,6 +445,7 @@ export async function listCodexEntriesForNovel(
 
   // Fetch book-scoped entries for this novel
   const bookEntries = await db.orm.public.CodexEntry.where((e) => e.novelId.eq(novel.id))
+    .where((e) => e.ownerId.eq(userId))
     .where((e) => e.deletedAt.isNull())
     .all();
 
@@ -350,6 +453,7 @@ export async function listCodexEntriesForNovel(
   let seriesEntries: typeof bookEntries = [];
   if (novel.seriesId) {
     seriesEntries = await db.orm.public.CodexEntry.where((e) => e.seriesId.eq(novel.seriesId))
+      .where((e) => e.ownerId.eq(userId))
       .where((e) => e.seriesScoped.eq(true))
       .where((e) => e.deletedAt.isNull())
       .all();
@@ -383,38 +487,8 @@ export async function listCodexEntriesForNovel(
     );
   }
 
-  // Fetch aliases and tags for the filtered candidates
-  const candidateIds = candidates.map((c) => c.id);
-  const [aliases, tags] = await Promise.all([
-    candidateIds.length > 0
-      ? db.orm.public.CodexAlias.where((a) => a.deletedAt.isNull()).all()
-      : [],
-    candidateIds.length > 0 ? db.orm.public.CodexTag.where((t) => t.deletedAt.isNull()).all() : [],
-  ]);
-
-  const aliasByEntry = new Map<string, typeof aliases>();
-  for (const a of aliases) {
-    if (!candidateIds.includes(a.entryId)) continue;
-    const list = aliasByEntry.get(a.entryId) ?? [];
-    list.push(a);
-    aliasByEntry.set(a.entryId, list);
-  }
-
-  const tagsByEntry = new Map<string, typeof tags>();
-  for (const t of tags) {
-    if (!candidateIds.includes(t.entryId)) continue;
-    const list = tagsByEntry.get(t.entryId) ?? [];
-    list.push(t);
-    tagsByEntry.set(t.entryId, list);
-  }
-
-  return candidates
-    .map((e) => ({
-      ...e,
-      aliases: aliasByEntry.get(e.id) ?? [],
-      tags: tagsByEntry.get(e.id) ?? [],
-    }))
-    .sort((a, b) => a.position - b.position || a.name.localeCompare(b.name));
+  const enriched = await attachAliasesAndTags(candidates);
+  return enriched.sort((a, b) => a.position - b.position || a.name.localeCompare(b.name));
 }
 
 /**
@@ -439,12 +513,14 @@ export async function listCodexEntriesForSeries(
 
   if (filter?.seriesOnly) {
     candidates = await db.orm.public.CodexEntry.where((e) => e.seriesId.eq(series.id))
+      .where((e) => e.ownerId.eq(userId))
       .where((e) => e.seriesScoped.eq(true))
       .where((e) => e.deletedAt.isNull())
       .all();
   } else {
     // Both series-scoped and entries associated with this series
     candidates = await db.orm.public.CodexEntry.where((e) => e.seriesId.eq(series.id))
+      .where((e) => e.ownerId.eq(userId))
       .where((e) => e.deletedAt.isNull())
       .all();
   }
@@ -465,7 +541,8 @@ export async function listCodexEntriesForSeries(
     );
   }
 
-  return candidates.sort((a, b) => a.position - b.position || a.name.localeCompare(b.name));
+  const enriched = await attachAliasesAndTags(candidates);
+  return enriched.sort((a, b) => a.position - b.position || a.name.localeCompare(b.name));
 }
 
 // ─── Alias & Tag CRUD ────────────────────────────────────────────────────────
@@ -784,7 +861,7 @@ export async function scanMentionsInNovel(
 export async function scanMentionsInScene(
   userId: string,
   sceneId: string,
-  additionalText?: string,
+  text?: string,
 ): Promise<MentionDetectionResult> {
   const scene = await db.orm.public.Scene.where({ id: sceneId }).first();
   if (!scene || scene.deletedAt !== null) {
@@ -796,7 +873,12 @@ export async function scanMentionsInScene(
     throw new CodexError("Unauthorized to access scene", "FORBIDDEN", 403);
   }
 
-  const textToScan = [scene.content, scene.summary, additionalText].filter(Boolean).join("\n\n");
+  const textToScan =
+    text !== undefined ? text : [scene.content, scene.summary].filter(Boolean).join("\n\n");
+
+  if (!textToScan.trim()) {
+    return { matches: [], matchedEntryIds: [] };
+  }
 
   const entries = await listCodexEntriesForNovel(userId, sceneContext.novelId);
   return detectMentionsInText(textToScan, entries);

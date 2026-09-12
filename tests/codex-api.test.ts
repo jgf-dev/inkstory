@@ -358,5 +358,18 @@ describe("Codex REST Route Handlers", () => {
       const invalidRes = await scanMentions(invalidReq);
       expect(invalidRes.status).toBe(400);
     });
+
+    it("returns 400 with INVALID_JSON when request body contains malformed JSON", async () => {
+      const malformedReq = new NextRequest("http://localhost:3000/api/codex/entries", {
+        method: "POST",
+        body: "{ malformed json: ",
+        headers: { "Content-Type": "application/json" },
+      });
+      const res = await createEntry(malformedReq);
+      expect(res.status).toBe(400);
+      const json = await res.json();
+      expect(json.code).toBe("INVALID_JSON");
+      expect(json.error).toMatch(/Malformed or invalid JSON body/);
+    });
   });
 });

@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { CodexError, createCodexRelation } from "@/lib/codex/service";
+import { createCodexRelation, handleCodexApiError } from "@/lib/codex/service";
 import type { CreateCodexRelationInput } from "@/lib/codex/types";
 
 export const dynamic = "force-dynamic";
@@ -21,9 +21,6 @@ export async function POST(request: NextRequest) {
 
     return Response.json({ relation }, { status: 201 });
   } catch (err) {
-    if (err instanceof CodexError) {
-      return Response.json({ error: err.message, code: err.code }, { status: err.status });
-    }
-    return Response.json({ error: "Internal server error" }, { status: 500 });
+    return handleCodexApiError(err);
   }
 }

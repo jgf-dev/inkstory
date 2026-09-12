@@ -39,10 +39,27 @@ Implemented Mention Detection Service ([STO-1152](https://linear.app/jgfdev/issu
   - `POST /api/codex/relations`, `PATCH /api/codex/relations/[id]`, `DELETE /api/codex/relations/[id]`: manage relations.
   - `POST /api/codex/progressions`, `PATCH /api/codex/progressions/[id]`, `DELETE /api/codex/progressions/[id]`: manage progressions.
 - **Automated Tests**:
-  - `tests/codex-service.test.ts`: 23 comprehensive tests verifying scoping enforcement, CRUD, relation graphs, progressions, and permission guards.
+  - `tests/codex-service.test.ts`: 30 comprehensive tests verifying scoping enforcement, CRUD, relation graphs, progressions, and permission guards.
   - `tests/codex-actions.test.ts`: 8 tests verifying authentication guards, server action delegation, and error handling.
-  - `tests/codex-api.test.ts`: 14 tests verifying route handlers, query parsing, and response formatting.
-  - `tests/codex-ui.test.ts`: 7 tests verifying Codex manager list, editor details, creation modal, and auth redirects.
+  - `tests/codex-api.test.ts`: 16 tests verifying route handlers, query parsing, malformed JSON handling, and response formatting.
+  - `tests/codex-ui.test.ts`: 8 tests verifying Codex manager list, editor details with relations, creation modal, and auth redirects.
+
+### Fixed
+
+- **Codex Scoping & Database Performance (`src/lib/codex/service.ts`)**:
+  - Replaced unbounded full-table scans on `CodexAlias` and `CodexTag` with SQL-level `.where((a) => a.entryId.in(candidateIds))` filtering.
+  - Enforced strict tenant isolation (`ownerId.eq(userId)`) on both novel and series entry listings.
+  - Sanitized `seriesId` assignment on book-scoped entries so entries strictly inherit `novel.seriesId` and prevent arbitrary foreign series association.
+- **Mention Scanner Offset Accuracy (`src/lib/codex/service.ts`)**:
+  - Fixed `scanMentionsInScene` character offset calculation when caller provides explicit text, avoiding offset corruption caused by prepending database content.
+- **API Response Consistency (`src/lib/codex/service.ts`)**:
+  - Unified `listCodexEntriesForSeries` and `listCodexEntriesForNovel` response schemas to ensure both include populated `aliases` and `tags`.
+- **Soft-Delete Cascade & Graph Relations (`src/lib/codex/service.ts`, `src/app/dashboard/codex/_components/CodexEditor.tsx`)**:
+  - Soft-deleting an entry now cascades soft-deletion to its relations, aliases, tags, and progressions.
+  - `getCodexEntry` filters out relations to soft-deleted entities and resolves related entry metadata (`targetEntry` and `sourceEntry`).
+  - Rendered related entity names with directional arrow indicators (`→ Target`, `← Source`) in the relation graph UI.
+- **REST Error Handling (`src/app/api/codex/...`)**:
+  - Handled `SyntaxError` on malformed request JSON across all Codex API route handlers, returning HTTP 400 (`INVALID_JSON`) rather than HTTP 500.
 
 ## [a7eb5b6](https://github.com/jgf2/story-builder/commit/a7eb5b62b083c213426e2e505500e572049e0e37) - 2026-09-10
 

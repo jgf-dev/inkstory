@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { CodexError, createCodexAlias } from "@/lib/codex/service";
+import { createCodexAlias, handleCodexApiError } from "@/lib/codex/service";
 
 export const dynamic = "force-dynamic";
 
@@ -24,9 +24,6 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     return Response.json({ alias }, { status: 201 });
   } catch (err) {
-    if (err instanceof CodexError) {
-      return Response.json({ error: err.message, code: err.code }, { status: err.status });
-    }
-    return Response.json({ error: "Internal server error" }, { status: 500 });
+    return handleCodexApiError(err);
   }
 }
