@@ -4,10 +4,12 @@ import { defineConfig } from "vite-plus";
 
 export default defineConfig({
   staged: {
-    "**/agents/**": "",
+    "**/.agents/**": "",
     "**/*.{ts,tsx}": "vp check --fix",
   },
-  fmt: {},
+  fmt: {
+    ignorePatterns: ["dist/*", ".agents/*", "node_modules/*"],
+  },
   lint: {
     jsPlugins: [{ name: "vite-plus", specifier: "vite-plus/oxlint-plugin" }],
     rules: { "vite-plus/prefer-vite-plus-imports": "error" },
