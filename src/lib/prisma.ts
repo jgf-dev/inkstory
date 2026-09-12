@@ -18,8 +18,8 @@ const globalForPrisma = globalThis as unknown as {
   db: DbClient | undefined;
 };
 
-function getValidDbUrl(): string | undefined {
-  const raw = process.env.DIRECT_URL ?? process.env.DATABASE_URL;
+export function getValidDbUrl(customRaw?: string): string | undefined {
+  const raw = customRaw ?? process.env.DIRECT_URL ?? process.env.DATABASE_URL;
   if (!raw) return undefined;
   try {
     const parsed = new URL(raw);

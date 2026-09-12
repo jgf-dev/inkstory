@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { syncAuthUser } from "@/lib/supabase/auth";
@@ -17,19 +18,22 @@ export default async function DashboardPage() {
   // Mirror Supabase auth → local users row (idempotent).
   await syncAuthUser(user);
 
-  // Epic 0 acceptance: empty dashboard renders. We'll add "create novel" UI in
-  // Epic 2 (STO-1160). For now, show the seed data if present.
-  const [seriesRes, novelRes] = await Promise.all([
+  // Surface series, novel, and codex metrics
+  const [seriesRes, novelRes, codexRes] = await Promise.all([
     db.orm.public.Series.where((s) => s.ownerId.eq(user.id))
       .where((s) => s.deletedAt.isNull())
       .aggregate((a) => ({ count: a.count() })),
     db.orm.public.Novel.where((n) => n.ownerId.eq(user.id))
       .where((n) => n.deletedAt.isNull())
       .aggregate((a) => ({ count: a.count() })),
+    db.orm.public.CodexEntry.where((e) => e.ownerId.eq(user.id))
+      .where((e) => e.deletedAt.isNull())
+      .aggregate((a) => ({ count: a.count() })),
   ]);
 
   const seriesCount = seriesRes.count;
   const novelCount = novelRes.count;
+  const codexCount = codexRes.count;
 
   return (
     <main className="mx-auto max-w-3xl px-6 py-12">
@@ -41,7 +45,7 @@ export default async function DashboardPage() {
         <LogoutButton />
       </header>
 
-      <section className="grid gap-4 sm:grid-cols-2">
+      <section className="grid gap-4 sm:grid-cols-3">
         <div className="border-ink-200 bg-ink-50 rounded-lg border p-5">
           <p className="text-ink-500 text-sm tracking-wide uppercase">Series</p>
           <p className="mt-1 text-3xl font-semibold">{seriesCount}</p>
@@ -50,6 +54,18 @@ export default async function DashboardPage() {
           <p className="text-ink-500 text-sm tracking-wide uppercase">Novels</p>
           <p className="mt-1 text-3xl font-semibold">{novelCount}</p>
         </div>
+        <Link
+          href="/dashboard/codex"
+          className="border-ink-200 bg-ink-50 hover:bg-ink-100/70 group block rounded-lg border p-5 transition-colors"
+        >
+          <div className="flex items-center justify-between">
+            <p className="text-ink-500 text-sm tracking-wide uppercase">Codex</p>
+            <span className="text-ink-400 group-hover:text-ink-700 text-xs font-medium">
+              Manage →
+            </span>
+          </div>
+          <p className="mt-1 text-3xl font-semibold">{codexCount}</p>
+        </Link>
       </section>
 
       <section className="border-ink-300 text-ink-500 mt-10 rounded-lg border border-dashed p-8 text-center">
@@ -57,7 +73,11 @@ export default async function DashboardPage() {
         <p className="mt-1 text-sm">
           The &ldquo;Create Novel&rdquo; flow ships in Epic 2 (STO-1160). For now you can{" "}
           <code className="bg-ink-100 rounded px-1 py-0.5 text-xs">npm run db:seed</code> to load
-          demo data, or wait for the next iteration.
+          demo data, or manage world-building elements in the{" "}
+          <Link href="/dashboard/codex" className="text-ink-800 font-semibold underline">
+            Story Codex
+          </Link>
+          .
         </p>
       </section>
     </main>
