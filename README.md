@@ -100,9 +100,9 @@ prisma/
 ## What's next (Epic 1)
 
 - [x] Codex database schema & models ([STO-1167](https://linear.app/jgfdev/issue/STO-1167))
-- [ ] Codex CRUD API & Server Actions ([STO-1168](https://linear.app/jgfdev/issue/STO-1168))
-- [ ] Basic Codex UI List + Editor ([STO-1169](https://linear.app/jgfdev/issue/STO-1169))
-- [ ] Mention Detection Service ([STO-1152](https://linear.app/jgfdev/issue/STO-1152))
+- [x] Codex CRUD API & Server Actions ([STO-1168](https://linear.app/jgfdev/issue/STO-1168))
+- [x] Basic Codex UI List + Editor ([STO-1169](https://linear.app/jgfdev/issue/STO-1169))
+- [x] Mention Detection Service ([STO-1152](https://linear.app/jgfdev/issue/STO-1152))
 - [ ] Relations Graph Engine ([STO-1154](https://linear.app/jgfdev/issue/STO-1154))
 - [ ] Temporal Progressions ([STO-1153](https://linear.app/jgfdev/issue/STO-1153))
 - [ ] Context Assembler ([STO-1170](https://linear.app/jgfdev/issue/STO-1170) / [STO-1171](https://linear.app/jgfdev/issue/STO-1171))
