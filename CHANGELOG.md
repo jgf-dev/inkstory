@@ -2,6 +2,101 @@
 
 All notable changes to InkStory are tracked here. This file follows [Keep a Changelog](https://keepachangelog.com/) and the project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Summary
+
+Implemented Mention Detection Service ([STO-1152](https://linear.app/jgfdev/issue/STO-1152)), full CRUD API and Server Actions ([STO-1168](https://linear.app/jgfdev/issue/STO-1168)), interactive Codex UI ([STO-1169](https://linear.app/jgfdev/issue/STO-1169)), and Codex database schema & migrations ([STO-1167](https://linear.app/jgfdev/issue/STO-1167)).
+
+### Added
+
+- **Mention Detection Service (`src/lib/codex/mention-detection.ts`)**:
+  - Text scanner detecting Codex entry names and aliases inside scene text or beat prompts.
+  - Case-insensitive, word-boundary aware (handling punctuation, quotes, and apostrophes without false substring matches).
+  - Longer-match precedence for overlapping mentions (e.g. "The Glass Weaver" over "Glass Weaver").
+  - Returns character indices (`startIndex`, `endIndex`) and unique matched entity IDs.
+  - Integrated via `scanMentionsInNovel`, `scanMentionsInScene`, `detectMentionsAction`, and `POST /api/codex/mentions`.
+- **Codex Domain Service (`src/lib/codex/service.ts`)**:
+  - Full CRUD operations for `CodexEntry`, `CodexAlias`, `CodexTag`, `CodexRelation`, and `CodexProgression`.
+  - Scoping rules enforcement: series-scoped entries are bound to series and shared across all books in that series; book-scoped entries are strictly bound to individual novels and isolated from other books.
+  - Cross-novel validation for graph relations and scene-level temporal progressions.
+  - Soft-delete support (`deletedAt`) across all entities with hard-delete option.
+- **Server Actions (`src/lib/codex/actions.ts`)**:
+  - Strongly typed Server Actions (`createCodexEntryAction`, `updateCodexEntryAction`, `deleteCodexEntryAction`, `listCodexEntriesForNovelAction`, `listCodexEntriesForSeriesAction`, etc.) for seamless React component integration.
+- **Codex UI & Dashboard (`src/app/dashboard/codex/...`)**:
+  - `CodexManager` interface with real-time text search, type filtering pills (Characters, Locations, Items, Lore, Factions, Concepts), and novel/series scoping indicators.
+  - `CodexEditor` for editing entry names, types, tracking modes, descriptions, notes, aliases, tags, graph relations, and progressions.
+  - `CodexCreateModal` for quickly authoring new Codex entries with book vs. series scoping, color themes, and initial aliases.
+  - Updated `/dashboard` with Codex metrics and navigation.
+- **REST Route Handlers (`src/app/api/codex/...`)**:
+  - `GET /api/codex/entries`: list entries by `novelId` or `seriesId` with filters (`type`, `trackingMode`, `search`, `seriesOnly`).
+  - `POST /api/codex/entries`: create new Codex entries with initial aliases and tags.
+  - `GET /api/codex/entries/[id]`: retrieve entry with aliases, tags, progressions, and relations.
+  - `PATCH /api/codex/entries/[id]`: update entry fields or scoping.
+  - `DELETE /api/codex/entries/[id]`: delete entry (soft or `?hard=true`).
+  - `POST /api/codex/entries/[id]/aliases` & `DELETE /api/codex/aliases/[id]`: manage aliases.
+  - `POST /api/codex/entries/[id]/tags` & `DELETE /api/codex/tags/[id]`: manage tags.
+  - `POST /api/codex/relations`, `PATCH /api/codex/relations/[id]`, `DELETE /api/codex/relations/[id]`: manage relations.
+  - `POST /api/codex/progressions`, `PATCH /api/codex/progressions/[id]`, `DELETE /api/codex/progressions/[id]`: manage progressions.
+- **Automated Tests**:
+  - `tests/codex-service.test.ts`: 30 comprehensive tests verifying scoping enforcement, CRUD, relation graphs, progressions, and permission guards.
+  - `tests/codex-actions.test.ts`: 8 tests verifying authentication guards, server action delegation, and error handling.
+  - `tests/codex-api.test.ts`: 16 tests verifying route handlers, query parsing, malformed JSON handling, and response formatting.
+  - `tests/codex-ui.test.ts`: 8 tests verifying Codex manager list, editor details with relations, creation modal, and auth redirects.
+
+### Fixed
+
+- **Codex Scoping & Database Performance (`src/lib/codex/service.ts`)**:
+  - Replaced unbounded full-table scans on `CodexAlias` and `CodexTag` with SQL-level `.where((a) => a.entryId.in(candidateIds))` filtering.
+  - Enforced strict tenant isolation (`ownerId.eq(userId)`) on both novel and series entry listings.
+  - Sanitized `seriesId` assignment on book-scoped entries so entries strictly inherit `novel.seriesId` and prevent arbitrary foreign series association.
+- **Mention Scanner Offset Accuracy (`src/lib/codex/service.ts`)**:
+  - Fixed `scanMentionsInScene` character offset calculation when caller provides explicit text, avoiding offset corruption caused by prepending database content.
+- **API Response Consistency (`src/lib/codex/service.ts`)**:
+  - Unified `listCodexEntriesForSeries` and `listCodexEntriesForNovel` response schemas to ensure both include populated `aliases` and `tags`.
+- **Soft-Delete Cascade & Graph Relations (`src/lib/codex/service.ts`, `src/app/dashboard/codex/_components/CodexEditor.tsx`)**:
+  - Soft-deleting an entry now cascades soft-deletion to its relations, aliases, tags, and progressions.
+  - `getCodexEntry` filters out relations to soft-deleted entities and resolves related entry metadata (`targetEntry` and `sourceEntry`).
+  - Rendered related entity names with directional arrow indicators (`→ Target`, `← Source`) in the relation graph UI.
+- **REST Error Handling (`src/app/api/codex/...`)**:
+  - Handled `SyntaxError` on malformed request JSON across all Codex API route handlers, returning HTTP 400 (`INVALID_JSON`) rather than HTTP 500.
+
+## [a7eb5b6](https://github.com/jgf2/story-builder/commit/a7eb5b62b083c213426e2e505500e572049e0e37) - 2026-09-10
+
+### Summary
+
+Implemented complete test coverage across the application using Vitest and Vite+, establishing 37 persistent unit and integration tests and reaching 100% line coverage and 99.25% statement coverage across all application source modules.
+
+### Added
+
+- `tests/api-health.test.ts`: automated tests for `GET /api/health` endpoint, checking 200 HTTP response, payload schema, dynamic flag, and version fallback
+- `tests/supabase-auth.test.ts`: unit and integration tests for `syncAuthUser`, covering validation errors, metadata resolution (full_name/name, avatar_url/picture), and database upserts
+- `tests/supabase-clients.test.ts`: tests for Supabase browser and server client factories (`createSupabaseBrowserClient`, `createSupabaseServerClient`), including cookie store adapters and server component error handling
+- `tests/supabase-middleware.test.ts`: tests for session cookie refreshes in `updateSession` and static route filtering in `proxy` middleware matcher
+- `tests/pages.test.ts`: server component and page tests covering `RootLayout`, `HomePage`, `DashboardPage` auth redirects and metrics rendering, and `LoginPage`/`SignupPage` auth gates
+- `tests/auth-components.test.ts`: client component tests for `LoginForm`, `SignupForm`, and `LogoutButton` covering input events, loading states, auth error handling, and redirection
+- Vitest coverage and resolve alias configurations in `vite.config.ts`
+
+### Removed
+
+### Fixed
+
+- Added test coverage for database URL parsing edge cases (`[SENSITIVE]`, non-postgres schemes, fallback envs) in `src/lib/prisma.ts`
+
+## [ecf4397](https://github.com/jgf2/story-builder/commit/ecf4397e639905f508bd134a457bfebeda3a08a5) - 2026-09-09
+
+### Summary
+
+Fixed the `oven-sh/setup-bun` GitHub action reference in the CI workflow by updating it to a valid commit SHA matching `v2.2.0`.
+
+### Added
+
+### Removed
+
+### Fixed
+
+- Replaced non-existent commit SHA `4c1f1ad0c1c6b8cd5dc9b4da65fa6e6b1019fd5c` with valid `v2.2.0` commit SHA `0c5077e51419868618aeaa5fe8019c62421857d6` in `.github/workflows/ci.yml`
+
 ## [PR-44](https://github.com/jgf2/story-builder/pull/44) - 2026-09-09
 
 ### Summary
