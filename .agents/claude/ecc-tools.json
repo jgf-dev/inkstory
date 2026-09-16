@@ -161,7 +161,7 @@
     ".agents/codex/agents/explorer.toml",
     ".agents/codex/agents/reviewer.toml",
     ".agents/codex/agents/docs-researcher.toml",
-    ".agents/claude/homunculus/instincts/inherited/inkstory-instincts.yaml"
+    ".agents/claude/homunculus/instincts/inherited/inkstory-instincts.md"
   ],
   "packageFiles": {
     "runtime-core": [
@@ -174,7 +174,7 @@
       ".agents/codex/agents/explorer.toml",
       ".agents/codex/agents/reviewer.toml",
       ".agents/codex/agents/docs-researcher.toml",
-      ".agents/claude/homunculus/instincts/inherited/inkstory-instincts.yaml"
+      ".agents/claude/homunculus/instincts/inherited/inkstory-instincts.md"
     ]
   },
   "moduleFiles": {
@@ -188,7 +188,7 @@
       ".agents/codex/agents/explorer.toml",
       ".agents/codex/agents/reviewer.toml",
       ".agents/codex/agents/docs-researcher.toml",
-      ".agents/claude/homunculus/instincts/inherited/inkstory-instincts.yaml"
+      ".agents/claude/homunculus/instincts/inherited/inkstory-instincts.md"
     ]
   },
   "files": [
@@ -239,7 +239,7 @@
     },
     {
       "moduleId": "runtime-core",
-      "path": ".agents/claude/homunculus/instincts/inherited/inkstory-instincts.yaml",
+      "path": ".agents/claude/homunculus/instincts/inherited/inkstory-instincts.md",
       "description": "Continuous-learning instincts derived from repository patterns."
     }
   ],
