@@ -44,7 +44,7 @@
     "dotenv-cli": "11.0.0",
     "oxlint": "1.82.0",
     "postcss": "8.5.28",
-    "prisma": "8.0.0-rc.13",
+    "prisma": "8.0.0-rc.14",
     "tailwindcss": "4.3.3",
     "tsx": "4.23.13",
     "typescript": "7.0.2",
