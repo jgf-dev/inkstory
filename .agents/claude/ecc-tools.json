@@ -152,49 +152,49 @@
     "workflow-pack"
   ],
   "managedFiles": [
-    ".claude/skills/inkstory/SKILL.md",
+    ".agents/claude/skills/inkstory/SKILL.md",
     ".agents/skills/inkstory/SKILL.md",
     ".agents/skills/inkstory/agents/openai.yaml",
-    ".claude/identity.json",
-    ".codex/config.toml",
-    ".codex/AGENTS.md",
-    ".codex/agents/explorer.toml",
-    ".codex/agents/reviewer.toml",
-    ".codex/agents/docs-researcher.toml",
-    ".claude/homunculus/instincts/inherited/inkstory-instincts.yaml"
+    ".agents/claude/identity.json",
+    ".agents/codex/config.toml",
+    ".agents/codex/AGENTS.md",
+    ".agents/codex/agents/explorer.toml",
+    ".agents/codex/agents/reviewer.toml",
+    ".agents/codex/agents/docs-researcher.toml",
+    ".agents/claude/homunculus/instincts/inherited/inkstory-instincts.yaml"
   ],
   "packageFiles": {
     "runtime-core": [
-      ".claude/skills/inkstory/SKILL.md",
+      ".agents/claude/skills/inkstory/SKILL.md",
       ".agents/skills/inkstory/SKILL.md",
       ".agents/skills/inkstory/agents/openai.yaml",
-      ".claude/identity.json",
-      ".codex/config.toml",
-      ".codex/AGENTS.md",
-      ".codex/agents/explorer.toml",
-      ".codex/agents/reviewer.toml",
-      ".codex/agents/docs-researcher.toml",
-      ".claude/homunculus/instincts/inherited/inkstory-instincts.yaml"
+      ".agents/claude/identity.json",
+      ".agents/codex/config.toml",
+      ".agents/codex/AGENTS.md",
+      ".agents/codex/agents/explorer.toml",
+      ".agents/codex/agents/reviewer.toml",
+      ".agents/codex/agents/docs-researcher.toml",
+      ".agents/claude/homunculus/instincts/inherited/inkstory-instincts.yaml"
     ]
   },
   "moduleFiles": {
     "runtime-core": [
-      ".claude/skills/inkstory/SKILL.md",
+      ".agents/claude/skills/inkstory/SKILL.md",
       ".agents/skills/inkstory/SKILL.md",
       ".agents/skills/inkstory/agents/openai.yaml",
-      ".claude/identity.json",
-      ".codex/config.toml",
-      ".codex/AGENTS.md",
-      ".codex/agents/explorer.toml",
-      ".codex/agents/reviewer.toml",
-      ".codex/agents/docs-researcher.toml",
-      ".claude/homunculus/instincts/inherited/inkstory-instincts.yaml"
+      ".agents/claude/identity.json",
+      ".agents/codex/config.toml",
+      ".agents/codex/AGENTS.md",
+      ".agents/codex/agents/explorer.toml",
+      ".agents/codex/agents/reviewer.toml",
+      ".agents/codex/agents/docs-researcher.toml",
+      ".agents/claude/homunculus/instincts/inherited/inkstory-instincts.yaml"
     ]
   },
   "files": [
     {
       "moduleId": "runtime-core",
-      "path": ".claude/skills/inkstory/SKILL.md",
+      "path": ".agents/claude/skills/inkstory/SKILL.md",
       "description": "Repository-specific Claude Code skill generated from git history."
     },
     {
@@ -209,50 +209,50 @@
     },
     {
       "moduleId": "runtime-core",
-      "path": ".claude/identity.json",
+      "path": ".agents/claude/identity.json",
       "description": "Suggested identity.json baseline derived from repository conventions."
     },
     {
       "moduleId": "runtime-core",
-      "path": ".codex/config.toml",
+      "path": ".agents/codex/config.toml",
       "description": "Repo-local Codex MCP and multi-agent baseline aligned with ECC defaults."
     },
     {
       "moduleId": "runtime-core",
-      "path": ".codex/AGENTS.md",
+      "path": ".agents/codex/AGENTS.md",
       "description": "Codex usage guide that points at the generated repo skill and workflow bundle."
     },
     {
       "moduleId": "runtime-core",
-      "path": ".codex/agents/explorer.toml",
+      "path": ".agents/codex/agents/explorer.toml",
       "description": "Read-only explorer role config for Codex multi-agent work."
     },
     {
       "moduleId": "runtime-core",
-      "path": ".codex/agents/reviewer.toml",
+      "path": ".agents/codex/agents/reviewer.toml",
       "description": "Read-only reviewer role config focused on correctness and security."
     },
     {
       "moduleId": "runtime-core",
-      "path": ".codex/agents/docs-researcher.toml",
+      "path": ".agents/codex/agents/docs-researcher.toml",
       "description": "Read-only docs researcher role config for API verification."
     },
     {
       "moduleId": "runtime-core",
-      "path": ".claude/homunculus/instincts/inherited/inkstory-instincts.yaml",
+      "path": ".agents/claude/homunculus/instincts/inherited/inkstory-instincts.yaml",
       "description": "Continuous-learning instincts derived from repository patterns."
     }
   ],
   "workflows": [],
   "adapters": {
     "claudeCode": {
-      "skillPath": ".claude/skills/inkstory/SKILL.md",
-      "identityPath": ".claude/identity.json",
+      "skillPath": ".agents/claude/skills/inkstory/SKILL.md",
+      "identityPath": ".agents/claude/identity.json",
       "commandPaths": []
     },
     "codex": {
-      "configPath": ".codex/config.toml",
-      "agentsGuidePath": ".codex/AGENTS.md",
+      "configPath": ".agents/codex/config.toml",
+      "agentsGuidePath": ".agents/codex/AGENTS.md",
       "skillPath": ".agents/skills/inkstory/SKILL.md"
     }
   }
