@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import type { NextRequest } from "next/server";
 
 const mockGetUser = vi.fn();
@@ -99,6 +99,59 @@ describe("Supabase Middleware & Proxy", () => {
       expect(pattern.test("/favicon.ico")).toBe(false);
       expect(pattern.test("/hero.png")).toBe(false);
       expect(pattern.test("/logo.svg")).toBe(false);
+    });
+  });
+
+  describe("updateSession E2E auth bypass", () => {
+    afterEach(() => {
+      delete process.env.NEXT_PUBLIC_E2E;
+      vi.resetModules();
+    });
+
+    it("skips Supabase session refresh when NEXT_PUBLIC_E2E is true and e2e-user cookie exists", async () => {
+      process.env.NEXT_PUBLIC_E2E = "true";
+
+      const mockRequest = {
+        cookies: {
+          get: vi.fn().mockReturnValue({ name: "e2e-user", value: "seed" }),
+          getAll: vi.fn().mockReturnValue([]),
+          set: vi.fn(),
+        },
+        headers: new Headers(),
+        nextUrl: new URL("http://localhost:3000/dashboard"),
+      } as unknown as NextRequest;
+
+      vi.resetModules();
+      const { updateSession } = await import("../src/lib/supabase/middleware");
+      const response = await updateSession(mockRequest);
+
+      expect(response).toBeDefined();
+      expect(mockCreateServerClient).not.toHaveBeenCalled();
+      expect(mockGetUser).not.toHaveBeenCalled();
+    });
+
+    it("still refreshes session when NEXT_PUBLIC_E2E is true but e2e-user cookie is absent", async () => {
+      process.env.NEXT_PUBLIC_E2E = "true";
+      mockGetUser.mockResolvedValue({ data: { user: null }, error: null });
+      mockCreateServerClient.mockImplementation(() => ({
+        auth: { getUser: mockGetUser },
+      }));
+
+      const mockRequest = {
+        cookies: {
+          get: vi.fn().mockReturnValue(undefined),
+          getAll: vi.fn().mockReturnValue([]),
+          set: vi.fn(),
+        },
+        headers: new Headers(),
+        nextUrl: new URL("http://localhost:3000/dashboard"),
+      } as unknown as NextRequest;
+
+      vi.resetModules();
+      const { updateSession } = await import("../src/lib/supabase/middleware");
+      await updateSession(mockRequest);
+      expect(mockCreateServerClient).toHaveBeenCalled();
+      expect(mockGetUser).toHaveBeenCalled();
     });
   });
 });
