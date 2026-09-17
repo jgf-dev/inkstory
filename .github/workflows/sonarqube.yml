@@ -129,7 +129,12 @@ jobs:
           fi
 
           recreate_project
-          echo "Project recreated; first Analysis upload will seed main"
+          echo "Project recreated; renaming default master -> main"
+          ensure_named_main || true
+          # Fresh projects have an empty index; 404/200 both fine before first upload.
+          protobuf_ok "/batch/project.protobuf?key=jgf-dev_inkstory" "project.protobuf" || true
+          protobuf_ok "/batch/project.protobuf?key=jgf-dev_inkstory&branch=main" "project.protobuf?branch=main" || true
+          echo "Ready for first Analysis upload to seed main"
 
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
