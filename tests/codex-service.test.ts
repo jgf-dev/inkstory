@@ -23,7 +23,7 @@ import {
 } from "../src/lib/codex/service";
 import { db } from "../src/lib/prisma";
 
-describe("Codex Service & Scoping Engine", () => {
+describe("Codex Service & Scoping Engine", { timeout: 20_000 }, () => {
   // Unique IDs per suite run. Analysis uses a shared CI Postgres; fixed IDs let
   // overlapping runs' afterAll delete each other's users/series mid-suite
   // (FK / "Novel not found" flakes on aliases/relations/progressions/mentions).
