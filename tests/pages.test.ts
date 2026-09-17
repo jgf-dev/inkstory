@@ -43,9 +43,54 @@ vi.mock("../src/app/signup/SignupForm", () => ({
   SignupForm: () => React.createElement("form", { "data-testid": "signup-form" }),
 }));
 
+const mockCodexManager = vi.fn((props: any) =>
+  React.createElement(
+    "div",
+    {
+      "data-testid": "codex-manager",
+      "data-entries": JSON.stringify(props.initialEntries),
+      "data-novels": JSON.stringify(props.novels),
+      "data-series": JSON.stringify(props.series),
+    },
+    "CodexManager",
+  ),
+);
+
+vi.mock("../src/app/dashboard/codex/_components/CodexManager", () => ({
+  CodexManager: (props: any) => mockCodexManager(props),
+}));
+
+function chainAll(result: unknown) {
+  const chain = {
+    where: vi.fn(() => chain),
+    all: vi.fn(async () => result),
+    aggregate: vi.fn(async () => ({ count: Array.isArray(result) ? result.length : 0 })),
+  };
+  return chain;
+}
+
+const mockNovelWhere = vi.fn();
+const mockSeriesWhere = vi.fn();
+const mockCodexWhere = vi.fn();
+
+vi.mock("../src/lib/prisma", () => ({
+  db: {
+    orm: {
+      public: {
+        Novel: { where: (...args: any[]) => mockNovelWhere(...args) },
+        Series: { where: (...args: any[]) => mockSeriesWhere(...args) },
+        CodexEntry: { where: (...args: any[]) => mockCodexWhere(...args) },
+      },
+    },
+  },
+}));
+
 describe("Pages & Server Components", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockNovelWhere.mockImplementation(() => chainAll([]));
+    mockSeriesWhere.mockImplementation(() => chainAll([]));
+    mockCodexWhere.mockImplementation(() => chainAll([]));
   });
 
   describe("RootLayout", () => {
@@ -125,7 +170,82 @@ describe("Pages & Server Components", () => {
       expect(html).toContain("seed@inkstory.local");
       expect(html).toContain("Series");
       expect(html).toContain("Novels");
-      expect(html).toContain("No novels yet.");
+    });
+  });
+
+  describe("CodexPage (src/app/dashboard/codex/page.tsx)", () => {
+    it("redirects to /login when user is unauthenticated", async () => {
+      mockGetUser.mockResolvedValue({ data: { user: null }, error: null });
+
+      const { default: CodexPage } = await import("../src/app/dashboard/codex/page");
+      await expect(CodexPage()).rejects.toThrow("NEXT_REDIRECT: /login");
+      expect(mockRedirect).toHaveBeenCalledWith("/login");
+    });
+
+    it("serializes novels/series/entries to plain JSON props for CodexManager", async () => {
+      const mockUser = {
+        id: "00000000-0000-0000-0000-000000000001",
+        email: "seed@inkstory.local",
+      };
+      mockGetUser.mockResolvedValue({ data: { user: mockUser }, error: null });
+
+      const datedNovel = {
+        id: "novel-1",
+        title: "Book One",
+        seriesId: "series-1",
+        createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      };
+      const datedSeries = {
+        id: "series-1",
+        title: "Chronicles",
+        createdAt: new Date("2026-01-02T00:00:00.000Z"),
+      };
+      const datedEntry = {
+        id: "entry-1",
+        name: "Aria",
+        type: "CHARACTER",
+        createdAt: new Date("2026-01-03T00:00:00.000Z"),
+      };
+
+      mockNovelWhere.mockImplementation(() => chainAll([datedNovel]));
+      mockSeriesWhere.mockImplementation(() => chainAll([datedSeries]));
+      mockCodexWhere.mockImplementation(() => chainAll([datedEntry]));
+
+      const { default: CodexPage } = await import("../src/app/dashboard/codex/page");
+      const element = await CodexPage();
+      const html = renderToStaticMarkup(element);
+
+      expect(mockSyncAuthUser).toHaveBeenCalledWith(mockUser);
+      expect(html).toContain("data-testid=\"codex-manager\"");
+      expect(mockCodexManager).toHaveBeenCalled();
+
+      const props = mockCodexManager.mock.calls.at(-1)![0];
+      expect(props.novels).toEqual([
+        {
+          id: "novel-1",
+          title: "Book One",
+          seriesId: "series-1",
+          createdAt: "2026-01-01T00:00:00.000Z",
+        },
+      ]);
+      expect(props.series).toEqual([
+        {
+          id: "series-1",
+          title: "Chronicles",
+          createdAt: "2026-01-02T00:00:00.000Z",
+        },
+      ]);
+      expect(props.initialEntries).toEqual([
+        {
+          id: "entry-1",
+          name: "Aria",
+          type: "CHARACTER",
+          createdAt: "2026-01-03T00:00:00.000Z",
+        },
+      ]);
+      // Ensure JSON round-trip produced clones (no Date instances)
+      expect(props.novels[0]).not.toBe(datedNovel);
+      expect(Object.prototype.toString.call(props.novels[0].createdAt)).toBe("[object String]");
     });
   });
 
