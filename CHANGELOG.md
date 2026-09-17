@@ -43,6 +43,7 @@ Implemented Mention Detection Service ([STO-1152](https://linear.app/jgfdev/issu
   - `tests/codex-actions.test.ts`: 8 tests verifying authentication guards, server action delegation, and error handling.
   - `tests/codex-api.test.ts`: 16 tests verifying route handlers, query parsing, malformed JSON handling, and response formatting.
   - `tests/codex-ui.test.ts`: 8 tests verifying Codex manager list, editor details with relations, creation modal, and auth redirects.
+  - **Live Browser E2E QA (`playwright.config.ts`, `tests/e2e/auth.spec.ts`, `tests/e2e/codex-qa.spec.ts`)**: 8 automated browser tests running against the Next.js application, covering unauthenticated redirects, login form navigation, category pill filtering, real-time search, modal entry creation, relation graph rendering, and mobile layout.
 
 ### Fixed
 

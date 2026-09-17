@@ -51,6 +51,10 @@ async function getAuthenticatedUserId(): Promise<string> {
   return user.id;
 }
 
+function toPlainObject<T>(obj: T): T {
+  return JSON.parse(JSON.stringify(obj));
+}
+
 function handleActionError(err: unknown): ActionResult<never> {
   if (err instanceof CodexError) {
     return {
@@ -77,7 +81,7 @@ export async function createCodexEntryAction(
   try {
     const userId = await getAuthenticatedUserId();
     const data = await createCodexEntry(userId, input);
-    return { success: true, data };
+    return { success: true, data: toPlainObject(data) };
   } catch (err) {
     return handleActionError(err);
   }
@@ -89,7 +93,7 @@ export async function getCodexEntryAction(
   try {
     const userId = await getAuthenticatedUserId();
     const data = await getCodexEntry(userId, id);
-    return { success: true, data };
+    return { success: true, data: toPlainObject(data) };
   } catch (err) {
     return handleActionError(err);
   }
@@ -102,7 +106,7 @@ export async function updateCodexEntryAction(
   try {
     const userId = await getAuthenticatedUserId();
     const data = await updateCodexEntry(userId, id, input);
-    return { success: true, data };
+    return { success: true, data: toPlainObject(data) };
   } catch (err) {
     return handleActionError(err);
   }
@@ -115,7 +119,7 @@ export async function deleteCodexEntryAction(
   try {
     const userId = await getAuthenticatedUserId();
     const data = await deleteCodexEntry(userId, id, hardDelete);
-    return { success: true, data };
+    return { success: true, data: toPlainObject(data) };
   } catch (err) {
     return handleActionError(err);
   }
@@ -128,7 +132,7 @@ export async function listCodexEntriesForNovelAction(
   try {
     const userId = await getAuthenticatedUserId();
     const data = await listCodexEntriesForNovel(userId, novelId, filter);
-    return { success: true, data };
+    return { success: true, data: toPlainObject(data) };
   } catch (err) {
     return handleActionError(err);
   }
@@ -141,7 +145,7 @@ export async function listCodexEntriesForSeriesAction(
   try {
     const userId = await getAuthenticatedUserId();
     const data = await listCodexEntriesForSeries(userId, seriesId, filter);
-    return { success: true, data };
+    return { success: true, data: toPlainObject(data) };
   } catch (err) {
     return handleActionError(err);
   }
@@ -155,7 +159,7 @@ export async function createCodexAliasAction(
   try {
     const userId = await getAuthenticatedUserId();
     const data = await createCodexAlias(userId, input);
-    return { success: true, data };
+    return { success: true, data: toPlainObject(data) };
   } catch (err) {
     return handleActionError(err);
   }
@@ -167,7 +171,7 @@ export async function deleteCodexAliasAction(
   try {
     const userId = await getAuthenticatedUserId();
     const data = await deleteCodexAlias(userId, aliasId);
-    return { success: true, data };
+    return { success: true, data: toPlainObject(data) };
   } catch (err) {
     return handleActionError(err);
   }
@@ -181,7 +185,7 @@ export async function createCodexTagAction(
   try {
     const userId = await getAuthenticatedUserId();
     const data = await createCodexTag(userId, input);
-    return { success: true, data };
+    return { success: true, data: toPlainObject(data) };
   } catch (err) {
     return handleActionError(err);
   }
@@ -193,7 +197,7 @@ export async function deleteCodexTagAction(
   try {
     const userId = await getAuthenticatedUserId();
     const data = await deleteCodexTag(userId, tagId);
-    return { success: true, data };
+    return { success: true, data: toPlainObject(data) };
   } catch (err) {
     return handleActionError(err);
   }
@@ -207,7 +211,7 @@ export async function createCodexRelationAction(
   try {
     const userId = await getAuthenticatedUserId();
     const data = await createCodexRelation(userId, input);
-    return { success: true, data };
+    return { success: true, data: toPlainObject(data) };
   } catch (err) {
     return handleActionError(err);
   }
@@ -220,7 +224,7 @@ export async function updateCodexRelationAction(
   try {
     const userId = await getAuthenticatedUserId();
     const data = await updateCodexRelation(userId, relationId, input);
-    return { success: true, data };
+    return { success: true, data: toPlainObject(data) };
   } catch (err) {
     return handleActionError(err);
   }
@@ -232,7 +236,7 @@ export async function deleteCodexRelationAction(
   try {
     const userId = await getAuthenticatedUserId();
     const data = await deleteCodexRelation(userId, relationId);
-    return { success: true, data };
+    return { success: true, data: toPlainObject(data) };
   } catch (err) {
     return handleActionError(err);
   }
@@ -246,7 +250,7 @@ export async function createCodexProgressionAction(
   try {
     const userId = await getAuthenticatedUserId();
     const data = await createCodexProgression(userId, input);
-    return { success: true, data };
+    return { success: true, data: toPlainObject(data) };
   } catch (err) {
     return handleActionError(err);
   }
@@ -259,7 +263,7 @@ export async function updateCodexProgressionAction(
   try {
     const userId = await getAuthenticatedUserId();
     const data = await updateCodexProgression(userId, progressionId, input);
-    return { success: true, data };
+    return { success: true, data: toPlainObject(data) };
   } catch (err) {
     return handleActionError(err);
   }
@@ -271,7 +275,7 @@ export async function deleteCodexProgressionAction(
   try {
     const userId = await getAuthenticatedUserId();
     const data = await deleteCodexProgression(userId, progressionId);
-    return { success: true, data };
+    return { success: true, data: toPlainObject(data) };
   } catch (err) {
     return handleActionError(err);
   }
@@ -288,11 +292,11 @@ export async function detectMentionsAction(params: {
     const userId = await getAuthenticatedUserId();
     if (params.sceneId) {
       const data = await scanMentionsInScene(userId, params.sceneId, params.text);
-      return { success: true, data };
+      return { success: true, data: toPlainObject(data) };
     }
     if (params.novelId) {
       const data = await scanMentionsInNovel(userId, params.novelId, params.text);
-      return { success: true, data };
+      return { success: true, data: toPlainObject(data) };
     }
     return {
       success: false,
