@@ -26,9 +26,11 @@ jobs:
         with:
           fetch-depth: 0
 
-      # SonarCloud still had deleted Git branch feat/epic-0-foundation as its
-      # "main" branch; scanner then 500s loading project.protobuf for that name.
-      - name: Ensure SonarCloud main branch is named main
+      # SonarCloud main once pointed at deleted Git branch feat/epic-0-foundation.
+      # Renaming it to "main" left project.protobuf returning HTTP 500, which
+      # blocks every Analysis (main and PRs). Repair: ensure name, then if the
+      # repository index is corrupt wipe analyses and recreate the project.
+      - name: Ensure SonarCloud main branch is healthy
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
@@ -36,26 +38,93 @@ jobs:
           set -euo pipefail
           host="${SONAR_HOST_URL:-https://sonarcloud.io}"
           host="${host%/}"
-          curl -sfS -u "${SONAR_TOKEN}:"             "${host}/api/project_branches/list?project=jgf-dev_inkstory" | tee /tmp/sonar-branches.json
-          echo
-          main_name=$(python3 -c 'import json; bs=json.load(open("/tmp/sonar-branches.json")).get("branches") or []; m=[b for b in bs if b.get("isMain")]; print(m[0]["name"] if m else "")')
-          echo "Sonar main branch: ${main_name:-<none>}"
-          if [ -z "$main_name" ]; then
-            echo "No Sonar main branch reported; continuing"
-            exit 0
-          fi
-          if [ "$main_name" = "main" ]; then
-            echo "Already main"
-            exit 0
-          fi
-          if python3 -c 'import json,sys; bs=json.load(open("/tmp/sonar-branches.json")).get("branches") or []; sys.exit(0 if any(b.get("name")=="main" and not b.get("isMain") for b in bs) else 1)'; then
-            echo "Deleting non-main Sonar branch named main"
-            curl -sfS -u "${SONAR_TOKEN}:" -X POST               "${host}/api/project_branches/delete?project=jgf-dev_inkstory&branch=main" || true
+
+          ensure_named_main() {
+            if ! curl -sfS -u "${SONAR_TOKEN}:" \
+              "${host}/api/project_branches/list?project=jgf-dev_inkstory" \
+              | tee /tmp/sonar-branches.json; then
+              echo
+              echo "Project missing or unlistable; will recreate if needed"
+              return 1
+            fi
             echo
+            main_name=$(python3 -c 'import json; bs=json.load(open("/tmp/sonar-branches.json")).get("branches") or []; m=[b for b in bs if b.get("isMain")]; print(m[0]["name"] if m else "")')
+            echo "Sonar main branch: ${main_name:-<none>}"
+            if [ -z "$main_name" ]; then
+              return 0
+            fi
+            if [ "$main_name" = "main" ]; then
+              echo "Already main"
+              return 0
+            fi
+            if python3 -c 'import json,sys; bs=json.load(open("/tmp/sonar-branches.json")).get("branches") or []; sys.exit(0 if any(b.get("name")=="main" and not b.get("isMain") for b in bs) else 1)'; then
+              echo "Deleting non-main Sonar branch named main"
+              curl -sfS -u "${SONAR_TOKEN}:" -X POST \
+                "${host}/api/project_branches/delete?project=jgf-dev_inkstory&branch=main" || true
+              echo
+            fi
+            echo "Renaming Sonar main branch ${main_name} -> main"
+            curl -sfS -u "${SONAR_TOKEN}:" -X POST \
+              "${host}/api/project_branches/rename?project=jgf-dev_inkstory&name=main"
+            echo
+          }
+
+          protobuf_ok() {
+            code=$(curl -sS -o /tmp/sonar-protobuf.out -w '%{http_code}' -u "${SONAR_TOKEN}:" \
+              "${host}/batch/project.protobuf?key=jgf-dev_inkstory" || true)
+            echo "project.protobuf HTTP ${code}"
+            [ "$code" = "200" ]
+          }
+
+          recreate_project() {
+            echo "Recreating SonarCloud project jgf-dev_inkstory"
+            curl -sfS -u "${SONAR_TOKEN}:" -X POST \
+              "${host}/api/projects/delete?project=jgf-dev_inkstory" || true
+            echo
+            curl -sfS -u "${SONAR_TOKEN}:" -X POST \
+              "${host}/api/projects/create?organization=jgf-dev&project=jgf-dev_inkstory&name=inkstory"
+            echo
+          }
+
+          ensure_named_main || true
+
+          if protobuf_ok; then
+            echo "Sonar repository index healthy"
+            exit 0
           fi
-          echo "Renaming Sonar main branch ${main_name} -> main"
-          curl -sfS -u "${SONAR_TOKEN}:" -X POST             "${host}/api/project_branches/rename?project=jgf-dev_inkstory&name=main"
+
+          echo "Corrupt project.protobuf — deleting main-branch analyses"
+          curl -sfS -u "${SONAR_TOKEN}:" \
+            "${host}/api/project_analyses/search?project=jgf-dev_inkstory&branch=main&ps=100" \
+            | tee /tmp/sonar-analyses.json || true
           echo
+          python3 -c '
+          import json, subprocess, os
+          host = (os.environ.get("SONAR_HOST_URL") or "https://sonarcloud.io").rstrip("/")
+          token = os.environ["SONAR_TOKEN"]
+          try:
+              data = json.load(open("/tmp/sonar-analyses.json"))
+          except Exception:
+              raise SystemExit(0)
+          for a in data.get("analyses") or []:
+              key = a.get("key")
+              if not key:
+                  continue
+              print(f"Deleting analysis {key}")
+              subprocess.run(
+                  ["curl", "-sfS", "-u", f"{token}:", "-X", "POST",
+                   f"{host}/api/project_analyses/delete?analysis={key}"],
+                  check=False,
+              )
+          '
+
+          if protobuf_ok; then
+            echo "Sonar repository index healthy after analysis delete"
+            exit 0
+          fi
+
+          recreate_project
+          echo "Project recreated; first Analysis upload will seed main"
 
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
@@ -92,7 +161,7 @@ jobs:
           host="${SONAR_HOST_URL:-https://sonarcloud.io}"
           host="${host%/}"
           curl -sfS -u "${SONAR_TOKEN}:" \
-            -X POST "${host}/api/autoscan/activation?projectKey=jgf-dev_inkstory&enable=false"
+            -X POST "${host}/api/autoscan/activation?projectKey=jgf-dev_inkstory&enable=false" || true
 
       - name: Analyze with SonarQube
         uses: SonarSource/sonarqube-scan-action@22918119ff8e1ca75a623e15c8296b6ea4fbe28f # v8.2.1
