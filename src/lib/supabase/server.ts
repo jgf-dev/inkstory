@@ -13,6 +13,24 @@ type CookieToSet = { name: string; value: string; options?: CookieOptions };
 export async function createSupabaseServerClient() {
   const cookieStore = await cookies();
 
+  if (process.env.NEXT_PUBLIC_E2E === "true") {
+    const e2eUserCookie = cookieStore.get("e2e-user");
+    if (e2eUserCookie?.value) {
+      try {
+        const user = JSON.parse(decodeURIComponent(e2eUserCookie.value));
+        return {
+          auth: {
+            getUser: async () => ({ data: { user }, error: null }),
+            getSession: async () => ({ data: { session: { user } }, error: null }),
+            signOut: async () => ({ error: null }),
+          },
+        } as any;
+      } catch {
+        // Fall back to regular Supabase client
+      }
+    }
+  }
+
   return createServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
