@@ -27,9 +27,8 @@ jobs:
           fetch-depth: 0
 
       # SonarCloud main once pointed at deleted Git branch feat/epic-0-foundation.
-      # Renaming it to "main" left project.protobuf returning HTTP 500, which
-      # blocks every Analysis (main and PRs). Repair: ensure name, then if the
-      # repository index is corrupt wipe analyses and recreate the project.
+      # Renaming left project.protobuf?branch=main returning HTTP 500 (unscoped
+      # can still be 200 after wiping analyses). Recreate when branch-scoped fails.
       - name: Ensure SonarCloud main branch is healthy
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
@@ -69,11 +68,15 @@ jobs:
             echo
           }
 
+          # PR scans load project.protobuf?branch=main; main scans may omit branch.
+          # Both must be healthy (200). 404 on a missing branch is acceptable.
           protobuf_ok() {
+            local path="$1"
+            local label="$2"
             code=$(curl -sS -o /tmp/sonar-protobuf.out -w '%{http_code}' -u "${SONAR_TOKEN}:" \
-              "${host}/batch/project.protobuf?key=jgf-dev_inkstory" || true)
-            echo "project.protobuf HTTP ${code}"
-            [ "$code" = "200" ]
+              "${host}${path}" || true)
+            echo "${label} HTTP ${code}"
+            [ "$code" = "200" ] || [ "$code" = "404" ]
           }
 
           recreate_project() {
@@ -88,7 +91,8 @@ jobs:
 
           ensure_named_main || true
 
-          if protobuf_ok; then
+          if protobuf_ok "/batch/project.protobuf?key=jgf-dev_inkstory" "project.protobuf" \
+            && protobuf_ok "/batch/project.protobuf?key=jgf-dev_inkstory&branch=main" "project.protobuf?branch=main"; then
             echo "Sonar repository index healthy"
             exit 0
           fi
@@ -118,7 +122,8 @@ jobs:
               )
           '
 
-          if protobuf_ok; then
+          if protobuf_ok "/batch/project.protobuf?key=jgf-dev_inkstory" "project.protobuf" \
+            && protobuf_ok "/batch/project.protobuf?key=jgf-dev_inkstory&branch=main" "project.protobuf?branch=main"; then
             echo "Sonar repository index healthy after analysis delete"
             exit 0
           fi
