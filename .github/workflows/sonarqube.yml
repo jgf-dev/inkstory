@@ -1,0 +1,300 @@
+name: SonarQube analysis
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# Shared CI DATABASE_URL + SonarCloud project metadata: overlapping Analysis
+# jobs race on fixtures and scanner project.protobuf. Keep one at a time.
+concurrency:
+  group: sonar-analysis-${{ github.repository }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  Analysis:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+
+      # SonarCloud main once pointed at deleted Git branch feat/epic-0-foundation.
+      # Renaming an empty default master->main left project.protobuf?branch=main on
+      # HTTP 500 (scanner cannot seed). Create with mainBranch=main instead, and if
+      # indexes stay 500, seed a non-PR main-branch analysis after coverage.
+      - name: Ensure SonarCloud main branch is healthy
+        id: sonar_ensure
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+        run: |
+          set -euo pipefail
+          host="${SONAR_HOST_URL:-https://sonarcloud.io}"
+          host="${host%/}"
+          echo "needs_seed=false" >> "$GITHUB_OUTPUT"
+
+          ensure_named_main() {
+            if ! curl -sfS -u "${SONAR_TOKEN}:" \
+              "${host}/api/project_branches/list?project=jgf-dev_inkstory" \
+              | tee /tmp/sonar-branches.json; then
+              echo
+              echo "Project missing or unlistable; will recreate if needed"
+              return 1
+            fi
+            echo
+            main_name=$(python3 -c 'import json; bs=json.load(open("/tmp/sonar-branches.json")).get("branches") or []; m=[b for b in bs if b.get("isMain")]; print(m[0]["name"] if m else "")')
+            echo "Sonar main branch: ${main_name:-<none>}"
+            if [ -z "$main_name" ] || [ "$main_name" = "main" ]; then
+              echo "Already main (or none)"
+              return 0
+            fi
+            # Only rename when the default branch already has analysis history.
+            # Renaming an empty master->main makes project.protobuf return HTTP 500.
+            has_analysis=$(python3 -c '
+          import json,urllib.request,os,base64
+          host=os.environ["SONAR_HOST_URL"].rstrip("/") if os.environ.get("SONAR_HOST_URL") else "https://sonarcloud.io"
+          token=os.environ["SONAR_TOKEN"]
+          main=json.load(open("/tmp/sonar-branches.json"))
+          name=next((b["name"] for b in (main.get("branches") or []) if b.get("isMain")), "")
+          req=urllib.request.Request(
+              f"{host}/api/project_analyses/search?project=jgf-dev_inkstory&branch={name}&ps=1",
+              headers={"Authorization":"Basic "+base64.b64encode((token+":").encode()).decode()},
+          )
+          try:
+              data=json.load(urllib.request.urlopen(req))
+              print("yes" if (data.get("analyses") or []) else "no")
+          except Exception:
+              print("no")
+          ')
+            if [ "$has_analysis" != "yes" ]; then
+              echo "Default branch ${main_name} has no analyses — skip rename (empty rename causes protobuf 500)"
+              return 0
+            fi
+            if python3 -c 'import json,sys; bs=json.load(open("/tmp/sonar-branches.json")).get("branches") or []; sys.exit(0 if any(b.get("name")=="main" and not b.get("isMain") for b in bs) else 1)'; then
+              echo "Deleting non-main Sonar branch named main"
+              curl -sfS -u "${SONAR_TOKEN}:" -X POST \
+                "${host}/api/project_branches/delete?project=jgf-dev_inkstory&branch=main" || true
+              echo
+            fi
+            echo "Renaming Sonar main branch ${main_name} -> main"
+            curl -sfS -u "${SONAR_TOKEN}:" -X POST \
+              "${host}/api/project_branches/rename?project=jgf-dev_inkstory&name=main"
+            echo
+          }
+
+          bind_github() {
+            if ! curl -sfS -u "${SONAR_TOKEN}:" \
+              "${host}/api/alm_settings/list" \
+              | tee /tmp/sonar-alm.json; then
+              echo
+              echo "Could not list ALM settings; skip rebind"
+              return 0
+            fi
+            echo
+            alm=$(python3 -c '
+          import json
+          data=json.load(open("/tmp/sonar-alm.json"))
+          settings=data.get("almSettings") or data.get("almSetting") or []
+          if isinstance(data, list):
+              settings=data
+          for s in settings:
+              if (s.get("alm") or s.get("almType") or "").lower() in ("github", "github_cloud", "githubcloud"):
+                  print(s.get("key") or s.get("id") or "")
+                  break
+          ')
+            if [ -z "$alm" ]; then
+              echo "No GitHub ALM setting found; skip rebind"
+              return 0
+            fi
+            echo "Rebinding project to GitHub via ALM setting ${alm}"
+            curl -sfS -u "${SONAR_TOKEN}:" -X POST \
+              "${host}/api/alm_settings/set_github_binding?almSetting=${alm}&project=jgf-dev_inkstory&repository=jgf-dev%2Finkstory&monorepo=false" \
+              || curl -sfS -u "${SONAR_TOKEN}:" -X POST \
+              --data-urlencode "almSetting=${alm}" \
+              --data-urlencode "project=jgf-dev_inkstory" \
+              --data-urlencode "repository=jgf-dev/inkstory" \
+              --data-urlencode "monorepo=false" \
+              "${host}/api/alm_settings/set_github_binding" || true
+            echo
+          }
+
+          protobuf_code() {
+            local path="$1"
+            curl -sS -o /tmp/sonar-protobuf.out -w '%{http_code}' -u "${SONAR_TOKEN}:" \
+              "${host}${path}" || true
+          }
+
+          protobuf_ok() {
+            local path="$1"
+            local label="$2"
+            local code
+            code=$(protobuf_code "$path")
+            echo "${label} HTTP ${code}"
+            [ "$code" = "200" ] || [ "$code" = "404" ]
+          }
+
+          # Healthy enough to run the scanner: 200/404 on unscoped + named main.
+          # Do not require master — empty master rename is what caused 500s.
+          indexes_healthy() {
+            local ok=0
+            protobuf_ok "/batch/project.protobuf?key=jgf-dev_inkstory" "project.protobuf" || ok=1
+            protobuf_ok "/batch/project.protobuf?key=jgf-dev_inkstory&branch=main" "project.protobuf?branch=main" || ok=1
+            return "$ok"
+          }
+
+          recreate_project() {
+            echo "Recreating SonarCloud project jgf-dev_inkstory (mainBranch=main)"
+            curl -sfS -u "${SONAR_TOKEN}:" -X POST \
+              "${host}/api/projects/delete?project=jgf-dev_inkstory" || true
+            echo
+            # Prefer create with mainBranch=main so we never touch empty master.
+            if ! curl -sfS -u "${SONAR_TOKEN}:" -X POST \
+              "${host}/api/projects/create?organization=jgf-dev&project=jgf-dev_inkstory&name=inkstory&mainBranch=main"; then
+              echo
+              echo "create with mainBranch=main failed; falling back without it"
+              curl -sfS -u "${SONAR_TOKEN}:" -X POST \
+                "${host}/api/projects/create?organization=jgf-dev&project=jgf-dev_inkstory&name=inkstory"
+              echo
+              ensure_named_main || true
+            else
+              echo
+            fi
+            bind_github
+          }
+
+          ensure_named_main || true
+
+          if indexes_healthy; then
+            echo "Sonar repository index healthy"
+            exit 0
+          fi
+
+          echo "Corrupt project.protobuf — deleting main-branch analyses"
+          curl -sfS -u "${SONAR_TOKEN}:" \
+            "${host}/api/project_analyses/search?project=jgf-dev_inkstory&branch=main&ps=100" \
+            | tee /tmp/sonar-analyses.json || true
+          echo
+          curl -sfS -u "${SONAR_TOKEN}:" \
+            "${host}/api/project_analyses/search?project=jgf-dev_inkstory&branch=master&ps=100" \
+            | tee /tmp/sonar-analyses-master.json || true
+          echo
+          python3 -c '
+          import json, subprocess, os
+          host = (os.environ.get("SONAR_HOST_URL") or "https://sonarcloud.io").rstrip("/")
+          token = os.environ["SONAR_TOKEN"]
+          for path in ("/tmp/sonar-analyses.json", "/tmp/sonar-analyses-master.json"):
+              try:
+                  data = json.load(open(path))
+              except Exception:
+                  continue
+              for a in data.get("analyses") or []:
+                  key = a.get("key")
+                  if not key:
+                      continue
+                  print(f"Deleting analysis {key}")
+                  subprocess.run(
+                      ["curl", "-sfS", "-u", f"{token}:", "-X", "POST",
+                       f"{host}/api/project_analyses/delete?analysis={key}"],
+                      check=False,
+                  )
+          '
+
+          ensure_named_main || true
+          if indexes_healthy; then
+            echo "Sonar repository index healthy after analysis delete"
+            exit 0
+          fi
+
+          recreate_project
+          if indexes_healthy; then
+            echo "Sonar repository index healthy after recreate"
+            exit 0
+          fi
+
+          echo "Indexes still unhealthy after recreate — will seed main-branch analysis after coverage"
+          echo "needs_seed=true" >> "$GITHUB_OUTPUT"
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: "1.4.2"
+
+      # Skip lifecycle scripts during install; emit Prisma contract explicitly below.
+      - run: bun install --ignore-scripts --frozen-lockfile
+
+      - name: Emit Prisma contract
+        run: ./node_modules/.bin/prisma contract emit
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+      # CI DATABASE_URL is a shared test DB; apply the current contract so Codex
+      # tables exist before integration coverage runs.
+      - name: Apply Prisma schema to CI database
+        run: ./node_modules/.bin/prisma db update -y --db "$DATABASE_URL"
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.DATABASE_URL }}
+
+      - name: Run tests with coverage
+        run: bun run test:cov
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.DATABASE_URL }}
+
+      # Automatic Analysis conflicts with CI scanner uploads.
+      - name: Disable SonarCloud Automatic Analysis
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+        run: |
+          host="${SONAR_HOST_URL:-https://sonarcloud.io}"
+          host="${host%/}"
+          curl -sfS -u "${SONAR_TOKEN}:" \
+            -X POST "${host}/api/autoscan/activation?projectKey=jgf-dev_inkstory&enable=false" || true
+
+      # First analysis must be a branch scan of main. PR scans load
+      # project.protobuf?branch=<Sonar main> and fail with HTTP 500 when that
+      # index was never seeded (or was corrupted by renaming empty master).
+      - name: Seed SonarCloud main branch analysis
+        if: steps.sonar_ensure.outputs.needs_seed == 'true'
+        uses: SonarSource/sonarqube-scan-action@22918119ff8e1ca75a623e15c8296b6ea4fbe28f # v8.2.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+          # Force branch analysis (not PR) so the action does not inject
+          # sonar.pullrequest.* and the scanner can seed main.
+          GITHUB_EVENT_NAME: workflow_dispatch
+        with:
+          args: >-
+            -Dsonar.projectKey=jgf-dev_inkstory
+            -Dsonar.organization=jgf-dev
+            -Dsonar.branch.name=main
+            -Dsonar.sources=src
+            -Dsonar.tests=tests
+            -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
+            -Dsonar.coverage.exclusions=**/*.d.ts,**/supabase/types.ts
+            -Dsonar.cpd.exclusions=**/tests/**,**/*.test.ts,**/*.test.tsx
+
+      - name: Analyze with SonarQube
+        uses: SonarSource/sonarqube-scan-action@22918119ff8e1ca75a623e15c8296b6ea4fbe28f # v8.2.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+        with:
+          args: >-
+            -Dsonar.projectKey=jgf-dev_inkstory
+            -Dsonar.organization=jgf-dev
+            -Dsonar.sources=src
+            -Dsonar.tests=tests
+            -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
+            -Dsonar.coverage.exclusions=**/*.d.ts,**/supabase/types.ts
+            -Dsonar.cpd.exclusions=**/tests/**,**/*.test.ts,**/*.test.tsx
