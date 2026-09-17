@@ -27,25 +27,22 @@ jobs:
           fetch-depth: 0
 
       # SonarCloud main once pointed at deleted Git branch feat/epic-0-foundation.
-      # Renaming left project.protobuf?branch=main returning HTTP 500. Recreate
-      # when the PR base branch probe fails. Fresh projects default to master —
-      # rename to main immediately or PR scans request branch=main and 500.
-      #
-      # Important: only the base-branch probe matters for PR scans. Unscoped
-      # project.protobuf and branch=master can 500/404 while branch=main is
-      # healthy — do NOT recreate in that case (that wiped a recovering index).
+      # project.protobuf?branch=main can 500 with a corrupt index. Recovery order:
+      # delete analyses first; only recreate if branch=main still fails.
+      # Unscoped /batch/project.protobuf often 500s even when branch=main is fine —
+      # never treat unscoped alone as corrupt (that forced a harmful recreate).
+      # Create with mainBranch=main (no empty master→main rename). Empty projects
+      # still soft-fail until a branch-mode seed analysis lands.
       - name: Ensure SonarCloud main branch is healthy
         id: sonar_ensure
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
-          SONAR_BASE_BRANCH: ${{ github.event.pull_request.base.ref || github.ref_name }}
         run: |
           set -euo pipefail
           host="${SONAR_HOST_URL:-https://sonarcloud.io}"
           host="${host%/}"
-          base_branch="${SONAR_BASE_BRANCH:-main}"
-          rm -f .sonar-needs-seed
+          echo "needs_seed=false" >> "$GITHUB_OUTPUT"
 
           ensure_named_main() {
             if ! curl -sfS -u "${SONAR_TOKEN}:" \
@@ -61,32 +58,20 @@ jobs:
             if [ -z "$main_name" ]; then
               return 0
             fi
-            if [ "$main_name" = "$base_branch" ]; then
-              echo "Already ${base_branch}"
+            if [ "$main_name" = "main" ]; then
+              echo "Already main"
               return 0
             fi
-            if python3 -c "import json,sys; bs=json.load(open('/tmp/sonar-branches.json')).get('branches') or []; sys.exit(0 if any(b.get('name')=='${base_branch}' and not b.get('isMain') for b in bs) else 1)"; then
-              echo "Deleting non-main Sonar branch named ${base_branch}"
+            if python3 -c 'import json,sys; bs=json.load(open("/tmp/sonar-branches.json")).get("branches") or []; sys.exit(0 if any(b.get("name")=="main" and not b.get("isMain") for b in bs) else 1)'; then
+              echo "Deleting non-main Sonar branch named main"
               curl -sfS -u "${SONAR_TOKEN}:" -X POST \
-                "${host}/api/project_branches/delete?project=jgf-dev_inkstory&branch=${base_branch}" || true
+                "${host}/api/project_branches/delete?project=jgf-dev_inkstory&branch=main" || true
               echo
             fi
-            echo "Renaming Sonar main branch ${main_name} -> ${base_branch}"
-            # Retry: rename can 404 briefly after project create.
-            for attempt in 1 2 3 4 5; do
-              if curl -sfS -u "${SONAR_TOKEN}:" -X POST \
-                --data-urlencode "project=jgf-dev_inkstory" \
-                --data-urlencode "name=${base_branch}" \
-                "${host}/api/project_branches/rename"; then
-                echo
-                echo "Rename ok on attempt ${attempt}"
-                return 0
-              fi
-              echo
-              echo "Rename attempt ${attempt} failed; sleeping"
-              sleep 3
-            done
-            return 1
+            echo "Renaming Sonar main branch ${main_name} -> main"
+            curl -sfS -u "${SONAR_TOKEN}:" -X POST \
+              "${host}/api/project_branches/rename?project=jgf-dev_inkstory&name=main"
+            echo
           }
 
           bind_github() {
@@ -135,42 +120,38 @@ jobs:
             printf '%s' "$code"
           }
 
-          # PR scanner loads project.protobuf for the GitHub base branch name.
-          base_branch_healthy() {
-            code=$(protobuf_code "/batch/project.protobuf?key=jgf-dev_inkstory&branch=${base_branch}" "project.protobuf?branch=${base_branch}")
-            # Informational only — do not gate on these:
-            protobuf_code "/batch/project.protobuf?key=jgf-dev_inkstory" "project.protobuf (unscoped)" >/dev/null || true
-            protobuf_code "/batch/project.protobuf?key=jgf-dev_inkstory&branch=master" "project.protobuf?branch=master" >/dev/null || true
-            [ "$code" = "200" ] || [ "$code" = "404" ]
+          # PR scans load project.protobuf?branch=<GitHub base> (main).
+          # Unscoped protobuf can 500 while branch=main is 200 — ignore unscoped.
+          indexes_healthy() {
+            code=$(protobuf_code "/batch/project.protobuf?key=jgf-dev_inkstory&branch=main" "project.protobuf?branch=main")
+            echo
+            # Informational only:
+            protobuf_code "/batch/project.protobuf?key=jgf-dev_inkstory" "project.protobuf (unscoped, ignored)" >/dev/null || true
+            echo
+            [ "$code" = "200" ]
           }
 
           recreate_project() {
-            echo "Recreating SonarCloud project jgf-dev_inkstory"
+            echo "Recreating SonarCloud project jgf-dev_inkstory (mainBranch=main)"
             curl -sfS -u "${SONAR_TOKEN}:" -X POST \
               "${host}/api/projects/delete?project=jgf-dev_inkstory" || true
             echo
-            sleep 2
             curl -sfS -u "${SONAR_TOKEN}:" -X POST \
-              "${host}/api/projects/create?organization=jgf-dev&project=jgf-dev_inkstory&name=inkstory"
+              "${host}/api/projects/create?organization=jgf-dev&project=jgf-dev_inkstory&name=inkstory&mainBranch=main"
             echo
-            sleep 3
-            ensure_named_main || true
             bind_github
-            echo "sonar_needs_seed=true" >> "$GITHUB_OUTPUT"
-            echo "sonar_needs_seed=true" >> "$GITHUB_ENV"
-            touch .sonar-needs-seed
           }
 
           ensure_named_main || true
 
-          if base_branch_healthy; then
-            echo "Sonar base-branch index healthy (${base_branch})"
+          if indexes_healthy; then
+            echo "Sonar repository index healthy"
             exit 0
           fi
 
-          echo "Corrupt project.protobuf for ${base_branch} — deleting branch analyses"
+          echo "Corrupt project.protobuf — deleting main-branch analyses"
           curl -sfS -u "${SONAR_TOKEN}:" \
-            "${host}/api/project_analyses/search?project=jgf-dev_inkstory&branch=${base_branch}&ps=100" \
+            "${host}/api/project_analyses/search?project=jgf-dev_inkstory&branch=main&ps=100" \
             | tee /tmp/sonar-analyses.json || true
           echo
           curl -sfS -u "${SONAR_TOKEN}:" \
@@ -199,24 +180,19 @@ jobs:
           '
 
           ensure_named_main || true
-          if base_branch_healthy; then
-            echo "Sonar base-branch index healthy after analysis delete"
+          if indexes_healthy; then
+            echo "Sonar repository index healthy after analysis delete"
             exit 0
           fi
 
           recreate_project
-          if base_branch_healthy; then
-            echo "Sonar base-branch index healthy after recreate"
-            # Fresh project still needs a first main upload for PR diffs.
-            echo "sonar_needs_seed=true" >> "$GITHUB_OUTPUT"
-            echo "sonar_needs_seed=true" >> "$GITHUB_ENV"
-            touch .sonar-needs-seed
+          # Empty projects 500 until a branch-mode analysis seeds main.
+          if indexes_healthy; then
+            echo "Sonar repository index healthy after recreate"
             exit 0
           fi
-          echo "Project recreated; seeding main branch before PR Analysis"
-          echo "sonar_needs_seed=true" >> "$GITHUB_OUTPUT"
-            echo "sonar_needs_seed=true" >> "$GITHUB_ENV"
-            touch .sonar-needs-seed
+          echo "needs_seed=true" >> "$GITHUB_OUTPUT"
+          echo "Project recreated; branch-mode seed required before PR scan"
 
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
@@ -255,21 +231,20 @@ jobs:
           curl -sfS -u "${SONAR_TOKEN}:" \
             -X POST "${host}/api/autoscan/activation?projectKey=jgf-dev_inkstory&enable=false" || true
 
-      # After recreate, PR Analysis fails loading empty/corrupt main. Seed a
-      # branch analysis of main first (force push-event auto-config).
-      - name: Seed SonarCloud main branch index
-        if: steps.sonar_ensure.outputs.sonar_needs_seed == 'true'
+      # Empty / recreated Sonar projects 500 on project.protobuf until main has
+      # at least one branch analysis. Seed outside PR auto-config, then PR-scan.
+      - name: Seed SonarCloud main branch
+        if: steps.sonar_ensure.outputs.needs_seed == 'true'
         uses: SonarSource/sonarqube-scan-action@22918119ff8e1ca75a623e15c8296b6ea4fbe28f # v8.2.1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
-          # Make the scanner treat this as a push to main, not the PR.
+          # Force branch analysis (not PR) so main gets a real index.
           GITHUB_EVENT_NAME: push
           GITHUB_REF: refs/heads/main
-          GITHUB_REF_NAME: main
-          GITHUB_HEAD_REF: ""
-          GITHUB_BASE_REF: ""
+          GITHUB_HEAD_REF: ''
+          GITHUB_BASE_REF: ''
         with:
           args: >-
             -Dsonar.projectKey=jgf-dev_inkstory
