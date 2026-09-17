@@ -13,6 +13,8 @@
     "typecheck": "vp check --no-fmt --no-lint",
     "test": "vp test",
     "test:cov": "vp test --coverage",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
     "postinstall": "prisma contract emit",
     "contract:emit": "prisma contract emit",
     "db:verify": "prisma db verify",
@@ -34,6 +36,7 @@
     "temporal-polyfill": "1.0.4"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "@prisma/cli": "8.0.0-rc.13",
     "@types/node": "26.5.1",
     "@types/pg": "8.23.1",

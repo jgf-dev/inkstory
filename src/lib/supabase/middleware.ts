@@ -11,6 +11,10 @@ type CookieToSet = { name: string; value: string; options?: CookieOptions };
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request });
 
+  if (process.env.NEXT_PUBLIC_E2E === "true" && request.cookies.get("e2e-user")) {
+    return response;
+  }
+
   const supabase = createServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,

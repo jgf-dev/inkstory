@@ -1,0 +1,65 @@
+name: Sonar rename main branch
+
+on:
+  workflow_dispatch:
+  repository_dispatch:
+    types: [sonar-rename-main]
+
+permissions:
+  contents: read
+
+jobs:
+  rename:
+    runs-on: ubuntu-latest
+    steps:
+      - name: List branches and rename Sonar main to main
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+        run: |
+          set -euo pipefail
+          host="${SONAR_HOST_URL:-https://sonarcloud.io}"
+          host="${host%/}"
+          echo "Listing project branches..."
+          curl -sfS -u "${SONAR_TOKEN}:" \
+            "${host}/api/project_branches/list?project=jgf-dev_inkstory" | tee /tmp/branches.json
+          echo
+          # Prefer renaming the configured main branch to "main".
+          # If a non-main branch named main already exists, delete it first then rename.
+          is_main_name=$(python3 - <<'PY'
+import json
+data=json.load(open("/tmp/branches.json"))
+branches=data.get("branches") or []
+main=[b for b in branches if b.get("isMain")]
+print(main[0]["name"] if main else "")
+PY
+)
+          echo "Current Sonar main branch: ${is_main_name}"
+          if [ -z "$is_main_name" ]; then
+            echo "No main branch found; aborting"
+            exit 1
+          fi
+          if [ "$is_main_name" = "main" ]; then
+            echo "Already named main; nothing to rename"
+            exit 0
+          fi
+          has_main=$(python3 - <<'PY'
+import json
+data=json.load(open("/tmp/branches.json"))
+print("yes" if any(b.get("name")=="main" and not b.get("isMain") for b in (data.get("branches") or [])) else "no")
+PY
+)
+          if [ "$has_main" = "yes" ]; then
+            echo "Deleting non-main branch named main so rename can proceed..."
+            curl -sfS -u "${SONAR_TOKEN}:" -X POST \
+              "${host}/api/project_branches/delete?project=jgf-dev_inkstory&branch=main"
+            echo
+          fi
+          echo "Renaming Sonar main branch ${is_main_name} -> main"
+          curl -sfS -u "${SONAR_TOKEN}:" -X POST \
+            "${host}/api/project_branches/rename?project=jgf-dev_inkstory&name=main"
+          echo
+          echo "Branches after rename:"
+          curl -sfS -u "${SONAR_TOKEN}:" \
+            "${host}/api/project_branches/list?project=jgf-dev_inkstory"
+          echo
