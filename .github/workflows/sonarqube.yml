@@ -7,6 +7,12 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# Shared CI DATABASE_URL + SonarCloud project metadata: overlapping Analysis
+# jobs race on fixtures and scanner project.protobuf. Keep one at a time.
+concurrency:
+  group: sonar-analysis-${{ github.repository }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
   pull-requests: read
