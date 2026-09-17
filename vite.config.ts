@@ -24,7 +24,9 @@ export default defineConfig({
     "**/agents/**": "",
     "**/*.{ts,tsx}": "vp check --fix",
   },
-  fmt: {},
+  fmt: {
+    ignorePatterns: [".agents/claude/homunculus/**"],
+  },
   lint: {
     jsPlugins: [{ name: "vite-plus", specifier: "vite-plus/oxlint-plugin" }],
     rules: { "vite-plus/prefer-vite-plus-imports": "error" },
