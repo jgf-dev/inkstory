@@ -47,7 +47,9 @@ vi.mock("../src/lib/codex/actions", () => ({
   deleteCodexTagAction: vi.fn().mockResolvedValue({ success: true }),
 }));
 
-describe("Codex UI Components", () => {
+// Analysis suite runs under shared CI load with coverage; page dynamic import
+// can exceed the default 5s (same class of flake as Codex/Prisma suite timeouts).
+describe("Codex UI Components", { timeout: 20_000 }, () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
