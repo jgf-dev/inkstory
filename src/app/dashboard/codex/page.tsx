@@ -30,5 +30,11 @@ export default async function CodexPage() {
       .all(),
   ]);
 
-  return <CodexManager initialEntries={entries} novels={novels} series={series} />;
+  return (
+    <CodexManager
+      initialEntries={JSON.parse(JSON.stringify(entries))}
+      novels={JSON.parse(JSON.stringify(novels))}
+      series={JSON.parse(JSON.stringify(series))}
+    />
+  );
 }
