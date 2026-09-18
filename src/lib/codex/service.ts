@@ -1,6 +1,12 @@
 import { Temporal } from "temporal-polyfill";
 import { db } from "@/lib/prisma";
 import { detectMentionsInText, type MentionDetectionResult } from "./mention-detection";
+import {
+  ProgressionEngine,
+  type ApplyProgressionsResult,
+  type ProgressionCandidate,
+  type SceneReadingOrderKey,
+} from "./progression-engine";
 import type {
   CodexEntryFilter,
   CreateCodexAliasInput,
@@ -845,6 +851,120 @@ export async function deleteCodexProgression(userId: string, progressionId: stri
 
   await db.orm.public.CodexProgression.where({ id: progressionId }).delete();
   return { success: true, id: progressionId };
+}
+
+/**
+ * Load Act -> Chapter -> Scene reading-order keys for every non-deleted scene
+ * in a novel. Used for temporal progression filtering.
+ */
+export async function loadNovelSceneReadingOrder(
+  novelId: string,
+): Promise<Map<string, SceneReadingOrderKey>> {
+  const acts = await db.orm.public.Act.where((a) => a.novelId.eq(novelId))
+    .where((a) => a.deletedAt.isNull())
+    .all();
+
+  const rows: SceneReadingOrderKey[] = [];
+
+  for (const act of acts) {
+    const chapters = await db.orm.public.Chapter.where((c) => c.actId.eq(act.id))
+      .where((c) => c.deletedAt.isNull())
+      .all();
+
+    for (const chapter of chapters) {
+      const scenes = await db.orm.public.Scene.where((s) => s.chapterId.eq(chapter.id))
+        .where((s) => s.deletedAt.isNull())
+        .all();
+
+      for (const scene of scenes) {
+        rows.push({
+          sceneId: scene.id,
+          actPosition: act.position,
+          chapterPosition: chapter.position,
+          scenePosition: scene.position,
+        });
+      }
+    }
+  }
+
+  return ProgressionEngine.buildSceneOrderMap(rows);
+}
+
+/**
+ * Resolve a Codex entry's effective description at a given scene by applying
+ * scene-linked progressions with temporal filtering (STO-1153).
+ */
+export async function resolveCodexEntryAtScene(
+  userId: string,
+  entryId: string,
+  sceneId: string,
+): Promise<
+  ApplyProgressionsResult & {
+    entryId: string;
+    sceneId: string;
+    baseDescription: string;
+  }
+> {
+  const entry = await db.orm.public.CodexEntry.where({ id: entryId }).first();
+  if (!entry || entry.deletedAt !== null) {
+    throw new CodexError("Codex entry not found", "NOT_FOUND", 404);
+  }
+  if (entry.ownerId !== userId) {
+    throw new CodexError("Unauthorized to access this codex entry", "FORBIDDEN", 403);
+  }
+
+  const sceneContext = await resolveSceneContext(sceneId);
+  if (sceneContext.ownerId !== userId) {
+    throw new CodexError("Unauthorized to access this scene", "FORBIDDEN", 403);
+  }
+
+  if (entry.seriesScoped) {
+    if (!sceneContext.seriesId || entry.seriesId !== sceneContext.seriesId) {
+      throw new CodexError(
+        "Series-scoped entry does not belong to the scene's series",
+        "SCOPING_ERROR",
+        422,
+      );
+    }
+  } else if (entry.novelId !== sceneContext.novelId) {
+    throw new CodexError(
+      "Book-scoped entry cannot be resolved against a scene in a different novel",
+      "SCOPING_ERROR",
+      422,
+    );
+  }
+
+  const sceneOrderById = await loadNovelSceneReadingOrder(sceneContext.novelId);
+  const currentScene = sceneOrderById.get(sceneId);
+  if (!currentScene) {
+    throw new CodexError("Scene not found in novel reading order", "NOT_FOUND", 404);
+  }
+
+  const rawProgressions = await db.orm.public.CodexProgression.where((p) => p.entryId.eq(entryId))
+    .where((p) => p.deletedAt.isNull())
+    .all();
+
+  const progressions: ProgressionCandidate[] = rawProgressions.map((p) => ({
+    id: p.id,
+    sceneId: p.sceneId,
+    mode: p.mode,
+    description: p.description,
+    position: p.position,
+  }));
+
+  const resolved = ProgressionEngine.resolveAtScene({
+    baseDescription: entry.description ?? "",
+    currentScene,
+    sceneOrderById,
+    progressions,
+  });
+
+  return {
+    entryId,
+    sceneId,
+    baseDescription: entry.description ?? "",
+    ...resolved,
+  };
 }
 
 // ─── Mention Detection Scanner ───────────────────────────────────────────────
