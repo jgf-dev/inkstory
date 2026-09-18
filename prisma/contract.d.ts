@@ -22,6 +22,7 @@ import type {
 
 import type {
   ContractWithTypeMaps,
+  RelationKeys,
   TypeMaps as TypeMapsType,
 } from "@prisma/orm-postgres/family-contract/types";
 import type {
@@ -754,6 +755,200 @@ export type StorageColumnInputTypes = {
     };
   };
 };
+
+export namespace Models {
+  export type public_User = {
+    id: CodecTypes["pg/text@1"]["output"];
+    email: CodecTypes["pg/text@1"]["output"];
+    name: CodecTypes["pg/text@1"]["output"] | null;
+    avatarUrl: CodecTypes["pg/text@1"]["output"] | null;
+    createdAt: CodecTypes["pg/timestamp-temporal@1"]["output"];
+    updatedAt: CodecTypes["pg/timestamp-temporal@1"]["output"];
+    deletedAt: CodecTypes["pg/timestamp-temporal@1"]["output"] | null;
+    codexEntries: public_CodexEntry[];
+    novels: public_Novel[];
+    series: public_Series[];
+    readonly [RelationKeys]?: "codexEntries" | "novels" | "series";
+  };
+  export type public_Series = {
+    id: CodecTypes["pg/text@1"]["output"];
+    title: CodecTypes["pg/text@1"]["output"];
+    description: CodecTypes["pg/text@1"]["output"] | null;
+    position: CodecTypes["pg/int4@1"]["output"];
+    createdAt: CodecTypes["pg/timestamp-temporal@1"]["output"];
+    updatedAt: CodecTypes["pg/timestamp-temporal@1"]["output"];
+    deletedAt: CodecTypes["pg/timestamp-temporal@1"]["output"] | null;
+    ownerId: CodecTypes["pg/text@1"]["output"];
+    codexEntries: public_CodexEntry[];
+    novels: public_Novel[];
+    owner: public_User;
+    readonly [RelationKeys]?: "codexEntries" | "novels" | "owner";
+  };
+  export type public_Novel = {
+    id: CodecTypes["pg/text@1"]["output"];
+    title: CodecTypes["pg/text@1"]["output"];
+    subtitle: CodecTypes["pg/text@1"]["output"] | null;
+    description: CodecTypes["pg/text@1"]["output"] | null;
+    position: CodecTypes["pg/int4@1"]["output"];
+    createdAt: CodecTypes["pg/timestamp-temporal@1"]["output"];
+    updatedAt: CodecTypes["pg/timestamp-temporal@1"]["output"];
+    deletedAt: CodecTypes["pg/timestamp-temporal@1"]["output"] | null;
+    ownerId: CodecTypes["pg/text@1"]["output"];
+    seriesId: CodecTypes["pg/text@1"]["output"] | null;
+    acts: public_Act[];
+    codexEntries: public_CodexEntry[];
+    owner: public_User;
+    series: public_Series | null;
+    readonly [RelationKeys]?: "acts" | "codexEntries" | "owner" | "series";
+  };
+  export type public_Act = {
+    id: CodecTypes["pg/text@1"]["output"];
+    title: CodecTypes["pg/text@1"]["output"];
+    position: CodecTypes["pg/int4@1"]["output"];
+    createdAt: CodecTypes["pg/timestamp-temporal@1"]["output"];
+    updatedAt: CodecTypes["pg/timestamp-temporal@1"]["output"];
+    deletedAt: CodecTypes["pg/timestamp-temporal@1"]["output"] | null;
+    novelId: CodecTypes["pg/text@1"]["output"];
+    chapters: public_Chapter[];
+    novel: public_Novel;
+    readonly [RelationKeys]?: "chapters" | "novel";
+  };
+  export type public_Chapter = {
+    id: CodecTypes["pg/text@1"]["output"];
+    title: CodecTypes["pg/text@1"]["output"];
+    position: CodecTypes["pg/int4@1"]["output"];
+    createdAt: CodecTypes["pg/timestamp-temporal@1"]["output"];
+    updatedAt: CodecTypes["pg/timestamp-temporal@1"]["output"];
+    deletedAt: CodecTypes["pg/timestamp-temporal@1"]["output"] | null;
+    actId: CodecTypes["pg/text@1"]["output"];
+    act: public_Act;
+    scenes: public_Scene[];
+    readonly [RelationKeys]?: "act" | "scenes";
+  };
+  export type public_Scene = {
+    id: CodecTypes["pg/text@1"]["output"];
+    title: CodecTypes["pg/text@1"]["output"];
+    label: CodecTypes["pg/text@1"]["output"] | null;
+    subtitle: CodecTypes["pg/text@1"]["output"] | null;
+    content: CodecTypes["pg/text@1"]["output"];
+    summary: CodecTypes["pg/text@1"]["output"] | null;
+    pov: "FIRST" | "SECOND" | "THIRD_LIMITED" | "THIRD_OMNISCIENT";
+    tense: "PAST" | "PRESENT" | "FUTURE";
+    position: CodecTypes["pg/int4@1"]["output"];
+    excludeFromAi: CodecTypes["pg/bool@1"]["output"];
+    wordCount: CodecTypes["pg/int4@1"]["output"];
+    createdAt: CodecTypes["pg/timestamp-temporal@1"]["output"];
+    updatedAt: CodecTypes["pg/timestamp-temporal@1"]["output"];
+    deletedAt: CodecTypes["pg/timestamp-temporal@1"]["output"] | null;
+    chapterId: CodecTypes["pg/text@1"]["output"];
+    chapter: public_Chapter;
+    codexProgressions: public_CodexProgression[];
+    readonly [RelationKeys]?: "chapter" | "codexProgressions";
+  };
+  export type public_CodexEntry = {
+    id: CodecTypes["pg/text@1"]["output"];
+    name: CodecTypes["pg/text@1"]["output"];
+    type: "CHARACTER" | "LOCATION" | "ITEM" | "LORE" | "FACTION" | "CONCEPT" | "OTHER";
+    description: CodecTypes["pg/text@1"]["output"];
+    notes: CodecTypes["pg/text@1"]["output"] | null;
+    trackingMode: "ALWAYS" | "DETECTED" | "NEVER";
+    seriesScoped: CodecTypes["pg/bool@1"]["output"];
+    customFields: CodecTypes["pg/jsonb@1"]["output"] | null;
+    color: CodecTypes["pg/text@1"]["output"] | null;
+    thumbnailUrl: CodecTypes["pg/text@1"]["output"] | null;
+    position: CodecTypes["pg/int4@1"]["output"];
+    createdAt: CodecTypes["pg/timestamp-temporal@1"]["output"];
+    updatedAt: CodecTypes["pg/timestamp-temporal@1"]["output"];
+    deletedAt: CodecTypes["pg/timestamp-temporal@1"]["output"] | null;
+    ownerId: CodecTypes["pg/text@1"]["output"];
+    novelId: CodecTypes["pg/text@1"]["output"] | null;
+    seriesId: CodecTypes["pg/text@1"]["output"] | null;
+    aliases: public_CodexAlias[];
+    novel: public_Novel | null;
+    owner: public_User;
+    progressions: public_CodexProgression[];
+    series: public_Series | null;
+    sourceRelations: public_CodexRelation[];
+    tags: public_CodexTag[];
+    targetRelations: public_CodexRelation[];
+    readonly [RelationKeys]?:
+      | "aliases"
+      | "novel"
+      | "owner"
+      | "progressions"
+      | "series"
+      | "sourceRelations"
+      | "tags"
+      | "targetRelations";
+  };
+  export type public_CodexAlias = {
+    id: CodecTypes["pg/text@1"]["output"];
+    name: CodecTypes["pg/text@1"]["output"];
+    createdAt: CodecTypes["pg/timestamp-temporal@1"]["output"];
+    updatedAt: CodecTypes["pg/timestamp-temporal@1"]["output"];
+    deletedAt: CodecTypes["pg/timestamp-temporal@1"]["output"] | null;
+    entryId: CodecTypes["pg/text@1"]["output"];
+    entry: public_CodexEntry;
+    readonly [RelationKeys]?: "entry";
+  };
+  export type public_CodexTag = {
+    id: CodecTypes["pg/text@1"]["output"];
+    name: CodecTypes["pg/text@1"]["output"];
+    color: CodecTypes["pg/text@1"]["output"] | null;
+    createdAt: CodecTypes["pg/timestamp-temporal@1"]["output"];
+    updatedAt: CodecTypes["pg/timestamp-temporal@1"]["output"];
+    deletedAt: CodecTypes["pg/timestamp-temporal@1"]["output"] | null;
+    entryId: CodecTypes["pg/text@1"]["output"];
+    entry: public_CodexEntry;
+    readonly [RelationKeys]?: "entry";
+  };
+  export type public_CodexRelation = {
+    id: CodecTypes["pg/text@1"]["output"];
+    relationType: CodecTypes["pg/text@1"]["output"];
+    reverseType: CodecTypes["pg/text@1"]["output"] | null;
+    description: CodecTypes["pg/text@1"]["output"] | null;
+    createdAt: CodecTypes["pg/timestamp-temporal@1"]["output"];
+    updatedAt: CodecTypes["pg/timestamp-temporal@1"]["output"];
+    deletedAt: CodecTypes["pg/timestamp-temporal@1"]["output"] | null;
+    sourceEntryId: CodecTypes["pg/text@1"]["output"];
+    targetEntryId: CodecTypes["pg/text@1"]["output"];
+    sourceEntry: public_CodexEntry;
+    targetEntry: public_CodexEntry;
+    readonly [RelationKeys]?: "sourceEntry" | "targetEntry";
+  };
+  export type public_CodexProgression = {
+    id: CodecTypes["pg/text@1"]["output"];
+    mode: "ADDITION" | "REPLACEMENT";
+    description: CodecTypes["pg/text@1"]["output"];
+    notes: CodecTypes["pg/text@1"]["output"] | null;
+    position: CodecTypes["pg/int4@1"]["output"];
+    createdAt: CodecTypes["pg/timestamp-temporal@1"]["output"];
+    updatedAt: CodecTypes["pg/timestamp-temporal@1"]["output"];
+    deletedAt: CodecTypes["pg/timestamp-temporal@1"]["output"] | null;
+    entryId: CodecTypes["pg/text@1"]["output"];
+    sceneId: CodecTypes["pg/text@1"]["output"];
+    entry: public_CodexEntry;
+    scene: public_Scene;
+    readonly [RelationKeys]?: "entry" | "scene";
+  };
+}
+
+export declare const models: {
+  public: {
+    User: Models.public_User;
+    Series: Models.public_Series;
+    Novel: Models.public_Novel;
+    Act: Models.public_Act;
+    Chapter: Models.public_Chapter;
+    Scene: Models.public_Scene;
+    CodexEntry: Models.public_CodexEntry;
+    CodexAlias: Models.public_CodexAlias;
+    CodexTag: Models.public_CodexTag;
+    CodexRelation: Models.public_CodexRelation;
+    CodexProgression: Models.public_CodexProgression;
+  };
+};
+
 export type TypeMaps = TypeMapsType<
   CodecTypes,
   QueryOperationTypes,
@@ -1990,6 +2185,7 @@ type ContractBase = Omit<
                   readonly model: "Novel";
                 };
                 readonly cardinality: "N:1";
+                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ["novelId"];
                   readonly targetFields: readonly ["id"];
@@ -2057,6 +2253,7 @@ type ContractBase = Omit<
               readonly act: {
                 readonly to: { readonly namespace: "public" & NamespaceId; readonly model: "Act" };
                 readonly cardinality: "N:1";
+                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ["actId"];
                   readonly targetFields: readonly ["id"];
@@ -2134,6 +2331,7 @@ type ContractBase = Omit<
                   readonly model: "CodexEntry";
                 };
                 readonly cardinality: "N:1";
+                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ["entryId"];
                   readonly targetFields: readonly ["id"];
@@ -2262,6 +2460,7 @@ type ContractBase = Omit<
                   readonly model: "Novel";
                 };
                 readonly cardinality: "N:1";
+                readonly nullable: true;
                 readonly on: {
                   readonly localFields: readonly ["novelId"];
                   readonly targetFields: readonly ["id"];
@@ -2270,6 +2469,7 @@ type ContractBase = Omit<
               readonly owner: {
                 readonly to: { readonly namespace: "public" & NamespaceId; readonly model: "User" };
                 readonly cardinality: "N:1";
+                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ["ownerId"];
                   readonly targetFields: readonly ["id"];
@@ -2292,6 +2492,7 @@ type ContractBase = Omit<
                   readonly model: "Series";
                 };
                 readonly cardinality: "N:1";
+                readonly nullable: true;
                 readonly on: {
                   readonly localFields: readonly ["seriesId"];
                   readonly targetFields: readonly ["id"];
@@ -2421,6 +2622,7 @@ type ContractBase = Omit<
                   readonly model: "CodexEntry";
                 };
                 readonly cardinality: "N:1";
+                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ["entryId"];
                   readonly targetFields: readonly ["id"];
@@ -2432,6 +2634,7 @@ type ContractBase = Omit<
                   readonly model: "Scene";
                 };
                 readonly cardinality: "N:1";
+                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ["sceneId"];
                   readonly targetFields: readonly ["id"];
@@ -2513,6 +2716,7 @@ type ContractBase = Omit<
                   readonly model: "CodexEntry";
                 };
                 readonly cardinality: "N:1";
+                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ["sourceEntryId"];
                   readonly targetFields: readonly ["id"];
@@ -2524,6 +2728,7 @@ type ContractBase = Omit<
                   readonly model: "CodexEntry";
                 };
                 readonly cardinality: "N:1";
+                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ["targetEntryId"];
                   readonly targetFields: readonly ["id"];
@@ -2596,6 +2801,7 @@ type ContractBase = Omit<
                   readonly model: "CodexEntry";
                 };
                 readonly cardinality: "N:1";
+                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ["entryId"];
                   readonly targetFields: readonly ["id"];
@@ -2694,6 +2900,7 @@ type ContractBase = Omit<
               readonly owner: {
                 readonly to: { readonly namespace: "public" & NamespaceId; readonly model: "User" };
                 readonly cardinality: "N:1";
+                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ["ownerId"];
                   readonly targetFields: readonly ["id"];
@@ -2705,6 +2912,7 @@ type ContractBase = Omit<
                   readonly model: "Series";
                 };
                 readonly cardinality: "N:1";
+                readonly nullable: true;
                 readonly on: {
                   readonly localFields: readonly ["seriesId"];
                   readonly targetFields: readonly ["id"];
@@ -2818,6 +3026,7 @@ type ContractBase = Omit<
                   readonly model: "Chapter";
                 };
                 readonly cardinality: "N:1";
+                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ["chapterId"];
                   readonly targetFields: readonly ["id"];
@@ -2930,6 +3139,7 @@ type ContractBase = Omit<
               readonly owner: {
                 readonly to: { readonly namespace: "public" & NamespaceId; readonly model: "User" };
                 readonly cardinality: "N:1";
+                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ["ownerId"];
                   readonly targetFields: readonly ["id"];
