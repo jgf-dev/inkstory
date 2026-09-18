@@ -23,22 +23,26 @@ import {
 } from "../src/lib/codex/service";
 import { db } from "../src/lib/prisma";
 
-describe("Codex Service & Scoping Engine", () => {
-  const userId = "11111111-1111-1111-1111-111111111111";
-  const otherUserId = "22222222-2222-2222-2222-222222222222";
+describe("Codex Service & Scoping Engine", { timeout: 20_000 }, () => {
+  // Unique IDs per suite run. Analysis uses a shared CI Postgres; fixed IDs let
+  // overlapping runs' afterAll delete each other's users/series mid-suite
+  // (FK / "Novel not found" flakes on aliases/relations/progressions/mentions).
+  const runId = crypto.randomUUID();
+  const userId = crypto.randomUUID();
+  const otherUserId = crypto.randomUUID();
 
-  const seriesId = "test-codex-series-1";
-  const novelAId = "test-codex-novel-a";
-  const novelBId = "test-codex-novel-b"; // In same series as novel A
-  const novelStandaloneId = "test-codex-novel-standalone"; // No series
+  const seriesId = `test-codex-series-${runId}`;
+  const novelAId = `test-codex-novel-a-${runId}`;
+  const novelBId = `test-codex-novel-b-${runId}`; // In same series as novel A
+  const novelStandaloneId = `test-codex-novel-standalone-${runId}`; // No series
 
-  const actAId = "test-codex-act-a";
-  const chapterAId = "test-codex-chapter-a";
-  const sceneA1Id = "test-codex-scene-a1";
+  const actAId = `test-codex-act-a-${runId}`;
+  const chapterAId = `test-codex-chapter-a-${runId}`;
+  const sceneA1Id = `test-codex-scene-a1-${runId}`;
 
-  const actBId = "test-codex-act-b";
-  const chapterBId = "test-codex-chapter-b";
-  const sceneB1Id = "test-codex-scene-b1";
+  const actBId = `test-codex-act-b-${runId}`;
+  const chapterBId = `test-codex-chapter-b-${runId}`;
+  const sceneB1Id = `test-codex-scene-b1-${runId}`;
 
   beforeAll(async () => {
     const now = Temporal.Now.plainDateTimeISO();
@@ -47,7 +51,7 @@ describe("Codex Service & Scoping Engine", () => {
     await db.orm.public.User.upsert({
       create: {
         id: userId,
-        email: "codex-test@inkstory.local",
+        email: `codex-test-${runId}@inkstory.local`,
         name: "Codex Test User",
         updatedAt: now,
       },
@@ -58,7 +62,7 @@ describe("Codex Service & Scoping Engine", () => {
     await db.orm.public.User.upsert({
       create: {
         id: otherUserId,
-        email: "codex-other@inkstory.local",
+        email: `codex-other-${runId}@inkstory.local`,
         name: "Other User",
         updatedAt: now,
       },
@@ -158,14 +162,17 @@ describe("Codex Service & Scoping Engine", () => {
   });
 
   afterAll(async () => {
+    // Best-effort cleanup of THIS run's fixtures only (unique IDs above).
+    // Deleting the owner cascades series/novels/codex rows for this run.
     try {
-      // Clean up test data cascade
-      await db.orm.public.Series.where({ id: seriesId }).delete();
-      await db.orm.public.Novel.where({ id: novelStandaloneId }).delete();
       await db.orm.public.User.where({ id: userId }).delete();
+    } catch {
+      // ignore
+    }
+    try {
       await db.orm.public.User.where({ id: otherUserId }).delete();
     } catch {
-      // Cleanup best effort
+      // ignore
     }
   });
 
