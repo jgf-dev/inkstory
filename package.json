@@ -38,7 +38,7 @@
   "devDependencies": {
     "@playwright/test": "^1.63.0",
     "@prisma/cli": "8.0.0-rc.13",
-    "@types/node": "22.20.2",
+    "@types/node": "26.5.1",
     "@types/pg": "8.23.1",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
