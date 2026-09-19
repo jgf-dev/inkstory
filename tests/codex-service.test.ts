@@ -15,6 +15,8 @@ import {
   getCodexEntry,
   listCodexEntriesForNovel,
   listCodexEntriesForSeries,
+  loadNovelSceneReadingOrder,
+  resolveCodexEntryAtScene,
   scanMentionsInNovel,
   scanMentionsInScene,
   updateCodexEntry,
@@ -39,6 +41,7 @@ describe("Codex Service & Scoping Engine", { timeout: 20_000 }, () => {
   const actAId = `test-codex-act-a-${runId}`;
   const chapterAId = `test-codex-chapter-a-${runId}`;
   const sceneA1Id = `test-codex-scene-a1-${runId}`;
+  const sceneA2Id = `test-codex-scene-a2-${runId}`;
 
   const actBId = `test-codex-act-b-${runId}`;
   const chapterBId = `test-codex-chapter-b-${runId}`;
@@ -135,6 +138,16 @@ describe("Codex Service & Scoping Engine", { timeout: 20_000 }, () => {
         chapterId: chapterAId,
         title: "Scene 1",
         position: 0,
+        updatedAt: now,
+      },
+      update: { updatedAt: now },
+    });
+    await db.orm.public.Scene.upsert({
+      create: {
+        id: sceneA2Id,
+        chapterId: chapterAId,
+        title: "Scene 2",
+        position: 1,
         updatedAt: now,
       },
       update: { updatedAt: now },
@@ -608,6 +621,133 @@ describe("Codex Service & Scoping Engine", { timeout: 20_000 }, () => {
           description: "Cannot cross books!",
         }),
       ).rejects.toThrow(/Book-scoped entry cannot be linked to a scene in a different novel/);
+    });
+  });
+
+
+  describe("Progression resolution at scene (STO-1153)", () => {
+    it("loads novel scene reading order for non-deleted scenes", async () => {
+      const order = await loadNovelSceneReadingOrder(novelAId);
+      expect(order.get(sceneA1Id)).toMatchObject({
+        sceneId: sceneA1Id,
+        actPosition: 0,
+        chapterPosition: 0,
+        scenePosition: 0,
+      });
+      expect(order.get(sceneA2Id)).toMatchObject({
+        sceneId: sceneA2Id,
+        scenePosition: 1,
+      });
+      expect(order.has(sceneB1Id)).toBe(false);
+    });
+
+    it("applies ADDITION then REPLACEMENT progressions in reading order", async () => {
+      const hero = await createCodexEntry(userId, {
+        name: "Resolve Hero",
+        description: "Base hero.",
+        novelId: novelAId,
+      });
+
+      const early = await createCodexProgression(userId, {
+        entryId: hero.id,
+        sceneId: sceneA1Id,
+        mode: "ADDITION",
+        description: "Learned a spell.",
+        position: 0,
+      });
+      const late = await createCodexProgression(userId, {
+        entryId: hero.id,
+        sceneId: sceneA2Id,
+        mode: "REPLACEMENT",
+        description: "Became the Archmage.",
+        position: 0,
+      });
+
+      const atScene1 = await resolveCodexEntryAtScene(userId, hero.id, sceneA1Id);
+      expect(atScene1.baseDescription).toBe("Base hero.");
+      expect(atScene1.description).toBe("Base hero.\nLearned a spell.");
+      expect(atScene1.appliedProgressionIds).toEqual([early.id]);
+
+      const atScene2 = await resolveCodexEntryAtScene(userId, hero.id, sceneA2Id);
+      expect(atScene2.description).toBe("Became the Archmage.");
+      expect(atScene2.appliedProgressionIds).toEqual([early.id, late.id]);
+    });
+
+    it("resolves series-scoped entries against scenes in the same series", async () => {
+      const lore = await createCodexEntry(userId, {
+        name: "Resolve Lore",
+        type: "LORE",
+        description: "Old myth.",
+        seriesScoped: true,
+        seriesId,
+      });
+      const prog = await createCodexProgression(userId, {
+        entryId: lore.id,
+        sceneId: sceneA1Id,
+        mode: "ADDITION",
+        description: "Myth expands.",
+      });
+
+      const resolved = await resolveCodexEntryAtScene(userId, lore.id, sceneA1Id);
+      expect(resolved.description).toBe("Old myth.\nMyth expands.");
+      expect(resolved.appliedProgressionIds).toEqual([prog.id]);
+    });
+
+    it("rejects unauthorized or missing entry/scene contexts", async () => {
+      const hero = await createCodexEntry(userId, {
+        name: "Auth Resolve Hero",
+        novelId: novelAId,
+      });
+
+      await expect(resolveCodexEntryAtScene(otherUserId, hero.id, sceneA1Id)).rejects.toThrow(
+        /Unauthorized/,
+      );
+      await expect(resolveCodexEntryAtScene(userId, "missing-entry", sceneA1Id)).rejects.toThrow(
+        /Codex entry not found/,
+      );
+      await expect(resolveCodexEntryAtScene(userId, hero.id, "missing-scene")).rejects.toThrow(
+        CodexError,
+      );
+    });
+
+    it("rejects book-scoped resolution against a different novel scene", async () => {
+      const standalone = await createCodexEntry(userId, {
+        name: "Standalone Resolve",
+        novelId: novelStandaloneId,
+      });
+      await expect(resolveCodexEntryAtScene(userId, standalone.id, sceneA1Id)).rejects.toThrow(
+        /Book-scoped entry cannot be resolved against a scene in a different novel/,
+      );
+    });
+
+    it("rejects series-scoped resolution when scene series does not match", async () => {
+      const lore = await createCodexEntry(userId, {
+        name: "Wrong Series Lore",
+        type: "LORE",
+        seriesScoped: true,
+        seriesId,
+      });
+      // standalone novel has no series — resolveSceneContext seriesId is null
+      const actS = `test-codex-act-standalone-${runId}`;
+      const chapterS = `test-codex-chapter-standalone-${runId}`;
+      const sceneS = `test-codex-scene-standalone-${runId}`;
+      const now = Temporal.Now.plainDateTimeISO();
+      await db.orm.public.Act.upsert({
+        create: { id: actS, novelId: novelStandaloneId, title: "Act", position: 0, updatedAt: now },
+        update: { updatedAt: now },
+      });
+      await db.orm.public.Chapter.upsert({
+        create: { id: chapterS, actId: actS, title: "Ch", position: 0, updatedAt: now },
+        update: { updatedAt: now },
+      });
+      await db.orm.public.Scene.upsert({
+        create: { id: sceneS, chapterId: chapterS, title: "Sc", position: 0, updatedAt: now },
+        update: { updatedAt: now },
+      });
+
+      await expect(resolveCodexEntryAtScene(userId, lore.id, sceneS)).rejects.toThrow(
+        /Series-scoped entry does not belong to the scene's series/,
+      );
     });
   });
 
