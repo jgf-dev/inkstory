@@ -9,6 +9,7 @@ All notable changes to InkStory are tracked here. This file follows [Keep a Chan
 Implemented Mention Detection Service ([STO-1152](https://linear.app/jgfdev/issue/STO-1152)), full CRUD API and Server Actions ([STO-1168](https://linear.app/jgfdev/issue/STO-1168)), interactive Codex UI ([STO-1169](https://linear.app/jgfdev/issue/STO-1169)), and Codex database schema & migrations ([STO-1167](https://linear.app/jgfdev/issue/STO-1167)).
 
 ### Added
+- **STO-1153 Progressions engine**: pure `ProgressionEngine` (`src/lib/codex/progression-engine.ts`) applies scene-linked Codex progressions with temporal filtering (only scenes <= current scene in Act->Chapter->Scene reading order) and `ADDITION` / `REPLACEMENT` modes. Service helpers `loadNovelSceneReadingOrder` and `resolveCodexEntryAtScene` resolve an entry description at a scene. Unit tests in `tests/progression-engine.test.ts`.
 
 - **Mention Detection Service (`src/lib/codex/mention-detection.ts`)**:
   - Text scanner detecting Codex entry names and aliases inside scene text or beat prompts.
