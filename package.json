@@ -24,7 +24,7 @@
     "prepare": "vp config"
   },
   "dependencies": {
-    "@prisma/orm-postgres": "8.0.0-rc.9",
+    "@prisma/orm-postgres": "8.0.0-rc.10",
     "@supabase/ssr": "0.12.7",
     "@supabase/supabase-js": "2.116.0",
     "@tailwindcss/postcss": "4.3.3",
@@ -38,7 +38,7 @@
   "devDependencies": {
     "@playwright/test": "^1.63.0",
     "@prisma/cli": "8.0.0-rc.13",
-    "@types/node": "22.20.2",
+    "@types/node": "26.5.1",
     "@types/pg": "8.23.1",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
@@ -47,7 +47,7 @@
     "dotenv-cli": "11.0.0",
     "oxlint": "1.82.0",
     "postcss": "8.5.28",
-    "prisma": "8.0.0-rc.13",
+    "prisma": "8.0.0-rc.14",
     "tailwindcss": "4.3.3",
     "tsx": "4.23.13",
     "typescript": "7.0.2",
