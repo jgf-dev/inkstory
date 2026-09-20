@@ -128,6 +128,7 @@
               },
               "novel": {
                 "cardinality": "N:1",
+                "nullable": false,
                 "on": {
                   "localFields": ["novelId"],
                   "targetFields": ["id"]
@@ -230,6 +231,7 @@
             "relations": {
               "act": {
                 "cardinality": "N:1",
+                "nullable": false,
                 "on": {
                   "localFields": ["actId"],
                   "targetFields": ["id"]
@@ -336,6 +338,7 @@
             "relations": {
               "entry": {
                 "cardinality": "N:1",
+                "nullable": false,
                 "on": {
                   "localFields": ["entryId"],
                   "targetFields": ["id"]
@@ -522,6 +525,7 @@
               },
               "novel": {
                 "cardinality": "N:1",
+                "nullable": true,
                 "on": {
                   "localFields": ["novelId"],
                   "targetFields": ["id"]
@@ -533,6 +537,7 @@
               },
               "owner": {
                 "cardinality": "N:1",
+                "nullable": false,
                 "on": {
                   "localFields": ["ownerId"],
                   "targetFields": ["id"]
@@ -555,6 +560,7 @@
               },
               "series": {
                 "cardinality": "N:1",
+                "nullable": true,
                 "on": {
                   "localFields": ["seriesId"],
                   "targetFields": ["id"]
@@ -744,6 +750,7 @@
             "relations": {
               "entry": {
                 "cardinality": "N:1",
+                "nullable": false,
                 "on": {
                   "localFields": ["entryId"],
                   "targetFields": ["id"]
@@ -755,6 +762,7 @@
               },
               "scene": {
                 "cardinality": "N:1",
+                "nullable": false,
                 "on": {
                   "localFields": ["sceneId"],
                   "targetFields": ["id"]
@@ -880,6 +888,7 @@
             "relations": {
               "sourceEntry": {
                 "cardinality": "N:1",
+                "nullable": false,
                 "on": {
                   "localFields": ["sourceEntryId"],
                   "targetFields": ["id"]
@@ -891,6 +900,7 @@
               },
               "targetEntry": {
                 "cardinality": "N:1",
+                "nullable": false,
                 "on": {
                   "localFields": ["targetEntryId"],
                   "targetFields": ["id"]
@@ -999,6 +1009,7 @@
             "relations": {
               "entry": {
                 "cardinality": "N:1",
+                "nullable": false,
                 "on": {
                   "localFields": ["entryId"],
                   "targetFields": ["id"]
@@ -1144,6 +1155,7 @@
               },
               "owner": {
                 "cardinality": "N:1",
+                "nullable": false,
                 "on": {
                   "localFields": ["ownerId"],
                   "targetFields": ["id"]
@@ -1155,6 +1167,7 @@
               },
               "series": {
                 "cardinality": "N:1",
+                "nullable": true,
                 "on": {
                   "localFields": ["seriesId"],
                   "targetFields": ["id"]
@@ -1328,6 +1341,7 @@
             "relations": {
               "chapter": {
                 "cardinality": "N:1",
+                "nullable": false,
                 "on": {
                   "localFields": ["chapterId"],
                   "targetFields": ["id"]
@@ -1494,6 +1508,7 @@
               },
               "owner": {
                 "cardinality": "N:1",
+                "nullable": false,
                 "on": {
                   "localFields": ["ownerId"],
                   "targetFields": ["id"]
