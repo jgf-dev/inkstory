@@ -6,9 +6,12 @@ All notable changes to InkStory are tracked here. This file follows [Keep a Chan
 
 ### Summary
 
-Implemented Mention Detection Service ([STO-1152](https://linear.app/jgfdev/issue/STO-1152)), full CRUD API and Server Actions ([STO-1168](https://linear.app/jgfdev/issue/STO-1168)), interactive Codex UI ([STO-1169](https://linear.app/jgfdev/issue/STO-1169)), and Codex database schema & migrations ([STO-1167](https://linear.app/jgfdev/issue/STO-1167)).
+Implemented Relations expansion engine ([STO-1154](https://linear.app/jgfdev/issue/STO-1154)), Progressions engine ([STO-1153](https://linear.app/jgfdev/issue/STO-1153)), Mention Detection Service ([STO-1152](https://linear.app/jgfdev/issue/STO-1152)), full CRUD API and Server Actions ([STO-1168](https://linear.app/jgfdev/issue/STO-1168)), interactive Codex UI ([STO-1169](https://linear.app/jgfdev/issue/STO-1169)), and Codex database schema & migrations ([STO-1167](https://linear.app/jgfdev/issue/STO-1167)).
 
 ### Added
+
+- **STO-1154 Relations engine**: pure `RelationEngine` (`src/lib/codex/relation-engine.ts`) expands a Codex relation graph from a seed entry with BFS discovery, cycle detection (no infinite loops), depth limiting (default max depth 2), and deduplication of already-included entries. DB-agnostic adjacency input; unit tests in `tests/relation-engine.test.ts` cover circular, diamond, and deep graphs.
+
 - **STO-1153 Progressions engine**: pure `ProgressionEngine` (`src/lib/codex/progression-engine.ts`) applies scene-linked Codex progressions with temporal filtering (only scenes <= current scene in Act->Chapter->Scene reading order) and `ADDITION` / `REPLACEMENT` modes. Service helpers `loadNovelSceneReadingOrder` and `resolveCodexEntryAtScene` resolve an entry description at a scene. Unit tests in `tests/progression-engine.test.ts`.
 
 - **Mention Detection Service (`src/lib/codex/mention-detection.ts`)**:
