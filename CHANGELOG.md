@@ -2,6 +2,17 @@
 
 All notable changes to InkStory are tracked here. This file follows [Keep a Changelog](https://keepachangelog.com/) and the project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased] - 2026-09-21
+
+### Summary
+
+Brought operator docs in line with the Codex-on-main codebase: Prisma 8 scripts, Next.js 16 session proxy, Codex REST/progressions, and bun/`vp` tooling.
+
+### Changed
+
+- `README.md`: stack, setup, layout, scripts, Epic 1 checkboxes, Codex API table, and troubleshooting now match `package.json`, `prisma.config.ts`, `src/proxy.ts`, and `src/lib/codex/*`.
+- `AGENTS.md`: canonical Supabase + Prisma 8 section so agents do not follow the InsForge boilerplate for app code.
+
 ## [Unreleased]
 
 ### Summary
