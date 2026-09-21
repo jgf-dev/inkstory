@@ -153,5 +153,37 @@ describe("Mention Detection Service (STO-1152)", () => {
         matches: [],
       });
     });
+
+    it("matches names with regex metacharacters literally", () => {
+      const entries: CandidateEntity[] = [
+        { id: "doc", name: "Dr. Smith" },
+        { id: "plus", name: "C++" },
+        { id: "parens", name: "Name (alias)" },
+      ];
+      const text = "Dr. Smith wrote C++ and Name (alias) together.";
+      const result = detectMentionsInText(text, entries);
+
+      expect(result.matchedEntryIds).toEqual(["doc", "plus", "parens"]);
+      expect(result.matches.map((m) => m.originalText)).toEqual([
+        "Dr. Smith",
+        "C++",
+        "Name (alias)",
+      ]);
+    });
+
+    it("does not treat a dotted name as a wildcard pattern", () => {
+      const result = detectMentionsInText("DrX Smith arrived.", [{ id: "doc", name: "Dr. Smith" }]);
+      expect(result.matches).toHaveLength(0);
+      expect(result.matchedEntryIds).toEqual([]);
+    });
+
+    it("skips blank names and aliases", () => {
+      const result = detectMentionsInText("hello world", [
+        { id: "blank", name: "   ", aliases: ["", { name: "  " }] },
+        { id: "ok", name: "hello" },
+      ]);
+      expect(result.matchedEntryIds).toEqual(["ok"]);
+      expect(result.matches).toHaveLength(1);
+    });
   });
 });

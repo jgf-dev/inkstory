@@ -46,6 +46,13 @@ describe("ProgressionEngine (STO-1153)", () => {
       expect(ProgressionEngine.isAtOrBefore(s2, s3)).toBe(true);
       expect(ProgressionEngine.isAtOrBefore(s4, s2)).toBe(false);
     });
+
+    it("breaks ties by sceneId when act, chapter, and scene positions are equal", () => {
+      const left = scene("scene-b", 0, 0, 0);
+      const right = scene("scene-a", 0, 0, 0);
+      expect(ProgressionEngine.compareReadingOrder(left, right)).toBeGreaterThan(0);
+      expect(ProgressionEngine.compareReadingOrder(right, left)).toBeLessThan(0);
+    });
   });
 
   describe("temporal filtering for Scene N", () => {
@@ -146,6 +153,44 @@ describe("ProgressionEngine (STO-1153)", () => {
         }),
       ]);
       expect(result.description).toBe("Now a wanted fugitive");
+    });
+
+    it("does not append a newline when an ADDITION fragment is empty", () => {
+      const result = ProgressionEngine.applyProgressions("Base bio", [
+        progression({
+          id: "empty",
+          sceneId: "scene-1",
+          mode: "ADDITION",
+          description: "",
+        }),
+      ]);
+      expect(result.description).toBe("Base bio");
+      expect(result.appliedProgressionIds).toEqual(["empty"]);
+    });
+
+    it("REPLACEMENT with an empty description clears the text", () => {
+      const result = ProgressionEngine.applyProgressions("Base bio", [
+        progression({
+          id: "wipe",
+          sceneId: "scene-1",
+          mode: "REPLACEMENT",
+          description: "",
+        }),
+      ]);
+      expect(result.description).toBe("");
+      expect(result.appliedProgressionIds).toEqual(["wipe"]);
+    });
+
+    it("coalesces a nullish base description before applying additions", () => {
+      const result = ProgressionEngine.applyProgressions(null as unknown as string, [
+        progression({
+          id: "a1",
+          sceneId: "scene-1",
+          mode: "ADDITION",
+          description: "Only this",
+        }),
+      ]);
+      expect(result.description).toBe("Only this");
     });
 
     it("replacement after additions discards prior text; later additions append again", () => {
@@ -277,6 +322,13 @@ describe("ProgressionEngine (STO-1153)", () => {
       expect(map.get("scene-2")).toEqual(s2);
       expect(map.get("missing")).toBeUndefined();
     });
-  });
 
+    it("last row wins when the same sceneId appears twice", () => {
+      const first = scene("scene-1", 0, 0, 0);
+      const second = scene("scene-1", 9, 9, 9);
+      const map = ProgressionEngine.buildSceneOrderMap([first, second]);
+      expect(map.size).toBe(1);
+      expect(map.get("scene-1")).toEqual(second);
+    });
+  });
 });

@@ -357,6 +357,16 @@ describe("Codex REST Route Handlers", () => {
       });
       const invalidRes = await scanMentions(invalidReq);
       expect(invalidRes.status).toBe(400);
+
+      const missingScopeReq = new NextRequest("http://localhost:3000/api/codex/mentions", {
+        method: "POST",
+        body: JSON.stringify({ text: "Mara appeared" }),
+      });
+      const missingScopeRes = await scanMentions(missingScopeReq);
+      expect(missingScopeRes.status).toBe(400);
+      const missingScopeJson = await missingScopeRes.json();
+      expect(missingScopeJson.code).toBe("VALIDATION_FAILED");
+      expect(missingScopeJson.error).toMatch(/Must specify novelId or sceneId/);
     });
 
     it("returns 400 with INVALID_JSON when request body contains malformed JSON", async () => {
