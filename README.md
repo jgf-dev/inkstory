@@ -109,10 +109,11 @@ Codex entries are the story bible: character / location / item / lore / faction 
 | Types | `src/lib/codex/types.ts` (`CodexType`, `CodexTrackingMode`, `ProgressionMode`) |
 | Mentions | `src/lib/codex/mention-detection.ts` — case-insensitive, word-boundary, longer-match wins |
 | Progressions | `src/lib/codex/progression-engine.ts` (STO-1153) — reading order Act→Chapter→Scene; `ADDITION` appends, `REPLACEMENT` replaces |
+| Relations | `src/lib/codex/relation-engine.ts` (STO-1154) — pure `RelationEngine`: BFS graph expansion from a seed entry, cycle detection, depth limit (default 2), dedupe; DB-agnostic edge input; unit-tested in `tests/relation-engine.test.ts` |
 
 Tracking modes: `ALWAYS`, `DETECTED`, `NEVER`.
 
-There is **no** HTTP endpoint for “resolve entry at scene”; use `resolveCodexEntryAtScene` in the service layer. Relation **CRUD** is on the API; the graph expansion engine (STO-1154) is not on `main`.
+There is **no** HTTP endpoint for “resolve entry at scene”; use `resolveCodexEntryAtScene` in the service layer. Relation **CRUD** is on the API, and the graph expansion engine (STO-1154, `RelationEngine`) ships on `main` as a pure library — call it from the service layer; there is no dedicated HTTP endpoint for expansion.
 
 ### REST (cookie session required; 401 if missing)
 
@@ -177,5 +178,5 @@ E2E launches Chromium with `executablePath: /usr/bin/google-chrome`. Codex tests
 - [x] Basic Codex UI List + Editor ([STO-1169](https://linear.app/jgfdev/issue/STO-1169))
 - [x] Mention Detection Service ([STO-1152](https://linear.app/jgfdev/issue/STO-1152))
 - [x] Temporal Progressions ([STO-1153](https://linear.app/jgfdev/issue/STO-1153))
-- [ ] Relations Graph Engine ([STO-1154](https://linear.app/jgfdev/issue/STO-1154))
+- [x] Relations Graph Engine ([STO-1154](https://linear.app/jgfdev/issue/STO-1154))
 - [ ] Context Assembler ([STO-1170](https://linear.app/jgfdev/issue/STO-1170) / [STO-1171](https://linear.app/jgfdev/issue/STO-1171))
