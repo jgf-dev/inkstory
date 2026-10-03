@@ -21,6 +21,7 @@ Implemented Relations expansion engine ([STO-1154](https://linear.app/jgfdev/iss
 
 ### Added
 
+- **Regression tests for Codex mention parsing and progressions**: cover regex-metacharacter names, blank aliases, empty ADDITION/REPLACEMENT fragments, equal-position sceneId tie-breaks, duplicate scene map rows, and mention API requests missing `novelId`/`sceneId`.
 - **STO-1154 Relations engine**: pure `RelationEngine` (`src/lib/codex/relation-engine.ts`) expands a Codex relation graph from a seed entry with BFS discovery, cycle detection (no infinite loops), depth limiting (default max depth 2), and deduplication of already-included entries. DB-agnostic adjacency input; unit tests in `tests/relation-engine.test.ts` cover circular, diamond, and deep graphs.
 
 - **STO-1153 Progressions engine**: pure `ProgressionEngine` (`src/lib/codex/progression-engine.ts`) applies scene-linked Codex progressions with temporal filtering (only scenes <= current scene in Act->Chapter->Scene reading order) and `ADDITION` / `REPLACEMENT` modes. Service helpers `loadNovelSceneReadingOrder` and `resolveCodexEntryAtScene` resolve an entry description at a scene. Unit tests in `tests/progression-engine.test.ts`.
