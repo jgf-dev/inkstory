@@ -10,10 +10,8 @@ jobs:
     runs-on: ubuntu-latest
     name: New Relic
     steps:
-      - name: Set Release Version from Tag
-        run: echo "RELEASE_VERSION=${{ github.ref_name }}" >> $GITHUB_ENV
       - name: New Relic Application Deployment Marker
-        uses: newrelic/deployment-marker-action@v2.6.2
+        uses: newrelic/deployment-marker-action@d88a59ea8f713ad6935e60de27273157790b1e3b # v2.6.2
         with:
           commandType: changeTrackingCreateEvent
           region: EU
@@ -21,7 +19,7 @@ jobs:
           entitySearch: id = 'ODU3NzkxNHxBUE18QVBQTElDQVRJT058MzYwMTExMjYy'
           category: Deployment
           type: BASIC
-          version: ${{ env.RELEASE_VERSION }}
+          version: ${{ github.event.release.tag_name || github.ref_name }}
           user: ${{ github.actor }}
           description: inkstory app github
           shortDescription: inkstory-git
