@@ -19,7 +19,7 @@ jobs:
           entitySearch: id = 'ODU3NzkxNHxBUE18QVBQTElDQVRJT058MzYwMTExMjYy'
           category: Deployment
           type: BASIC
-          version: ${{ github.event.release.tag_name || github.ref_name }}
+          version: ${{ github.event.release.tag_name }}
           user: ${{ github.actor }}
           description: inkstory app github
           shortDescription: inkstory-git
