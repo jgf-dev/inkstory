@@ -1,32 +1,25 @@
-name: Change Tracking Marker
-on:
-  release:
-    types:
-      - published
-  pull_request_target:
-    types: 
-     - closed
-  deployment: 
-permissions:
-  contents: read
-jobs:
-  newrelic:
-    runs-on: ubuntu-latest
-    name: New Relic
-    steps:
-      - name: New Relic Application Deployment Marker
-        uses: newrelic/deployment-marker-action@d88a59ea8f713ad6935e60de27273157790b1e3b # v2.6.2
-        with:
-          commandType: changeTrackingCreateEvent
-          region: EU
-          apiKey: ${{ secrets.NEW_RELIC_API_KEY }}
-          entitySearch: id = 'ODU3NzkxNHxBUE18QVBQTElDQVRJT058MzYwMTExMjYy'
-          category: Deployment
-          type: BASIC
-          version: ${{ github.event.number }}
-          user: ${{ github.actor }}
-          description: ${{github.repository}}
-          shortDescription: ${{github.ref_name}}
-          commit: ${{ github.sha }}
-          groupid: ${{env.GROUP_ID}}
+name: new-relic-exporter
 
+on:
+  workflow_run:
+    workflows: ['*']
+    types: [completed] # defaults to run on every completed workflow run event
+
+env:
+  GHA_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  NEW_RELIC_LICENSE_KEY: ${{ secrets.NEW_RELIC_LICENSE_KEY }}
+  GHA_RUN_ID: ${{ github.event.workflow_run.id }}
+  GHA_RUN_NAME: ${{ github.event.workflow_run.name }}
+  #GHA_CUSTOM_ATTS: '{"mycustomattributea":"test", "mycustomattributeb":10, "mycustomattributec":"My custom attribute"}'
+  #GHA_EXPORT_LOGS: 'false' # <---true by default
+
+jobs:
+  new-relic-exporter:
+    name: new-relic-exporter
+    runs-on: ubuntu-latest
+    if: ${{ always() }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: new-relic-exporter
+        uses: newrelic-experimental/gha-new-relic-exporter@1.0.1
