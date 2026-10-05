@@ -5,6 +5,9 @@ on:
     workflows: ['*']
     types: [completed] # defaults to run on every completed workflow run event
 
+permissions:
+  contents: read
+
 env:
   GHA_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   NEW_RELIC_LICENSE_KEY: ${{ secrets.NEW_RELIC_LICENSE_KEY }}
