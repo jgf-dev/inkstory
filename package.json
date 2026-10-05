@@ -28,7 +28,7 @@
     "@supabase/ssr": "0.12.7",
     "@supabase/supabase-js": "2.116.0",
     "@tailwindcss/postcss": "4.3.3",
-    "dotenv": "17.4.2",
+    "dotenv": "18.0.1",
     "next": "16.3.5",
     "pg": "8.23.0",
     "react": "19.3.0",
@@ -43,7 +43,7 @@
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
     "@vitest/coverage-v8": "4.1.11",
-    "autoprefixer": "10.5.5",
+    "autoprefixer": "10.6.1",
     "dotenv-cli": "11.0.0",
     "oxlint": "1.82.0",
     "postcss": "8.5.28",
@@ -51,7 +51,7 @@
     "tailwindcss": "4.3.3",
     "tsx": "4.23.13",
     "typescript": "7.0.2",
-    "vite-plus": "0.3.1"
+    "vite-plus": "0.3.3"
   },
   "allowScripts": {
     "msgpackr-extract@3.0.4": true,
