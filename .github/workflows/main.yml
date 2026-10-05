@@ -3,6 +3,10 @@ on:
   release:
     types:
       - published
+  pull_request_target:
+    types: 
+     - closed
+  deployment: 
 permissions:
   contents: read
 jobs:
