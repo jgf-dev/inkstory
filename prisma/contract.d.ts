@@ -34,7 +34,7 @@ import type {
 } from "@prisma/orm-postgres/contract/types";
 
 export type StorageHash =
-  StorageHashBase<"07ea33fb06de9680850b4da89a2fb50f46c84205791f076da84230b0bfcdedeb">;
+  StorageHashBase<"bc1a2508c62bf69b26a9f75ac4392027c86dfb9ac9f49567c7a4af45c6ce9d36">;
 export type ExecutionHash = ExecutionHashBase<string>;
 export type ProfileHash =
   ProfileHashBase<"3916f444a8a17ad749191acf9e08dad97d1a327b88c2f1d45d12f240296aa8b2">;
@@ -347,6 +347,15 @@ export type FieldOutputTypes = {
       readonly deletedAt: CodecTypes["pg/timestamp-temporal@1"]["output"] | null;
       readonly chapterId: CodecTypes["pg/text@1"]["output"];
     };
+    readonly SceneCodexAttachment: {
+      readonly id: CodecTypes["pg/text@1"]["output"];
+      readonly position: CodecTypes["pg/int4@1"]["output"];
+      readonly createdAt: CodecTypes["pg/timestamp-temporal@1"]["output"];
+      readonly updatedAt: CodecTypes["pg/timestamp-temporal@1"]["output"];
+      readonly deletedAt: CodecTypes["pg/timestamp-temporal@1"]["output"] | null;
+      readonly sceneId: CodecTypes["pg/text@1"]["output"];
+      readonly entryId: CodecTypes["pg/text@1"]["output"];
+    };
     readonly Series: {
       readonly id: CodecTypes["pg/text@1"]["output"];
       readonly title: CodecTypes["pg/text@1"]["output"];
@@ -488,6 +497,15 @@ export type FieldInputTypes = {
       readonly deletedAt: CodecTypes["pg/timestamp-temporal@1"]["input"] | null;
       readonly chapterId: CodecTypes["pg/text@1"]["input"];
     };
+    readonly SceneCodexAttachment: {
+      readonly id: CodecTypes["pg/text@1"]["input"];
+      readonly position: CodecTypes["pg/int4@1"]["input"];
+      readonly createdAt: CodecTypes["pg/timestamp-temporal@1"]["input"];
+      readonly updatedAt: CodecTypes["pg/timestamp-temporal@1"]["input"];
+      readonly deletedAt: CodecTypes["pg/timestamp-temporal@1"]["input"] | null;
+      readonly sceneId: CodecTypes["pg/text@1"]["input"];
+      readonly entryId: CodecTypes["pg/text@1"]["input"];
+    };
     readonly Series: {
       readonly id: CodecTypes["pg/text@1"]["input"];
       readonly title: CodecTypes["pg/text@1"]["input"];
@@ -610,6 +628,15 @@ export type StorageColumnTypes = {
       readonly series_id: CodecTypes["pg/text@1"]["output"] | null;
       readonly subtitle: CodecTypes["pg/text@1"]["output"] | null;
       readonly title: CodecTypes["pg/text@1"]["output"];
+      readonly updated_at: CodecTypes["pg/timestamp-temporal@1"]["output"];
+    };
+    readonly scene_codex_attachments: {
+      readonly created_at: CodecTypes["pg/timestamp-temporal@1"]["output"];
+      readonly deleted_at: CodecTypes["pg/timestamp-temporal@1"]["output"] | null;
+      readonly entry_id: CodecTypes["pg/text@1"]["output"];
+      readonly id: CodecTypes["pg/text@1"]["output"];
+      readonly position: CodecTypes["pg/int4@1"]["output"];
+      readonly scene_id: CodecTypes["pg/text@1"]["output"];
       readonly updated_at: CodecTypes["pg/timestamp-temporal@1"]["output"];
     };
     readonly scenes: {
@@ -751,6 +778,15 @@ export type StorageColumnInputTypes = {
       readonly series_id: CodecTypes["pg/text@1"]["input"] | null;
       readonly subtitle: CodecTypes["pg/text@1"]["input"] | null;
       readonly title: CodecTypes["pg/text@1"]["input"];
+      readonly updated_at: CodecTypes["pg/timestamp-temporal@1"]["input"];
+    };
+    readonly scene_codex_attachments: {
+      readonly created_at: CodecTypes["pg/timestamp-temporal@1"]["input"];
+      readonly deleted_at: CodecTypes["pg/timestamp-temporal@1"]["input"] | null;
+      readonly entry_id: CodecTypes["pg/text@1"]["input"];
+      readonly id: CodecTypes["pg/text@1"]["input"];
+      readonly position: CodecTypes["pg/int4@1"]["input"];
+      readonly scene_id: CodecTypes["pg/text@1"]["input"];
       readonly updated_at: CodecTypes["pg/timestamp-temporal@1"]["input"];
     };
     readonly scenes: {
@@ -903,8 +939,9 @@ export namespace Models {
     deletedAt: CodecTypes["pg/timestamp-temporal@1"]["output"] | null;
     chapterId: CodecTypes["pg/text@1"]["output"];
     chapter: public_Chapter;
+    codexAttachments: public_SceneCodexAttachment[];
     codexProgressions: public_CodexProgression[];
-    readonly [RelationKeys]?: "chapter" | "codexProgressions";
+    readonly [RelationKeys]?: "chapter" | "codexAttachments" | "codexProgressions";
   };
   export type public_CodexEntry = {
     id: CodecTypes["pg/text@1"]["output"];
@@ -928,6 +965,7 @@ export namespace Models {
     novel: public_Novel | null;
     owner: public_User;
     progressions: public_CodexProgression[];
+    sceneAttachments: public_SceneCodexAttachment[];
     series: public_Series | null;
     sourceRelations: public_CodexRelation[];
     tags: public_CodexTag[];
@@ -937,6 +975,7 @@ export namespace Models {
       | "novel"
       | "owner"
       | "progressions"
+      | "sceneAttachments"
       | "series"
       | "sourceRelations"
       | "tags"
@@ -992,6 +1031,18 @@ export namespace Models {
     scene: public_Scene;
     readonly [RelationKeys]?: "entry" | "scene";
   };
+  export type public_SceneCodexAttachment = {
+    id: CodecTypes["pg/text@1"]["output"];
+    position: CodecTypes["pg/int4@1"]["output"];
+    createdAt: CodecTypes["pg/timestamp-temporal@1"]["output"];
+    updatedAt: CodecTypes["pg/timestamp-temporal@1"]["output"];
+    deletedAt: CodecTypes["pg/timestamp-temporal@1"]["output"] | null;
+    sceneId: CodecTypes["pg/text@1"]["output"];
+    entryId: CodecTypes["pg/text@1"]["output"];
+    entry: public_CodexEntry;
+    scene: public_Scene;
+    readonly [RelationKeys]?: "entry" | "scene";
+  };
 }
 
 export declare const models: {
@@ -1008,6 +1059,7 @@ export declare const models: {
     CodexTag: Models.public_CodexTag;
     CodexRelation: Models.public_CodexRelation;
     CodexProgression: Models.public_CodexProgression;
+    SceneCodexAttachment: Models.public_SceneCodexAttachment;
   };
 };
 
@@ -1840,6 +1892,103 @@ type ContractBase = Omit<
                 },
               ];
             };
+            readonly scene_codex_attachments: {
+              columns: {
+                readonly id: {
+                  readonly nativeType: "text";
+                  readonly codecId: "pg/text@1";
+                  readonly nullable: false;
+                };
+                readonly position: {
+                  readonly nativeType: "int4";
+                  readonly codecId: "pg/int4@1";
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: "literal";
+                    readonly value: DefaultLiteralValue<"pg/int4@1", 0>;
+                  };
+                };
+                readonly created_at: {
+                  readonly nativeType: "timestamp";
+                  readonly codecId: "pg/timestamp-temporal@1";
+                  readonly nullable: false;
+                  readonly default: { readonly kind: "function"; readonly expression: "now()" };
+                  readonly typeParams: { readonly precision: 3 };
+                };
+                readonly updated_at: {
+                  readonly nativeType: "timestamp";
+                  readonly codecId: "pg/timestamp-temporal@1";
+                  readonly nullable: false;
+                  readonly typeParams: { readonly precision: 3 };
+                };
+                readonly deleted_at: {
+                  readonly nativeType: "timestamp";
+                  readonly codecId: "pg/timestamp-temporal@1";
+                  readonly nullable: true;
+                  readonly typeParams: { readonly precision: 3 };
+                };
+                readonly scene_id: {
+                  readonly nativeType: "text";
+                  readonly codecId: "pg/text@1";
+                  readonly nullable: false;
+                };
+                readonly entry_id: {
+                  readonly nativeType: "text";
+                  readonly codecId: "pg/text@1";
+                  readonly nullable: false;
+                };
+              };
+              primaryKey: {
+                readonly columns: readonly ["id"];
+                readonly name: "scene_codex_attachments_pkey";
+              };
+              uniques: readonly [
+                {
+                  readonly columns: readonly ["scene_id", "entry_id"];
+                  readonly name: "scene_codex_attachments_scene_id_entry_id_key";
+                },
+              ];
+              indexes: readonly [
+                {
+                  readonly name: "scene_codex_attachments_scene_id_deleted_at_idx";
+                  readonly columns: readonly ["scene_id", "deleted_at"];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: "scene_codex_attachments_entry_id_deleted_at_idx";
+                  readonly columns: readonly ["entry_id", "deleted_at"];
+                  readonly unique: false;
+                },
+              ];
+              foreignKeys: readonly [
+                {
+                  readonly source: {
+                    readonly namespaceId: "public" & NamespaceId;
+                    readonly tableName: "scene_codex_attachments";
+                    readonly columns: readonly ["scene_id"];
+                  };
+                  readonly target: {
+                    readonly namespaceId: "public" & NamespaceId;
+                    readonly tableName: "scenes";
+                    readonly columns: readonly ["id"];
+                  };
+                  readonly name: "scene_codex_attachments_scene_id_fkey";
+                },
+                {
+                  readonly source: {
+                    readonly namespaceId: "public" & NamespaceId;
+                    readonly tableName: "scene_codex_attachments";
+                    readonly columns: readonly ["entry_id"];
+                  };
+                  readonly target: {
+                    readonly namespaceId: "public" & NamespaceId;
+                    readonly tableName: "codex_entries";
+                    readonly columns: readonly ["id"];
+                  };
+                  readonly name: "scene_codex_attachments_entry_id_fkey";
+                },
+              ];
+            };
             readonly scenes: {
               columns: {
                 readonly id: {
@@ -2261,6 +2410,10 @@ type ContractBase = Omit<
       readonly namespace: "public" & NamespaceId;
       readonly model: "CodexProgression";
     };
+    readonly scene_codex_attachments: {
+      readonly namespace: "public" & NamespaceId;
+      readonly model: "SceneCodexAttachment";
+    };
   };
   readonly domain: {
     readonly namespaces: {
@@ -2621,6 +2774,17 @@ type ContractBase = Omit<
                 readonly to: {
                   readonly namespace: "public" & NamespaceId;
                   readonly model: "CodexProgression";
+                };
+                readonly cardinality: "1:N";
+                readonly on: {
+                  readonly localFields: readonly ["id"];
+                  readonly targetFields: readonly ["entryId"];
+                };
+              };
+              readonly sceneAttachments: {
+                readonly to: {
+                  readonly namespace: "public" & NamespaceId;
+                  readonly model: "SceneCodexAttachment";
                 };
                 readonly cardinality: "1:N";
                 readonly on: {
@@ -3174,6 +3338,17 @@ type ContractBase = Omit<
                   readonly targetFields: readonly ["id"];
                 };
               };
+              readonly codexAttachments: {
+                readonly to: {
+                  readonly namespace: "public" & NamespaceId;
+                  readonly model: "SceneCodexAttachment";
+                };
+                readonly cardinality: "1:N";
+                readonly on: {
+                  readonly localFields: readonly ["id"];
+                  readonly targetFields: readonly ["sceneId"];
+                };
+              };
               readonly codexProgressions: {
                 readonly to: {
                   readonly namespace: "public" & NamespaceId;
@@ -3205,6 +3380,89 @@ type ContractBase = Omit<
                 readonly updatedAt: { readonly column: "updated_at" };
                 readonly deletedAt: { readonly column: "deleted_at" };
                 readonly chapterId: { readonly column: "chapter_id" };
+              };
+            };
+          };
+          readonly SceneCodexAttachment: {
+            readonly fields: {
+              readonly id: {
+                readonly nullable: false;
+                readonly type: { readonly kind: "scalar"; readonly codecId: "pg/text@1" };
+              };
+              readonly position: {
+                readonly nullable: false;
+                readonly type: { readonly kind: "scalar"; readonly codecId: "pg/int4@1" };
+              };
+              readonly createdAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: "scalar";
+                  readonly codecId: "pg/timestamp-temporal@1";
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+              readonly updatedAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: "scalar";
+                  readonly codecId: "pg/timestamp-temporal@1";
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+              readonly deletedAt: {
+                readonly nullable: true;
+                readonly type: {
+                  readonly kind: "scalar";
+                  readonly codecId: "pg/timestamp-temporal@1";
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+              readonly sceneId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: "scalar"; readonly codecId: "pg/text@1" };
+              };
+              readonly entryId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: "scalar"; readonly codecId: "pg/text@1" };
+              };
+            };
+            readonly relations: {
+              readonly entry: {
+                readonly to: {
+                  readonly namespace: "public" & NamespaceId;
+                  readonly model: "CodexEntry";
+                };
+                readonly cardinality: "N:1";
+                readonly nullable: false;
+                readonly on: {
+                  readonly localFields: readonly ["entryId"];
+                  readonly targetFields: readonly ["id"];
+                };
+              };
+              readonly scene: {
+                readonly to: {
+                  readonly namespace: "public" & NamespaceId;
+                  readonly model: "Scene";
+                };
+                readonly cardinality: "N:1";
+                readonly nullable: false;
+                readonly on: {
+                  readonly localFields: readonly ["sceneId"];
+                  readonly targetFields: readonly ["id"];
+                };
+              };
+            };
+            readonly storage: {
+              readonly table: "scene_codex_attachments";
+              readonly namespaceId: "public";
+              readonly fields: {
+                readonly id: { readonly column: "id" };
+                readonly position: { readonly column: "position" };
+                readonly createdAt: { readonly column: "created_at" };
+                readonly updatedAt: { readonly column: "updated_at" };
+                readonly deletedAt: { readonly column: "deleted_at" };
+                readonly sceneId: { readonly column: "scene_id" };
+                readonly entryId: { readonly column: "entry_id" };
               };
             };
           };
