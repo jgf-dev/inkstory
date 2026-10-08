@@ -119,7 +119,7 @@ describe("Pages & Server Components", () => {
       const html = renderToStaticMarkup(element);
 
       expect(html).toContain("InkStory");
-      expect(html).toContain("A novel-writing and world-building platform");
+      expect(html).toContain("Write your novel. Your story bible writes with you.");
       expect(html).toContain('href="/login"');
       expect(html).toContain('href="/signup"');
       expect(html).not.toContain('href="/dashboard"');

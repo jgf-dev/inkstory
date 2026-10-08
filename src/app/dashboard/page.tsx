@@ -5,6 +5,7 @@ import { syncAuthUser } from "@/lib/supabase/auth";
 import { db } from "@/lib/prisma";
 import { LogoutButton } from "./_components/LogoutButton";
 import { LibraryCreator } from "./_components/LibraryCreator";
+import { OnboardingWizard } from "./_components/OnboardingWizard";
 
 export default async function DashboardPage() {
   const supabase = await createSupabaseServerClient();
@@ -41,9 +42,13 @@ export default async function DashboardPage() {
   const seriesCount = seriesRes.count;
   const novelCount = novelRes.count;
   const codexCount = codexRes.count;
+  const seriesOptions = JSON.parse(JSON.stringify(seriesRows)).map(
+    (s: { id: string; title: string }) => ({ id: s.id, title: s.title }),
+  );
 
   return (
     <main className="mx-auto max-w-3xl px-6 py-12">
+      <OnboardingWizard hasNovels={novels.length > 0} series={seriesOptions} />
       <header className="mb-10 flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-semibold">Dashboard</h1>
@@ -80,24 +85,18 @@ export default async function DashboardPage() {
           <h2 className="text-ink-500 text-sm font-semibold tracking-wide uppercase">
             Your novels
           </h2>
-          <LibraryCreator
-            series={JSON.parse(JSON.stringify(seriesRows)).map(
-              (s: { id: string; title: string }) => ({ id: s.id, title: s.title }),
-            )}
-          />
+          <LibraryCreator series={seriesOptions} />
         </div>
         {novels.length === 0 ? (
           <div className="border-ink-300 text-ink-500 rounded-lg border border-dashed p-8 text-center">
             <p className="font-medium">No novels yet.</p>
             <p className="mt-1 text-sm">
               Use <span className="font-semibold text-ink-700">+ New Novel</span> above to start
-              your first book, load demo data with{" "}
-              <code className="bg-ink-100 rounded px-1 py-0.5 text-xs">npm run db:seed</code>, or
-              manage world-building elements in the{" "}
+              your first book, or manage world-building elements in the{" "}
               <Link href="/dashboard/codex" className="text-ink-800 font-semibold underline">
                 Story Codex
               </Link>
-              .
+              . A sample fantasy bible is available from the onboarding tour.
             </p>
           </div>
         ) : (

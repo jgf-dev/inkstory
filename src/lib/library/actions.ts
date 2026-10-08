@@ -5,6 +5,7 @@ import { CodexError } from "@/lib/codex/errors";
 import {
   createNovel,
   createSeries,
+  seedStarterBible,
   type CreateNovelInput,
   type CreateSeriesInput,
 } from "./service";
@@ -62,6 +63,18 @@ export async function createSeriesAction(
   try {
     const userId = await getAuthenticatedUserId();
     const data = await createSeries(userId, input);
+    return { success: true, data: JSON.parse(JSON.stringify(data)) };
+  } catch (err) {
+    return handleActionError(err);
+  }
+}
+
+export async function seedStarterBibleAction(): Promise<
+  ActionResult<Awaited<ReturnType<typeof seedStarterBible>>>
+> {
+  try {
+    const userId = await getAuthenticatedUserId();
+    const data = await seedStarterBible(userId);
     return { success: true, data: JSON.parse(JSON.stringify(data)) };
   } catch (err) {
     return handleActionError(err);
