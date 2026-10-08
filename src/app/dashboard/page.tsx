@@ -4,6 +4,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { syncAuthUser } from "@/lib/supabase/auth";
 import { db } from "@/lib/prisma";
 import { LogoutButton } from "./_components/LogoutButton";
+import { LibraryCreator } from "./_components/LibraryCreator";
 
 export default async function DashboardPage() {
   const supabase = await createSupabaseServerClient();
@@ -19,7 +20,7 @@ export default async function DashboardPage() {
   await syncAuthUser(user);
 
   // Surface series, novel, and codex metrics
-  const [seriesRes, novelRes, codexRes, novels] = await Promise.all([
+  const [seriesRes, novelRes, codexRes, novels, seriesRows] = await Promise.all([
     db.orm.public.Series.where((s) => s.ownerId.eq(user.id))
       .where((s) => s.deletedAt.isNull())
       .aggregate((a) => ({ count: a.count() })),
@@ -31,6 +32,9 @@ export default async function DashboardPage() {
       .aggregate((a) => ({ count: a.count() })),
     db.orm.public.Novel.where((n) => n.ownerId.eq(user.id))
       .where((n) => n.deletedAt.isNull())
+      .all(),
+    db.orm.public.Series.where((s) => s.ownerId.eq(user.id))
+      .where((s) => s.deletedAt.isNull())
       .all(),
   ]);
 
@@ -72,16 +76,24 @@ export default async function DashboardPage() {
       </section>
 
       <section className="mt-10">
-        <h2 className="text-ink-500 mb-3 text-sm font-semibold tracking-wide uppercase">
-          Your novels
-        </h2>
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-ink-500 text-sm font-semibold tracking-wide uppercase">
+            Your novels
+          </h2>
+          <LibraryCreator
+            series={JSON.parse(JSON.stringify(seriesRows)).map(
+              (s: { id: string; title: string }) => ({ id: s.id, title: s.title }),
+            )}
+          />
+        </div>
         {novels.length === 0 ? (
           <div className="border-ink-300 text-ink-500 rounded-lg border border-dashed p-8 text-center">
             <p className="font-medium">No novels yet.</p>
             <p className="mt-1 text-sm">
-              Novel creation ships next (STO-1160). For now you can{" "}
-              <code className="bg-ink-100 rounded px-1 py-0.5 text-xs">npm run db:seed</code> to
-              load demo data, or manage world-building elements in the{" "}
+              Use <span className="font-semibold text-ink-700">+ New Novel</span> above to start
+              your first book, load demo data with{" "}
+              <code className="bg-ink-100 rounded px-1 py-0.5 text-xs">npm run db:seed</code>, or
+              manage world-building elements in the{" "}
               <Link href="/dashboard/codex" className="text-ink-800 font-semibold underline">
                 Story Codex
               </Link>
