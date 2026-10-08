@@ -332,6 +332,22 @@ async function loadOutlineNode(
     return { id: act.id, title: act.title, position: act.position, parentId: act.novelId };
   }
 
+  if (kind === "scene") {
+    const scene = await db.orm.public.Scene.where({ id: nodeId }).first();
+    if (!scene || scene.deletedAt !== null) {
+      throw new CodexError("Scene not found", "NOT_FOUND", 404);
+    }
+    const chapter = await db.orm.public.Chapter.where({ id: scene.chapterId }).first();
+    if (!chapter || chapter.deletedAt !== null) {
+      throw new CodexError("Chapter not found for scene", "NOT_FOUND", 404);
+    }
+    const act = await db.orm.public.Act.where({ id: chapter.actId }).first();
+    if (!act || act.deletedAt !== null || act.novelId !== novel.id) {
+      throw new CodexError("Scene not found in this novel", "NOT_FOUND", 404);
+    }
+    return { id: scene.id, title: scene.title, position: scene.position, parentId: chapter.id };
+  }
+
   const chapter = await db.orm.public.Chapter.where({ id: nodeId }).first();
   if (!chapter || chapter.deletedAt !== null) {
     throw new CodexError("Chapter not found", "NOT_FOUND", 404);
@@ -340,15 +356,7 @@ async function loadOutlineNode(
   if (!act || act.deletedAt !== null || act.novelId !== novel.id) {
     throw new CodexError("Chapter not found in this novel", "NOT_FOUND", 404);
   }
-  if (kind === "chapter") {
-    return { id: chapter.id, title: chapter.title, position: chapter.position, parentId: act.id };
-  }
-
-  const scene = await db.orm.public.Scene.where({ id: nodeId }).first();
-  if (!scene || scene.deletedAt !== null || scene.chapterId !== chapter.id) {
-    throw new CodexError("Scene not found", "NOT_FOUND", 404);
-  }
-  return { id: scene.id, title: scene.title, position: scene.position, parentId: chapter.id };
+  return { id: chapter.id, title: chapter.title, position: chapter.position, parentId: act.id };
 }
 
 /** Updates a title/position row without union-typing the three tables. */
@@ -596,8 +604,10 @@ export interface SceneContextData {
   attachments: Array<SceneContextEntry & { attachmentId: string; position: number }>;
   /** Entries with trackingMode ALWAYS (always seeded into assembly). */
   alwaysIncluded: SceneContextEntry[];
-  /** Entries detected in the scene's stored content/summary. */
+  /** Entries detected in the scene's stored content/summary, resolved. */
   detected: MentionDetectionResult;
+  /** Full entry metadata for `detected.matchedEntryIds`. */
+  detectedEntries: SceneContextEntry[];
   /** Live estimate of what context assembly would include right now. */
   estimate: {
     selectedEntries: number;
@@ -668,6 +678,11 @@ export async function getSceneContextData(
     .filter((e) => e.trackingMode === "ALWAYS")
     .map((e) => toContextEntry(e));
 
+  const detectedEntries = detected.matchedEntryIds
+    .map((id) => entryById.get(id))
+    .filter((e): e is NonNullable<typeof e> => Boolean(e))
+    .map((e) => toContextEntry(e));
+
   // Pinned rows already seed assembly inside assembleSceneContext.
   const assembled = await assembleSceneContext(userId, {
     sceneId: scene.id,
@@ -687,6 +702,7 @@ export async function getSceneContextData(
     attachments,
     alwaysIncluded,
     detected,
+    detectedEntries,
     estimate: summarizeEstimate(assembled.context),
   };
 }

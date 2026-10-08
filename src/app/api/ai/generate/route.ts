@@ -34,6 +34,8 @@ export async function POST(request: NextRequest) {
       sceneId?: string;
       mode?: string;
       beatText?: string;
+      /** Client-side current prose; overrides the stored scene content. */
+      content?: string;
       maxTokens?: number;
     };
 
@@ -55,6 +57,12 @@ export async function POST(request: NextRequest) {
         { status: 400 },
       );
     }
+    if (body.content !== undefined && typeof body.content !== "string") {
+      return Response.json(
+        { error: "content must be a string", code: "VALIDATION_FAILED" },
+        { status: 400 },
+      );
+    }
 
     const scene = await getSceneForEditor(user.id, body.sceneId);
     if (scene.excludeFromAi) {
@@ -65,10 +73,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const prose = body.content !== undefined ? body.content : scene.content;
+
     const { prompt } = await assembleSceneContext(user.id, {
       sceneId: scene.id,
       beatText: body.beatText || scene.summary || undefined,
-      recentProse: scene.content || undefined,
+      recentProse: prose || undefined,
     });
 
     const messages = buildSceneMessages({
@@ -78,7 +88,7 @@ export async function POST(request: NextRequest) {
       sceneTitle: scene.title,
       povLabel: POV_LABELS[scene.pov],
       tenseLabel: TENSE_LABELS[scene.tense],
-      sceneContent: scene.content,
+      sceneContent: prose,
       summary: scene.summary,
       beatText: body.beatText,
       codexPrompt: prompt,

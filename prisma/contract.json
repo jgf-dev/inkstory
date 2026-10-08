@@ -36,6 +36,10 @@
       "model": "Novel",
       "namespace": "public"
     },
+    "scene_codex_attachments": {
+      "model": "SceneCodexAttachment",
+      "namespace": "public"
+    },
     "scenes": {
       "model": "Scene",
       "namespace": "public"
@@ -559,6 +563,17 @@
                 },
                 "to": {
                   "model": "CodexProgression",
+                  "namespace": "public"
+                }
+              },
+              "sceneAttachments": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": ["id"],
+                  "targetFields": ["entryId"]
+                },
+                "to": {
+                  "model": "SceneCodexAttachment",
                   "namespace": "public"
                 }
               },
@@ -1355,6 +1370,17 @@
                   "namespace": "public"
                 }
               },
+              "codexAttachments": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": ["id"],
+                  "targetFields": ["sceneId"]
+                },
+                "to": {
+                  "model": "SceneCodexAttachment",
+                  "namespace": "public"
+                }
+              },
               "codexProgressions": {
                 "cardinality": "1:N",
                 "on": {
@@ -1417,6 +1443,121 @@
               },
               "namespaceId": "public",
               "table": "scenes"
+            }
+          },
+          "SceneCodexAttachment": {
+            "fields": {
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamp-temporal@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "deletedAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamp-temporal@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "entryId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "position": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "sceneId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "updatedAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamp-temporal@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              }
+            },
+            "relations": {
+              "entry": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": ["entryId"],
+                  "targetFields": ["id"]
+                },
+                "to": {
+                  "model": "CodexEntry",
+                  "namespace": "public"
+                }
+              },
+              "scene": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": ["sceneId"],
+                  "targetFields": ["id"]
+                },
+                "to": {
+                  "model": "Scene",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "createdAt": {
+                  "column": "created_at"
+                },
+                "deletedAt": {
+                  "column": "deleted_at"
+                },
+                "entryId": {
+                  "column": "entry_id"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "position": {
+                  "column": "position"
+                },
+                "sceneId": {
+                  "column": "scene_id"
+                },
+                "updatedAt": {
+                  "column": "updated_at"
+                }
+              },
+              "namespaceId": "public",
+              "table": "scene_codex_attachments"
             }
           },
           "Series": {
@@ -2784,6 +2925,116 @@
               },
               "uniques": []
             },
+            "scene_codex_attachments": {
+              "columns": {
+                "created_at": {
+                  "codecId": "pg/timestamp-temporal@1",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nativeType": "timestamp",
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "deleted_at": {
+                  "codecId": "pg/timestamp-temporal@1",
+                  "nativeType": "timestamp",
+                  "nullable": true,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "entry_id": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "id": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "position": {
+                  "codecId": "pg/int4@1",
+                  "default": {
+                    "kind": "literal",
+                    "value": 0
+                  },
+                  "nativeType": "int4",
+                  "nullable": false
+                },
+                "scene_id": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "updated_at": {
+                  "codecId": "pg/timestamp-temporal@1",
+                  "nativeType": "timestamp",
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "foreignKeys": [
+                {
+                  "name": "scene_codex_attachments_scene_id_fkey",
+                  "onDelete": "cascade",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": ["scene_id"],
+                    "namespaceId": "public",
+                    "tableName": "scene_codex_attachments"
+                  },
+                  "target": {
+                    "columns": ["id"],
+                    "namespaceId": "public",
+                    "tableName": "scenes"
+                  }
+                },
+                {
+                  "name": "scene_codex_attachments_entry_id_fkey",
+                  "onDelete": "cascade",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": ["entry_id"],
+                    "namespaceId": "public",
+                    "tableName": "scene_codex_attachments"
+                  },
+                  "target": {
+                    "columns": ["id"],
+                    "namespaceId": "public",
+                    "tableName": "codex_entries"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": ["entry_id", "deleted_at"],
+                  "name": "scene_codex_attachments_entry_id_deleted_at_idx",
+                  "unique": false
+                },
+                {
+                  "columns": ["scene_id", "deleted_at"],
+                  "name": "scene_codex_attachments_scene_id_deleted_at_idx",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": ["id"],
+                "name": "scene_codex_attachments_pkey"
+              },
+              "uniques": [
+                {
+                  "columns": ["scene_id", "entry_id"],
+                  "name": "scene_codex_attachments_scene_id_entry_id_key"
+                }
+              ]
+            },
             "scenes": {
               "columns": {
                 "chapter_id": {
@@ -3244,7 +3495,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "07ea33fb06de9680850b4da89a2fb50f46c84205791f076da84230b0bfcdedeb"
+    "storageHash": "bc1a2508c62bf69b26a9f75ac4392027c86dfb9ac9f49567c7a4af45c6ce9d36"
   },
   "capabilities": {
     "postgres": {
