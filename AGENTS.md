@@ -4,20 +4,20 @@
 
 InkStory application code uses **Supabase Auth + Prisma 8 (Prisma Next) against Supabase Postgres**. It does **not** use InsForge, `@insforge/sdk`, or the InsForge API base below. Treat the InsForge block as vendor boilerplate; do not add InsForge clients or RLS patterns unless explicitly asked.
 
-| Layer   | Actual code                                                                                                       |
-| ------- | ----------------------------------------------------------------------------------------------------------------- |
-| App     | Next.js 16 App Router, React 19, `src/proxy.ts` session refresh                                                   |
-| Data    | `prisma/contract.prisma`, `@prisma/orm-postgres`, `db.orm.public.*` in `src/lib/prisma.ts`                        |
-| Auth    | `@supabase/ssr` cookie session; Codex routes 401 without `getUser()`                                              |
-| Codex   | `src/lib/codex/{service,actions,types,mention-detection,progression-engine,relation-engine,context-assembler}.ts` |
-| UI      | `/dashboard` metrics, `/dashboard/codex` manager/editor                                                           |
-| Tooling | bun (CI/Vercel), vite-plus (`vp lint` / `vp fmt` / `vp test` / `vp check`)                                        |
+| Layer   | Actual code                                                                                                                                              |
+| ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| App     | Next.js 16 App Router, React 19, `src/proxy.ts` session refresh                                                                                          |
+| Data    | `prisma/contract.prisma`, `@prisma/orm-postgres`, `db.orm.public.*` in `src/lib/prisma.ts`                                                               |
+| Auth    | `@supabase/ssr` cookie session; Codex routes 401 without `getUser()`                                                                                     |
+| Codex   | `src/lib/codex/{service,actions,types,mention-detection,progression-engine,relation-engine,context-assembler,token-budgeter,prompt-formatter,tokens}.ts` |
+| UI      | `/dashboard` metrics, `/dashboard/codex` manager/editor                                                                                                  |
+| Tooling | bun (CI/Vercel), vite-plus (`vp lint` / `vp fmt` / `vp test` / `vp check`)                                                                               |
 
 Commands: `bun run dev`, `bun run test`, `bun run test:e2e`, `bun run db:update`, `bun run db:seed`, `bun run contract:emit`. There is no `db:migrate` or `db:studio`.
 
 Progressions (STO-1153) resolve descriptions with Act→Chapter→Scene order (`ADDITION` / `REPLACEMENT`) via `resolveCodexEntryAtScene`. Relation CRUD is on the API; graph expansion (STO-1154) ships on `main` as the pure `RelationEngine` (`src/lib/codex/relation-engine.ts`) — BFS, cycle detection, depth limit (default 2), dedupe — with no dedicated HTTP endpoint.
 
-Context assembly (STO-1170) is the pure `assembleContext` in `src/lib/codex/context-assembler.ts`: it takes pre-loaded entries, relations, progressions, and scene reading order, seeds from manual attachments → `ALWAYS` entries → detected mentions, expands relations (default depth 2), ranks/truncates (default 40), then applies progressions at the current scene. DB loading and the inspection API are STO-1171.
+Context assembly (STO-1170) is the pure `assembleContext` in `src/lib/codex/context-assembler.ts`: it takes pre-loaded entries, relations, progressions, and scene reading order, seeds from manual attachments → `ALWAYS` entries → detected mentions, expands relations (default depth 2), ranks/truncates (default 40), then applies progressions at the current scene. `assembleSceneContext` in `src/lib/codex/service.ts` loads all inputs from the DB (ownership-checked via the scene's novel), and `POST /api/codex/assemble-context` exposes it (STO-1171). Token economy (STO-1172): `applyTokenBudget` (`token-budgeter.ts`) enforces a hard estimated-token limit (default 4,000) with graceful description truncation, and `formatAssembledContext` (`prompt-formatter.ts`) renders the `<codex_context>` XML block for LLM prompts; both estimate tokens via `tokens.ts` (deterministic approximation, subadditive under concatenation).
 
 <!-- INSFORGE:START -->
 
