@@ -12,7 +12,7 @@ InkStory application code uses **Supabase Auth + Prisma 8 (Prisma Next) against 
 | Codex   | `src/lib/codex/{service,actions,types,mention-detection,progression-engine,relation-engine,context-assembler,token-budgeter,prompt-formatter,tokens}.ts` |
 | Writing | `src/lib/writing/{service,meta,word-count,draft,dates}.ts` + `/dashboard/novels/[id]` workspace                                                          |
 | AI      | `src/lib/ai/generate.ts` (Vercel AI Gateway client) + `POST /api/ai/generate`                                                                            |
-| Library | `src/lib/library/{service,actions}.ts` — novel/series creation + starter-bible seed                                                                     |
+| Library | `src/lib/library/{service,actions}.ts` — novel/series creation + starter-bible seed                                                                      |
 | UI      | `/` landing, `/dashboard` metrics + onboarding, `/dashboard/codex` manager/editor, `/dashboard/novels/[id]` writing surface                              |
 | Tooling | bun (CI/Vercel), vite-plus (`vp lint` / `vp fmt` / `vp test` / `vp check`)                                                                               |
 
