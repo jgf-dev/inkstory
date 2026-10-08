@@ -4,14 +4,14 @@
 
 InkStory application code uses **Supabase Auth + Prisma 8 (Prisma Next) against Supabase Postgres**. It does **not** use InsForge, `@insforge/sdk`, or the InsForge API base below. Treat the InsForge block as vendor boilerplate; do not add InsForge clients or RLS patterns unless explicitly asked.
 
-| Layer | Actual code |
-| ----- | ----------- |
-| App | Next.js 16 App Router, React 19, `src/proxy.ts` session refresh |
-| Data | `prisma/contract.prisma`, `@prisma/orm-postgres`, `db.orm.public.*` in `src/lib/prisma.ts` |
-| Auth | `@supabase/ssr` cookie session; Codex routes 401 without `getUser()` |
-| Codex | `src/lib/codex/{service,actions,types,mention-detection,progression-engine,relation-engine,context-assembler}.ts` |
-| UI | `/dashboard` metrics, `/dashboard/codex` manager/editor |
-| Tooling | bun (CI/Vercel), vite-plus (`vp lint` / `vp fmt` / `vp test` / `vp check`) |
+| Layer   | Actual code                                                                                                       |
+| ------- | ----------------------------------------------------------------------------------------------------------------- |
+| App     | Next.js 16 App Router, React 19, `src/proxy.ts` session refresh                                                   |
+| Data    | `prisma/contract.prisma`, `@prisma/orm-postgres`, `db.orm.public.*` in `src/lib/prisma.ts`                        |
+| Auth    | `@supabase/ssr` cookie session; Codex routes 401 without `getUser()`                                              |
+| Codex   | `src/lib/codex/{service,actions,types,mention-detection,progression-engine,relation-engine,context-assembler}.ts` |
+| UI      | `/dashboard` metrics, `/dashboard/codex` manager/editor                                                           |
+| Tooling | bun (CI/Vercel), vite-plus (`vp lint` / `vp fmt` / `vp test` / `vp check`)                                        |
 
 Commands: `bun run dev`, `bun run test`, `bun run test:e2e`, `bun run db:update`, `bun run db:seed`, `bun run contract:emit`. There is no `db:migrate` or `db:studio`.
 

@@ -624,7 +624,6 @@ describe("Codex Service & Scoping Engine", { timeout: 20_000 }, () => {
     });
   });
 
-
   describe("Progression resolution at scene (STO-1153)", () => {
     it("loads novel scene reading order for non-deleted scenes", async () => {
       const order = await loadNovelSceneReadingOrder(novelAId);

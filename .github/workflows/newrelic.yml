@@ -2,7 +2,7 @@ name: new-relic-exporter
 
 on:
   workflow_run:
-    workflows: ['*']
+    workflows: ["*"]
     types: [completed] # defaults to run on every completed workflow run event
 
 permissions:
