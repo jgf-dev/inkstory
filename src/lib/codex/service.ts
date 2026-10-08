@@ -1044,6 +1044,18 @@ export async function assembleSceneContext(
   const options = input.options ?? {};
   const includeSeriesCodex = options.includeSeriesCodex ?? true;
 
+  // Scene-scoped manual attachments (launch phase 3) always join the seeds,
+  // unioned with any caller-supplied ids. Manual seeds win over NEVER-tracked
+  // entries inside the pure assembler.
+  const attachmentRows = await db.orm.public.SceneCodexAttachment.where((a) =>
+    a.sceneId.eq(input.sceneId),
+  )
+    .where((a) => a.deletedAt.isNull())
+    .all();
+  const manualAttachmentIds = Array.from(
+    new Set([...attachmentRows.map((row) => row.entryId), ...(input.manualAttachmentIds ?? [])]),
+  );
+
   // Tier ceiling on the context token budget (STO-1180): callers cannot buy
   // a bigger window than their plan allows, and paid tiers default higher.
   const entitlements = await getEntitlements(userId);
@@ -1120,7 +1132,7 @@ export async function assembleSceneContext(
         sceneId: input.sceneId,
         beatText: input.beatText,
         recentProse: input.recentProse,
-        manualAttachmentIds: input.manualAttachmentIds,
+        manualAttachmentIds,
         options: {
           maxEntries: options.maxEntries,
           maxRelationDepth: options.maxRelationDepth,
