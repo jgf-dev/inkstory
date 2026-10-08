@@ -16,6 +16,12 @@ import {
 import type { RelationEdge } from "./relation-engine";
 import { formatAssembledContext } from "./prompt-formatter";
 import { applyTokenBudget, type BudgetedAssembledContext } from "./token-budgeter";
+import {
+  ensureCodexEntryQuota,
+  getEntitlements,
+  resolveContextTokenBudget,
+} from "@/lib/billing/entitlements";
+
 import type {
   CodexEntryFilter,
   CreateCodexAliasInput,
@@ -28,41 +34,9 @@ import type {
   UpdateCodexRelationInput,
 } from "./types";
 
-/**
- * Custom error class for Codex domain validation and authorization failures.
- */
-export class CodexError extends Error {
-  constructor(
-    message: string,
-    public readonly code:
-      | "NOT_FOUND"
-      | "FORBIDDEN"
-      | "VALIDATION_FAILED"
-      | "SCOPING_ERROR"
-      | "CONFLICT",
-    public readonly status: number = 400,
-  ) {
-    super(message);
-    this.name = "CodexError";
-  }
-}
+import { CodexError, handleCodexApiError } from "./errors";
 
-/**
- * Standardized API error handler for Codex REST routes.
- * Ensures malformed JSON (SyntaxError) returns 400 instead of 500.
- */
-export function handleCodexApiError(err: unknown): Response {
-  if (err instanceof SyntaxError) {
-    return Response.json(
-      { error: "Malformed or invalid JSON body", code: "INVALID_JSON" },
-      { status: 400 },
-    );
-  }
-  if (err instanceof CodexError) {
-    return Response.json({ error: err.message, code: err.code }, { status: err.status });
-  }
-  return Response.json({ error: "Internal server error" }, { status: 500 });
-}
+export { CodexError, handleCodexApiError };
 
 function nowTimestamp(): Temporal.PlainDateTime {
   return Temporal.Now.plainDateTimeISO();
@@ -159,6 +133,9 @@ export async function createCodexEntry(userId: string, input: CreateCodexEntryIn
   if (!trimmedName) {
     throw new CodexError("Entry name cannot be empty", "VALIDATION_FAILED", 422);
   }
+
+  // Tier quota guard (STO-1180): 402 with an upgrade trigger on the Free plan.
+  await ensureCodexEntryQuota(userId);
 
   const isSeriesScoped = Boolean(input.seriesScoped);
   const { resolvedNovelId, resolvedSeriesId } = await resolveAndValidateScope(
@@ -1067,6 +1044,11 @@ export async function assembleSceneContext(
   const options = input.options ?? {};
   const includeSeriesCodex = options.includeSeriesCodex ?? true;
 
+  // Tier ceiling on the context token budget (STO-1180): callers cannot buy
+  // a bigger window than their plan allows, and paid tiers default higher.
+  const entitlements = await getEntitlements(userId);
+  const maxTokens = resolveContextTokenBudget(options.maxTokens, entitlements.maxContextTokens);
+
   // listCodexEntriesForNovel returns book- and series-scoped rows (with
   // aliases) and already enforces novel ownership.
   const dbEntries = await listCodexEntriesForNovel(userId, sceneContext.novelId);
@@ -1160,6 +1142,6 @@ export async function assembleSceneContext(
     throw err;
   }
 
-  const context = applyTokenBudget(assembled, { maxTokens: options.maxTokens });
+  const context = applyTokenBudget(assembled, { maxTokens });
   return { context, prompt: formatAssembledContext(context) };
 }
