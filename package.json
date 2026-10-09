@@ -39,6 +39,7 @@
   "devDependencies": {
     "@playwright/test": "^1.63.0",
     "@prisma/cli": "8.0.0-rc.15",
+    "@testing-library/react": "16.3.3",
     "@types/node": "26.5.1",
     "@types/pg": "8.23.1",
     "@types/react": "19.3.0",
@@ -46,6 +47,7 @@
     "@vitest/coverage-v8": "4.1.11",
     "autoprefixer": "10.6.1",
     "dotenv-cli": "11.0.0",
+    "happy-dom": "20.14.6",
     "oxlint": "1.82.0",
     "postcss": "8.5.28",
     "prisma": "8.0.0-rc.14",
