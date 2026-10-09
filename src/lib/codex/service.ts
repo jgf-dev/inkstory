@@ -1,5 +1,11 @@
 import { Temporal } from "temporal-polyfill";
 import { db } from "@/lib/prisma";
+import {
+  assembleContext,
+  ContextAssemblyError,
+  type AssembledContext,
+  type ContextAssemblyOptions,
+} from "./context-assembler";
 import { detectMentionsInText, type MentionDetectionResult } from "./mention-detection";
 import {
   ProgressionEngine,
@@ -51,6 +57,9 @@ export function handleCodexApiError(err: unknown): Response {
   }
   if (err instanceof CodexError) {
     return Response.json({ error: err.message, code: err.code }, { status: err.status });
+  }
+  if (err instanceof ContextAssemblyError) {
+    return Response.json({ error: err.message, code: "CONTEXT_ASSEMBLY_FAILED" }, { status: 422 });
   }
   return Response.json({ error: "Internal server error" }, { status: 500 });
 }
@@ -1002,4 +1011,98 @@ export async function scanMentionsInScene(
 
   const entries = await listCodexEntriesForNovel(userId, sceneContext.novelId);
   return detectMentionsInText(textToScan, entries);
+}
+
+// ─── Context Assembly (STO-1171) ─────────────────────────────────────────────
+
+export interface AssembleSceneContextInput {
+  sceneId: string;
+  /** Optional guard: when set, it must match the scene's novel. */
+  novelId?: string;
+  beatText?: string;
+  recentProse?: string;
+  manualAttachmentIds?: string[];
+  options?: ContextAssemblyOptions;
+}
+
+/**
+ * Load the Codex for a scene's novel (book + series entries, aliases,
+ * relations, progressions, scene reading order) and run the pure
+ * `assembleContext` over it. This is the single entry point generation flows
+ * and the inspection API use, so Prompt Preview shows exactly what a
+ * generation call would receive.
+ */
+export async function assembleCodexContextForScene(
+  userId: string,
+  input: AssembleSceneContextInput,
+): Promise<AssembledContext> {
+  const sceneContext = await resolveSceneContext(input.sceneId);
+  if (sceneContext.ownerId !== userId) {
+    throw new CodexError("Unauthorized to access this scene", "FORBIDDEN", 403);
+  }
+  if (input.novelId && input.novelId !== sceneContext.novelId) {
+    throw new CodexError("Scene does not belong to the requested novel", "SCOPING_ERROR", 422);
+  }
+
+  const novelId = sceneContext.novelId;
+  const [entries, sceneOrderById] = await Promise.all([
+    listCodexEntriesForNovel(userId, novelId),
+    loadNovelSceneReadingOrder(novelId),
+  ]);
+
+  const entryIds = entries.map((entry) => entry.id);
+  const [relations, progressions] =
+    entryIds.length > 0
+      ? await Promise.all([
+          db.orm.public.CodexRelation.where((r) => r.sourceEntryId.in(entryIds))
+            .where((r) => r.deletedAt.isNull())
+            .all(),
+          db.orm.public.CodexProgression.where((p) => p.entryId.in(entryIds))
+            .where((p) => p.deletedAt.isNull())
+            .all(),
+        ])
+      : [[], []];
+
+  return assembleContext(
+    {
+      novelId,
+      sceneId: input.sceneId,
+      beatText: input.beatText,
+      recentProse: input.recentProse,
+      manualAttachmentIds: input.manualAttachmentIds,
+      options: input.options,
+    },
+    {
+      entries: entries.map((entry) => ({
+        id: entry.id,
+        type: entry.type,
+        name: entry.name,
+        aliases: entry.aliases.map((alias) => alias.name),
+        description: entry.description ?? "",
+        trackingMode: entry.trackingMode,
+        seriesScoped: entry.seriesScoped,
+        novelId: entry.novelId,
+        seriesId: entry.seriesId,
+        position: entry.position,
+      })),
+      relations: relations.map((relation) => ({
+        id: relation.id,
+        sourceEntryId: relation.sourceEntryId,
+        targetEntryId: relation.targetEntryId,
+        relationType: relation.relationType,
+        reverseType: relation.reverseType,
+        description: relation.description,
+      })),
+      progressions: progressions.map((progression) => ({
+        id: progression.id,
+        entryId: progression.entryId,
+        sceneId: progression.sceneId,
+        mode: progression.mode,
+        description: progression.description,
+        position: progression.position,
+      })),
+      sceneOrderById,
+      seriesId: sceneContext.seriesId,
+    },
+  );
 }
