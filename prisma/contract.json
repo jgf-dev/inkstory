@@ -1714,11 +1714,11 @@
               "columns": {
                 "created_at": {
                   "codecId": "pg/timestamp-temporal@1",
+                  "dataType": "pg/timestamp",
                   "default": {
                     "expression": "now()",
                     "kind": "function"
                   },
-                  "nativeType": "timestamp",
                   "nullable": false,
                   "typeParams": {
                     "precision": 3
@@ -1726,7 +1726,7 @@
                 },
                 "deleted_at": {
                   "codecId": "pg/timestamp-temporal@1",
-                  "nativeType": "timestamp",
+                  "dataType": "pg/timestamp",
                   "nullable": true,
                   "typeParams": {
                     "precision": 3
@@ -1734,31 +1734,31 @@
                 },
                 "id": {
                   "codecId": "pg/text@1",
-                  "nativeType": "text",
+                  "dataType": "pg/text",
                   "nullable": false
                 },
                 "novel_id": {
                   "codecId": "pg/text@1",
-                  "nativeType": "text",
+                  "dataType": "pg/text",
                   "nullable": false
                 },
                 "position": {
                   "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
                   "default": {
                     "kind": "literal",
                     "value": 0
                   },
-                  "nativeType": "int4",
                   "nullable": false
                 },
                 "title": {
                   "codecId": "pg/text@1",
-                  "nativeType": "text",
+                  "dataType": "pg/text",
                   "nullable": false
                 },
                 "updated_at": {
                   "codecId": "pg/timestamp-temporal@1",
-                  "nativeType": "timestamp",
+                  "dataType": "pg/timestamp",
                   "nullable": false,
                   "typeParams": {
                     "precision": 3
@@ -1804,16 +1804,16 @@
               "columns": {
                 "act_id": {
                   "codecId": "pg/text@1",
-                  "nativeType": "text",
+                  "dataType": "pg/text",
                   "nullable": false
                 },
                 "created_at": {
                   "codecId": "pg/timestamp-temporal@1",
+                  "dataType": "pg/timestamp",
                   "default": {
                     "expression": "now()",
                     "kind": "function"
                   },
-                  "nativeType": "timestamp",
                   "nullable": false,
                   "typeParams": {
                     "precision": 3
@@ -1821,7 +1821,7 @@
                 },
                 "deleted_at": {
                   "codecId": "pg/timestamp-temporal@1",
-                  "nativeType": "timestamp",
+                  "dataType": "pg/timestamp",
                   "nullable": true,
                   "typeParams": {
                     "precision": 3
@@ -1829,26 +1829,26 @@
                 },
                 "id": {
                   "codecId": "pg/text@1",
-                  "nativeType": "text",
+                  "dataType": "pg/text",
                   "nullable": false
                 },
                 "position": {
                   "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
                   "default": {
                     "kind": "literal",
                     "value": 0
                   },
-                  "nativeType": "int4",
                   "nullable": false
                 },
                 "title": {
                   "codecId": "pg/text@1",
-                  "nativeType": "text",
+                  "dataType": "pg/text",
                   "nullable": false
                 },
                 "updated_at": {
                   "codecId": "pg/timestamp-temporal@1",
-                  "nativeType": "timestamp",
+                  "dataType": "pg/timestamp",
                   "nullable": false,
                   "typeParams": {
                     "precision": 3
@@ -1894,11 +1894,11 @@
               "columns": {
                 "created_at": {
                   "codecId": "pg/timestamp-temporal@1",
+                  "dataType": "pg/timestamp",
                   "default": {
                     "expression": "now()",
                     "kind": "function"
                   },
-                  "nativeType": "timestamp",
                   "nullable": false,
                   "typeParams": {
                     "precision": 3
@@ -1906,7 +1906,7 @@
                 },
                 "deleted_at": {
                   "codecId": "pg/timestamp-temporal@1",
-                  "nativeType": "timestamp",
+                  "dataType": "pg/timestamp",
                   "nullable": true,
                   "typeParams": {
                     "precision": 3
@@ -1914,22 +1914,22 @@
                 },
                 "entry_id": {
                   "codecId": "pg/text@1",
-                  "nativeType": "text",
+                  "dataType": "pg/text",
                   "nullable": false
                 },
                 "id": {
                   "codecId": "pg/text@1",
-                  "nativeType": "text",
+                  "dataType": "pg/text",
                   "nullable": false
                 },
                 "name": {
                   "codecId": "pg/text@1",
-                  "nativeType": "text",
+                  "dataType": "pg/text",
                   "nullable": false
                 },
                 "updated_at": {
                   "codecId": "pg/timestamp-temporal@1",
-                  "nativeType": "timestamp",
+                  "dataType": "pg/timestamp",
                   "nullable": false,
                   "typeParams": {
                     "precision": 3
@@ -1975,16 +1975,16 @@
               "columns": {
                 "color": {
                   "codecId": "pg/text@1",
-                  "nativeType": "text",
+                  "dataType": "pg/text",
                   "nullable": true
                 },
                 "created_at": {
                   "codecId": "pg/timestamp-temporal@1",
+                  "dataType": "pg/timestamp",
                   "default": {
                     "expression": "now()",
                     "kind": "function"
                   },
-                  "nativeType": "timestamp",
                   "nullable": false,
                   "typeParams": {
                     "precision": 3
@@ -1992,12 +1992,12 @@
                 },
                 "custom_fields": {
                   "codecId": "pg/jsonb@1",
-                  "nativeType": "jsonb",
+                  "dataType": "pg/jsonb",
                   "nullable": true
                 },
                 "deleted_at": {
                   "codecId": "pg/timestamp-temporal@1",
-                  "nativeType": "timestamp",
+                  "dataType": "pg/timestamp",
                   "nullable": true,
                   "typeParams": {
                     "precision": 3
@@ -2005,73 +2005,73 @@
                 },
                 "description": {
                   "codecId": "pg/text@1",
+                  "dataType": "pg/text",
                   "default": {
                     "kind": "literal",
                     "value": ""
                   },
-                  "nativeType": "text",
                   "nullable": false
                 },
                 "id": {
                   "codecId": "pg/text@1",
-                  "nativeType": "text",
+                  "dataType": "pg/text",
                   "nullable": false
                 },
                 "name": {
                   "codecId": "pg/text@1",
-                  "nativeType": "text",
+                  "dataType": "pg/text",
                   "nullable": false
                 },
                 "notes": {
                   "codecId": "pg/text@1",
-                  "nativeType": "text",
+                  "dataType": "pg/text",
                   "nullable": true
                 },
                 "novel_id": {
                   "codecId": "pg/text@1",
-                  "nativeType": "text",
+                  "dataType": "pg/text",
                   "nullable": true
                 },
                 "owner_id": {
                   "codecId": "pg/text@1",
-                  "nativeType": "text",
+                  "dataType": "pg/text",
                   "nullable": false
                 },
                 "position": {
                   "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
                   "default": {
                     "kind": "literal",
                     "value": 0
                   },
-                  "nativeType": "int4",
                   "nullable": false
                 },
                 "series_id": {
                   "codecId": "pg/text@1",
-                  "nativeType": "text",
+                  "dataType": "pg/text",
                   "nullable": true
                 },
                 "series_scoped": {
                   "codecId": "pg/bool@1",
+                  "dataType": "pg/bool",
                   "default": {
                     "kind": "literal",
                     "value": false
                   },
-                  "nativeType": "bool",
                   "nullable": false
                 },
                 "thumbnail_url": {
                   "codecId": "pg/text@1",
-                  "nativeType": "text",
+                  "dataType": "pg/text",
                   "nullable": true
                 },
                 "tracking_mode": {
                   "codecId": "pg/enum@1",
+                  "dataType": "pg/enum",
                   "default": {
                     "kind": "literal",
                     "value": "DETECTED"
                   },
-                  "nativeType": "CodexTrackingMode",
                   "nullable": false,
                   "typeParams": {
                     "typeName": "CodexTrackingMode"
@@ -2085,11 +2085,11 @@
                 },
                 "type": {
                   "codecId": "pg/enum@1",
+                  "dataType": "pg/enum",
                   "default": {
                     "kind": "literal",
                     "value": "CHARACTER"
                   },
-                  "nativeType": "CodexType",
                   "nullable": false,
                   "typeParams": {
                     "typeName": "CodexType"
@@ -2103,7 +2103,7 @@
                 },
                 "updated_at": {
                   "codecId": "pg/timestamp-temporal@1",
-                  "nativeType": "timestamp",
+                  "dataType": "pg/timestamp",
                   "nullable": false,
                   "typeParams": {
                     "precision": 3
@@ -2194,11 +2194,11 @@
               "columns": {
                 "created_at": {
                   "codecId": "pg/timestamp-temporal@1",
+                  "dataType": "pg/timestamp",
                   "default": {
                     "expression": "now()",
                     "kind": "function"
                   },
-                  "nativeType": "timestamp",
                   "nullable": false,
                   "typeParams": {
                     "precision": 3
@@ -2206,7 +2206,7 @@
                 },
                 "deleted_at": {
                   "codecId": "pg/timestamp-temporal@1",
-                  "nativeType": "timestamp",
+                  "dataType": "pg/timestamp",
                   "nullable": true,
                   "typeParams": {
                     "precision": 3
@@ -2214,26 +2214,26 @@
                 },
                 "description": {
                   "codecId": "pg/text@1",
-                  "nativeType": "text",
+                  "dataType": "pg/text",
                   "nullable": false
                 },
                 "entry_id": {
                   "codecId": "pg/text@1",
-                  "nativeType": "text",
+                  "dataType": "pg/text",
                   "nullable": false
                 },
                 "id": {
                   "codecId": "pg/text@1",
-                  "nativeType": "text",
+                  "dataType": "pg/text",
                   "nullable": false
                 },
                 "mode": {
                   "codecId": "pg/enum@1",
+                  "dataType": "pg/enum",
                   "default": {
                     "kind": "literal",
                     "value": "ADDITION"
                   },
-                  "nativeType": "ProgressionMode",
                   "nullable": false,
                   "typeParams": {
                     "typeName": "ProgressionMode"
@@ -2247,26 +2247,26 @@
                 },
                 "notes": {
                   "codecId": "pg/text@1",
-                  "nativeType": "text",
+                  "dataType": "pg/text",
                   "nullable": true
                 },
                 "position": {
                   "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
                   "default": {
                     "kind": "literal",
                     "value": 0
                   },
-                  "nativeType": "int4",
                   "nullable": false
                 },
                 "scene_id": {
                   "codecId": "pg/text@1",
-                  "nativeType": "text",
+                  "dataType": "pg/text",
                   "nullable": false
                 },
                 "updated_at": {
                   "codecId": "pg/timestamp-temporal@1",
-                  "nativeType": "timestamp",
+                  "dataType": "pg/timestamp",
                   "nullable": false,
                   "typeParams": {
                     "precision": 3
@@ -2332,11 +2332,11 @@
               "columns": {
                 "created_at": {
                   "codecId": "pg/timestamp-temporal@1",
+                  "dataType": "pg/timestamp",
                   "default": {
                     "expression": "now()",
                     "kind": "function"
                   },
-                  "nativeType": "timestamp",
                   "nullable": false,
                   "typeParams": {
                     "precision": 3
@@ -2344,7 +2344,7 @@
                 },
                 "deleted_at": {
                   "codecId": "pg/timestamp-temporal@1",
-                  "nativeType": "timestamp",
+                  "dataType": "pg/timestamp",
                   "nullable": true,
                   "typeParams": {
                     "precision": 3
@@ -2352,37 +2352,37 @@
                 },
                 "description": {
                   "codecId": "pg/text@1",
-                  "nativeType": "text",
+                  "dataType": "pg/text",
                   "nullable": true
                 },
                 "id": {
                   "codecId": "pg/text@1",
-                  "nativeType": "text",
+                  "dataType": "pg/text",
                   "nullable": false
                 },
                 "relation_type": {
                   "codecId": "pg/text@1",
-                  "nativeType": "text",
+                  "dataType": "pg/text",
                   "nullable": false
                 },
                 "reverse_type": {
                   "codecId": "pg/text@1",
-                  "nativeType": "text",
+                  "dataType": "pg/text",
                   "nullable": true
                 },
                 "source_entry_id": {
                   "codecId": "pg/text@1",
-                  "nativeType": "text",
+                  "dataType": "pg/text",
                   "nullable": false
                 },
                 "target_entry_id": {
                   "codecId": "pg/text@1",
-                  "nativeType": "text",
+                  "dataType": "pg/text",
                   "nullable": false
                 },
                 "updated_at": {
                   "codecId": "pg/timestamp-temporal@1",
-                  "nativeType": "timestamp",
+                  "dataType": "pg/timestamp",
                   "nullable": false,
                   "typeParams": {
                     "precision": 3
@@ -2448,16 +2448,16 @@
               "columns": {
                 "color": {
                   "codecId": "pg/text@1",
-                  "nativeType": "text",
+                  "dataType": "pg/text",
                   "nullable": true
                 },
                 "created_at": {
                   "codecId": "pg/timestamp-temporal@1",
+                  "dataType": "pg/timestamp",
                   "default": {
                     "expression": "now()",
                     "kind": "function"
                   },
-                  "nativeType": "timestamp",
                   "nullable": false,
                   "typeParams": {
                     "precision": 3
@@ -2465,7 +2465,7 @@
                 },
                 "deleted_at": {
                   "codecId": "pg/timestamp-temporal@1",
-                  "nativeType": "timestamp",
+                  "dataType": "pg/timestamp",
                   "nullable": true,
                   "typeParams": {
                     "precision": 3
@@ -2473,22 +2473,22 @@
                 },
                 "entry_id": {
                   "codecId": "pg/text@1",
-                  "nativeType": "text",
+                  "dataType": "pg/text",
                   "nullable": false
                 },
                 "id": {
                   "codecId": "pg/text@1",
-                  "nativeType": "text",
+                  "dataType": "pg/text",
                   "nullable": false
                 },
                 "name": {
                   "codecId": "pg/text@1",
-                  "nativeType": "text",
+                  "dataType": "pg/text",
                   "nullable": false
                 },
                 "updated_at": {
                   "codecId": "pg/timestamp-temporal@1",
-                  "nativeType": "timestamp",
+                  "dataType": "pg/timestamp",
                   "nullable": false,
                   "typeParams": {
                     "precision": 3
@@ -2534,11 +2534,11 @@
               "columns": {
                 "created_at": {
                   "codecId": "pg/timestamp-temporal@1",
+                  "dataType": "pg/timestamp",
                   "default": {
                     "expression": "now()",
                     "kind": "function"
                   },
-                  "nativeType": "timestamp",
                   "nullable": false,
                   "typeParams": {
                     "precision": 3
@@ -2546,7 +2546,7 @@
                 },
                 "deleted_at": {
                   "codecId": "pg/timestamp-temporal@1",
-                  "nativeType": "timestamp",
+                  "dataType": "pg/timestamp",
                   "nullable": true,
                   "typeParams": {
                     "precision": 3
@@ -2554,46 +2554,46 @@
                 },
                 "description": {
                   "codecId": "pg/text@1",
-                  "nativeType": "text",
+                  "dataType": "pg/text",
                   "nullable": true
                 },
                 "id": {
                   "codecId": "pg/text@1",
-                  "nativeType": "text",
+                  "dataType": "pg/text",
                   "nullable": false
                 },
                 "owner_id": {
                   "codecId": "pg/text@1",
-                  "nativeType": "text",
+                  "dataType": "pg/text",
                   "nullable": false
                 },
                 "position": {
                   "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
                   "default": {
                     "kind": "literal",
                     "value": 0
                   },
-                  "nativeType": "int4",
                   "nullable": false
                 },
                 "series_id": {
                   "codecId": "pg/text@1",
-                  "nativeType": "text",
+                  "dataType": "pg/text",
                   "nullable": true
                 },
                 "subtitle": {
                   "codecId": "pg/text@1",
-                  "nativeType": "text",
+                  "dataType": "pg/text",
                   "nullable": true
                 },
                 "title": {
                   "codecId": "pg/text@1",
-                  "nativeType": "text",
+                  "dataType": "pg/text",
                   "nullable": false
                 },
                 "updated_at": {
                   "codecId": "pg/timestamp-temporal@1",
-                  "nativeType": "timestamp",
+                  "dataType": "pg/timestamp",
                   "nullable": false,
                   "typeParams": {
                     "precision": 3
@@ -2617,6 +2617,9 @@
                   }
                 },
                 {
+                  "index": {
+                    "name": "novels_series_id_idx"
+                  },
                   "name": "novels_series_id_fkey",
                   "onDelete": "setNull",
                   "onUpdate": "cascade",
@@ -2659,25 +2662,25 @@
               "columns": {
                 "chapter_id": {
                   "codecId": "pg/text@1",
-                  "nativeType": "text",
+                  "dataType": "pg/text",
                   "nullable": false
                 },
                 "content": {
                   "codecId": "pg/text@1",
+                  "dataType": "pg/text",
                   "default": {
                     "kind": "literal",
                     "value": ""
                   },
-                  "nativeType": "text",
                   "nullable": false
                 },
                 "created_at": {
                   "codecId": "pg/timestamp-temporal@1",
+                  "dataType": "pg/timestamp",
                   "default": {
                     "expression": "now()",
                     "kind": "function"
                   },
-                  "nativeType": "timestamp",
                   "nullable": false,
                   "typeParams": {
                     "precision": 3
@@ -2685,7 +2688,7 @@
                 },
                 "deleted_at": {
                   "codecId": "pg/timestamp-temporal@1",
-                  "nativeType": "timestamp",
+                  "dataType": "pg/timestamp",
                   "nullable": true,
                   "typeParams": {
                     "precision": 3
@@ -2693,39 +2696,39 @@
                 },
                 "exclude_from_ai": {
                   "codecId": "pg/bool@1",
+                  "dataType": "pg/bool",
                   "default": {
                     "kind": "literal",
                     "value": false
                   },
-                  "nativeType": "bool",
                   "nullable": false
                 },
                 "id": {
                   "codecId": "pg/text@1",
-                  "nativeType": "text",
+                  "dataType": "pg/text",
                   "nullable": false
                 },
                 "label": {
                   "codecId": "pg/text@1",
-                  "nativeType": "text",
+                  "dataType": "pg/text",
                   "nullable": true
                 },
                 "position": {
                   "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
                   "default": {
                     "kind": "literal",
                     "value": 0
                   },
-                  "nativeType": "int4",
                   "nullable": false
                 },
                 "pov": {
                   "codecId": "pg/enum@1",
+                  "dataType": "pg/enum",
                   "default": {
                     "kind": "literal",
                     "value": "THIRD_LIMITED"
                   },
-                  "nativeType": "Pov",
                   "nullable": false,
                   "typeParams": {
                     "typeName": "Pov"
@@ -2739,21 +2742,21 @@
                 },
                 "subtitle": {
                   "codecId": "pg/text@1",
-                  "nativeType": "text",
+                  "dataType": "pg/text",
                   "nullable": true
                 },
                 "summary": {
                   "codecId": "pg/text@1",
-                  "nativeType": "text",
+                  "dataType": "pg/text",
                   "nullable": true
                 },
                 "tense": {
                   "codecId": "pg/enum@1",
+                  "dataType": "pg/enum",
                   "default": {
                     "kind": "literal",
                     "value": "PAST"
                   },
-                  "nativeType": "Tense",
                   "nullable": false,
                   "typeParams": {
                     "typeName": "Tense"
@@ -2767,12 +2770,12 @@
                 },
                 "title": {
                   "codecId": "pg/text@1",
-                  "nativeType": "text",
+                  "dataType": "pg/text",
                   "nullable": false
                 },
                 "updated_at": {
                   "codecId": "pg/timestamp-temporal@1",
-                  "nativeType": "timestamp",
+                  "dataType": "pg/timestamp",
                   "nullable": false,
                   "typeParams": {
                     "precision": 3
@@ -2780,11 +2783,11 @@
                 },
                 "word_count": {
                   "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
                   "default": {
                     "kind": "literal",
                     "value": 0
                   },
-                  "nativeType": "int4",
                   "nullable": false
                 }
               },
@@ -2827,11 +2830,11 @@
               "columns": {
                 "created_at": {
                   "codecId": "pg/timestamp-temporal@1",
+                  "dataType": "pg/timestamp",
                   "default": {
                     "expression": "now()",
                     "kind": "function"
                   },
-                  "nativeType": "timestamp",
                   "nullable": false,
                   "typeParams": {
                     "precision": 3
@@ -2839,7 +2842,7 @@
                 },
                 "deleted_at": {
                   "codecId": "pg/timestamp-temporal@1",
-                  "nativeType": "timestamp",
+                  "dataType": "pg/timestamp",
                   "nullable": true,
                   "typeParams": {
                     "precision": 3
@@ -2847,36 +2850,36 @@
                 },
                 "description": {
                   "codecId": "pg/text@1",
-                  "nativeType": "text",
+                  "dataType": "pg/text",
                   "nullable": true
                 },
                 "id": {
                   "codecId": "pg/text@1",
-                  "nativeType": "text",
+                  "dataType": "pg/text",
                   "nullable": false
                 },
                 "owner_id": {
                   "codecId": "pg/text@1",
-                  "nativeType": "text",
+                  "dataType": "pg/text",
                   "nullable": false
                 },
                 "position": {
                   "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
                   "default": {
                     "kind": "literal",
                     "value": 0
                   },
-                  "nativeType": "int4",
                   "nullable": false
                 },
                 "title": {
                   "codecId": "pg/text@1",
-                  "nativeType": "text",
+                  "dataType": "pg/text",
                   "nullable": false
                 },
                 "updated_at": {
                   "codecId": "pg/timestamp-temporal@1",
-                  "nativeType": "timestamp",
+                  "dataType": "pg/timestamp",
                   "nullable": false,
                   "typeParams": {
                     "precision": 3
@@ -2922,16 +2925,16 @@
               "columns": {
                 "avatar_url": {
                   "codecId": "pg/text@1",
-                  "nativeType": "text",
+                  "dataType": "pg/text",
                   "nullable": true
                 },
                 "created_at": {
                   "codecId": "pg/timestamp-temporal@1",
+                  "dataType": "pg/timestamp",
                   "default": {
                     "expression": "now()",
                     "kind": "function"
                   },
-                  "nativeType": "timestamp",
                   "nullable": false,
                   "typeParams": {
                     "precision": 3
@@ -2939,7 +2942,7 @@
                 },
                 "deleted_at": {
                   "codecId": "pg/timestamp-temporal@1",
-                  "nativeType": "timestamp",
+                  "dataType": "pg/timestamp",
                   "nullable": true,
                   "typeParams": {
                     "precision": 3
@@ -2947,22 +2950,22 @@
                 },
                 "email": {
                   "codecId": "pg/text@1",
-                  "nativeType": "text",
+                  "dataType": "pg/text",
                   "nullable": false
                 },
                 "id": {
                   "codecId": "pg/text@1",
-                  "nativeType": "text",
+                  "dataType": "pg/text",
                   "nullable": false
                 },
                 "name": {
                   "codecId": "pg/text@1",
-                  "nativeType": "text",
+                  "dataType": "pg/text",
                   "nullable": true
                 },
                 "updated_at": {
                   "codecId": "pg/timestamp-temporal@1",
-                  "nativeType": "timestamp",
+                  "dataType": "pg/timestamp",
                   "nullable": false,
                   "typeParams": {
                     "precision": 3
@@ -3016,11 +3019,13 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "d4f818cad82796ef55c3f5ff808b80b253ae9eff43ecf4c0df65dd4975c385a6"
+    "storageHash": "a9b3d94cc8eabb85a02434d1239391b205f76a8970538b1b653d3b386d4b55a0"
   },
   "capabilities": {
     "postgres": {
       "distinctOn": true,
+      "forKeyShare": true,
+      "forNoKeyUpdate": true,
       "jsonAgg": true,
       "lateral": true,
       "limit": true,
@@ -3031,7 +3036,14 @@
       "checkConstraint": true,
       "defaultInInsert": true,
       "enums": true,
+      "forShare": true,
+      "forUpdate": true,
+      "insertOnConflictSkip": true,
+      "insertOnConflictWithoutTarget": true,
       "lateral": true,
+      "lockNowait": true,
+      "lockOf": true,
+      "lockSkipLocked": true,
       "returning": true,
       "scalarList": true
     }
