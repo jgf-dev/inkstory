@@ -11,6 +11,15 @@ namespace public {
     updatedAt    Timestamp(3)       @map("updated_at")
     deletedAt    Timestamp(3)?      @map("deleted_at")
 
+    // Stripe billing (STO-1180). planTier is the source of truth for
+    // entitlements; stripe* fields mirror the Stripe customer/subscription so
+    // webhooks can match rows and the billing portal can look up the customer.
+    stripeCustomerId     String?             @unique @map("stripe_customer_id")
+    stripeSubscriptionId String?             @unique @map("stripe_subscription_id")
+    planTier             pg.enum(PlanTier)   @default("FREE") @map("plan_tier")
+    subscriptionStatus   String?             @map("subscription_status")
+    currentPeriodEnd     Timestamp(3)?       @map("current_period_end")
+
     series       Series[]
     novels       Novel[]
     codexEntries CodexEntry[]
@@ -18,6 +27,17 @@ namespace public {
     @@index([deletedAt], map: "users_deleted_at_idx")
     @@index([email], map: "users_email_key", unique: true)
     @@map("users")
+  }
+
+  model StripeWebhookEvent {
+    id        String      @id(map: "stripe_webhook_events_pkey")
+    // Stripe event object id (evt_...); unique for idempotent processing.
+    eventId   String      @unique @map("event_id")
+    type      String
+    payload   Jsonb?      @map("payload")
+    createdAt Timestamp(3) @default(now()) @map("created_at")
+
+    @@map("stripe_webhook_events")
   }
 
   model Series {
@@ -115,6 +135,7 @@ namespace public {
 
     chapter           Chapter             @relation(fields: [chapterId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "scenes_chapter_id_fkey", index: false)
     codexProgressions CodexProgression[]
+    codexAttachments  SceneCodexAttachment[]
 
     @@index([chapterId, deletedAt], map: "scenes_chapter_id_deleted_at_idx")
     @@index([chapterId, position], map: "scenes_chapter_id_position_idx")
@@ -146,6 +167,7 @@ namespace public {
     aliases                      CodexAlias[]
     tags                         CodexTag[]
     progressions                 CodexProgression[]
+    sceneAttachments             SceneCodexAttachment[]
     sourceRelations              CodexRelation[]            @relation(name: "codex_relations_source_entry_id_fkey")
     targetRelations              CodexRelation[]            @relation(name: "codex_relations_target_entry_id_fkey")
 
@@ -229,6 +251,29 @@ namespace public {
     @@map("codex_progressions")
   }
 
+  // Scene-scoped manual codex attachments (launch phase 3): pins an entry to a
+  // scene so it is always seeded into context assembly for that scene, the
+  // writing-surface counterpart of manualAttachmentIds. Rows are hard-deleted
+  // on unpin and when the owning entry is removed, keeping the unique pair
+  // reusable; deletedAt is carried for house-style query uniformity only.
+  model SceneCodexAttachment {
+    id        String        @id(map: "scene_codex_attachments_pkey")
+    position  Int           @default(0)
+    createdAt Timestamp(3)  @default(now()) @map("created_at")
+    updatedAt Timestamp(3)  @map("updated_at")
+    deletedAt Timestamp(3)? @map("deleted_at")
+    sceneId   String        @map("scene_id")
+    entryId   String        @map("entry_id")
+
+    scene     Scene         @relation(fields: [sceneId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "scene_codex_attachments_scene_id_fkey", index: false)
+    entry     CodexEntry    @relation(fields: [entryId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "scene_codex_attachments_entry_id_fkey", index: false)
+
+    @@unique([sceneId, entryId], map: "scene_codex_attachments_scene_id_entry_id_key")
+    @@index([sceneId, deletedAt], map: "scene_codex_attachments_scene_id_deleted_at_idx")
+    @@index([entryId, deletedAt], map: "scene_codex_attachments_entry_id_deleted_at_idx")
+    @@map("scene_codex_attachments")
+  }
+
   native_enum CodexTrackingMode {
     ALWAYS = "ALWAYS"
     DETECTED = "DETECTED"
@@ -243,6 +288,12 @@ namespace public {
     FACTION = "FACTION"
     CONCEPT = "CONCEPT"
     OTHER = "OTHER"
+  }
+
+  native_enum PlanTier {
+    FREE = "FREE"
+    PRO = "PRO"
+    STUDIO = "STUDIO"
   }
 
   native_enum Pov {

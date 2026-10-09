@@ -207,8 +207,8 @@ jobs:
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
           GITHUB_EVENT_NAME: push
           GITHUB_REF: refs/heads/main
-          GITHUB_HEAD_REF: ''
-          GITHUB_BASE_REF: ''
+          GITHUB_HEAD_REF: ""
+          GITHUB_BASE_REF: ""
         with:
           args: >-
             -Dsonar.projectKey=jgf-dev_inkstory

@@ -36,12 +36,20 @@
       "model": "Novel",
       "namespace": "public"
     },
+    "scene_codex_attachments": {
+      "model": "SceneCodexAttachment",
+      "namespace": "public"
+    },
     "scenes": {
       "model": "Scene",
       "namespace": "public"
     },
     "series": {
       "model": "Series",
+      "namespace": "public"
+    },
+    "stripe_webhook_events": {
+      "model": "StripeWebhookEvent",
       "namespace": "public"
     },
     "users": {
@@ -555,6 +563,17 @@
                 },
                 "to": {
                   "model": "CodexProgression",
+                  "namespace": "public"
+                }
+              },
+              "sceneAttachments": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": ["id"],
+                  "targetFields": ["entryId"]
+                },
+                "to": {
+                  "model": "SceneCodexAttachment",
                   "namespace": "public"
                 }
               },
@@ -1351,6 +1370,17 @@
                   "namespace": "public"
                 }
               },
+              "codexAttachments": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": ["id"],
+                  "targetFields": ["sceneId"]
+                },
+                "to": {
+                  "model": "SceneCodexAttachment",
+                  "namespace": "public"
+                }
+              },
               "codexProgressions": {
                 "cardinality": "1:N",
                 "on": {
@@ -1413,6 +1443,121 @@
               },
               "namespaceId": "public",
               "table": "scenes"
+            }
+          },
+          "SceneCodexAttachment": {
+            "fields": {
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamp-temporal@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "deletedAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamp-temporal@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "entryId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "position": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "sceneId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "updatedAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamp-temporal@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              }
+            },
+            "relations": {
+              "entry": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": ["entryId"],
+                  "targetFields": ["id"]
+                },
+                "to": {
+                  "model": "CodexEntry",
+                  "namespace": "public"
+                }
+              },
+              "scene": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": ["sceneId"],
+                  "targetFields": ["id"]
+                },
+                "to": {
+                  "model": "Scene",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "createdAt": {
+                  "column": "created_at"
+                },
+                "deletedAt": {
+                  "column": "deleted_at"
+                },
+                "entryId": {
+                  "column": "entry_id"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "position": {
+                  "column": "position"
+                },
+                "sceneId": {
+                  "column": "scene_id"
+                },
+                "updatedAt": {
+                  "column": "updated_at"
+                }
+              },
+              "namespaceId": "public",
+              "table": "scene_codex_attachments"
             }
           },
           "Series": {
@@ -1550,6 +1695,70 @@
               "table": "series"
             }
           },
+          "StripeWebhookEvent": {
+            "fields": {
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamp-temporal@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "eventId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "payload": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/jsonb@1",
+                  "kind": "scalar"
+                }
+              },
+              "type": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {},
+            "storage": {
+              "fields": {
+                "createdAt": {
+                  "column": "created_at"
+                },
+                "eventId": {
+                  "column": "event_id"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "payload": {
+                  "column": "payload"
+                },
+                "type": {
+                  "column": "type"
+                }
+              },
+              "namespaceId": "public",
+              "table": "stripe_webhook_events"
+            }
+          },
           "User": {
             "fields": {
               "avatarUrl": {
@@ -1561,6 +1770,16 @@
               },
               "createdAt": {
                 "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamp-temporal@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "currentPeriodEnd": {
+                "nullable": true,
                 "type": {
                   "codecId": "pg/timestamp-temporal@1",
                   "kind": "scalar",
@@ -1594,6 +1813,37 @@
                 }
               },
               "name": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "planTier": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/enum@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "typeName": "PlanTier"
+                  }
+                }
+              },
+              "stripeCustomerId": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "stripeSubscriptionId": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "subscriptionStatus": {
                 "nullable": true,
                 "type": {
                   "codecId": "pg/text@1",
@@ -1654,6 +1904,9 @@
                 "createdAt": {
                   "column": "created_at"
                 },
+                "currentPeriodEnd": {
+                  "column": "current_period_end"
+                },
                 "deletedAt": {
                   "column": "deleted_at"
                 },
@@ -1665,6 +1918,18 @@
                 },
                 "name": {
                   "column": "name"
+                },
+                "planTier": {
+                  "column": "plan_tier"
+                },
+                "stripeCustomerId": {
+                  "column": "stripe_customer_id"
+                },
+                "stripeSubscriptionId": {
+                  "column": "stripe_subscription_id"
+                },
+                "subscriptionStatus": {
+                  "column": "subscription_status"
                 },
                 "updatedAt": {
                   "column": "updated_at"
@@ -1692,6 +1957,11 @@
               "kind": "postgres-enum",
               "members": ["CHARACTER", "LOCATION", "ITEM", "LORE", "FACTION", "CONCEPT", "OTHER"],
               "typeName": "CodexType"
+            },
+            "PlanTier": {
+              "kind": "postgres-enum",
+              "members": ["FREE", "PRO", "STUDIO"],
+              "typeName": "PlanTier"
             },
             "Pov": {
               "kind": "postgres-enum",
@@ -2655,6 +2925,116 @@
               },
               "uniques": []
             },
+            "scene_codex_attachments": {
+              "columns": {
+                "created_at": {
+                  "codecId": "pg/timestamp-temporal@1",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nativeType": "timestamp",
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "deleted_at": {
+                  "codecId": "pg/timestamp-temporal@1",
+                  "nativeType": "timestamp",
+                  "nullable": true,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "entry_id": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "id": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "position": {
+                  "codecId": "pg/int4@1",
+                  "default": {
+                    "kind": "literal",
+                    "value": 0
+                  },
+                  "nativeType": "int4",
+                  "nullable": false
+                },
+                "scene_id": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "updated_at": {
+                  "codecId": "pg/timestamp-temporal@1",
+                  "nativeType": "timestamp",
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "foreignKeys": [
+                {
+                  "name": "scene_codex_attachments_scene_id_fkey",
+                  "onDelete": "cascade",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": ["scene_id"],
+                    "namespaceId": "public",
+                    "tableName": "scene_codex_attachments"
+                  },
+                  "target": {
+                    "columns": ["id"],
+                    "namespaceId": "public",
+                    "tableName": "scenes"
+                  }
+                },
+                {
+                  "name": "scene_codex_attachments_entry_id_fkey",
+                  "onDelete": "cascade",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": ["entry_id"],
+                    "namespaceId": "public",
+                    "tableName": "scene_codex_attachments"
+                  },
+                  "target": {
+                    "columns": ["id"],
+                    "namespaceId": "public",
+                    "tableName": "codex_entries"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": ["entry_id", "deleted_at"],
+                  "name": "scene_codex_attachments_entry_id_deleted_at_idx",
+                  "unique": false
+                },
+                {
+                  "columns": ["scene_id", "deleted_at"],
+                  "name": "scene_codex_attachments_scene_id_deleted_at_idx",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": ["id"],
+                "name": "scene_codex_attachments_pkey"
+              },
+              "uniques": [
+                {
+                  "columns": ["scene_id", "entry_id"],
+                  "name": "scene_codex_attachments_scene_id_entry_id_key"
+                }
+              ]
+            },
             "scenes": {
               "columns": {
                 "chapter_id": {
@@ -2918,6 +3298,53 @@
               },
               "uniques": []
             },
+            "stripe_webhook_events": {
+              "columns": {
+                "created_at": {
+                  "codecId": "pg/timestamp-temporal@1",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nativeType": "timestamp",
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "event_id": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "id": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "payload": {
+                  "codecId": "pg/jsonb@1",
+                  "nativeType": "jsonb",
+                  "nullable": true
+                },
+                "type": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                }
+              },
+              "foreignKeys": [],
+              "indexes": [],
+              "primaryKey": {
+                "columns": ["id"],
+                "name": "stripe_webhook_events_pkey"
+              },
+              "uniques": [
+                {
+                  "columns": ["event_id"]
+                }
+              ]
+            },
             "users": {
               "columns": {
                 "avatar_url": {
@@ -2933,6 +3360,14 @@
                   },
                   "nativeType": "timestamp",
                   "nullable": false,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "current_period_end": {
+                  "codecId": "pg/timestamp-temporal@1",
+                  "nativeType": "timestamp",
+                  "nullable": true,
                   "typeParams": {
                     "precision": 3
                   }
@@ -2956,6 +3391,39 @@
                   "nullable": false
                 },
                 "name": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "plan_tier": {
+                  "codecId": "pg/enum@1",
+                  "default": {
+                    "kind": "literal",
+                    "value": "FREE"
+                  },
+                  "nativeType": "PlanTier",
+                  "nullable": false,
+                  "typeParams": {
+                    "typeName": "PlanTier"
+                  },
+                  "valueSet": {
+                    "entityKind": "valueSet",
+                    "entityName": "PlanTier",
+                    "namespaceId": "public",
+                    "plane": "storage"
+                  }
+                },
+                "stripe_customer_id": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "stripe_subscription_id": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "subscription_status": {
                   "codecId": "pg/text@1",
                   "nativeType": "text",
                   "nullable": true
@@ -2986,7 +3454,14 @@
                 "columns": ["id"],
                 "name": "users_pkey"
               },
-              "uniques": []
+              "uniques": [
+                {
+                  "columns": ["stripe_customer_id"]
+                },
+                {
+                  "columns": ["stripe_subscription_id"]
+                }
+              ]
             }
           },
           "valueSet": {
@@ -2997,6 +3472,10 @@
             "CodexType": {
               "kind": "valueSet",
               "values": ["CHARACTER", "LOCATION", "ITEM", "LORE", "FACTION", "CONCEPT", "OTHER"]
+            },
+            "PlanTier": {
+              "kind": "valueSet",
+              "values": ["FREE", "PRO", "STUDIO"]
             },
             "Pov": {
               "kind": "valueSet",
@@ -3016,7 +3495,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "d4f818cad82796ef55c3f5ff808b80b253ae9eff43ecf4c0df65dd4975c385a6"
+    "storageHash": "bc1a2508c62bf69b26a9f75ac4392027c86dfb9ac9f49567c7a4af45c6ce9d36"
   },
   "capabilities": {
     "postgres": {

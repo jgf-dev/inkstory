@@ -34,7 +34,7 @@ import type {
 } from "@prisma/orm-postgres/contract/types";
 
 export type StorageHash =
-  StorageHashBase<"d4f818cad82796ef55c3f5ff808b80b253ae9eff43ecf4c0df65dd4975c385a6">;
+  StorageHashBase<"bc1a2508c62bf69b26a9f75ac4392027c86dfb9ac9f49567c7a4af45c6ce9d36">;
 export type ExecutionHash = ExecutionHashBase<string>;
 export type ProfileHash =
   ProfileHashBase<"3916f444a8a17ad749191acf9e08dad97d1a327b88c2f1d45d12f240296aa8b2">;
@@ -347,6 +347,15 @@ export type FieldOutputTypes = {
       readonly deletedAt: CodecTypes["pg/timestamp-temporal@1"]["output"] | null;
       readonly chapterId: CodecTypes["pg/text@1"]["output"];
     };
+    readonly SceneCodexAttachment: {
+      readonly id: CodecTypes["pg/text@1"]["output"];
+      readonly position: CodecTypes["pg/int4@1"]["output"];
+      readonly createdAt: CodecTypes["pg/timestamp-temporal@1"]["output"];
+      readonly updatedAt: CodecTypes["pg/timestamp-temporal@1"]["output"];
+      readonly deletedAt: CodecTypes["pg/timestamp-temporal@1"]["output"] | null;
+      readonly sceneId: CodecTypes["pg/text@1"]["output"];
+      readonly entryId: CodecTypes["pg/text@1"]["output"];
+    };
     readonly Series: {
       readonly id: CodecTypes["pg/text@1"]["output"];
       readonly title: CodecTypes["pg/text@1"]["output"];
@@ -357,6 +366,13 @@ export type FieldOutputTypes = {
       readonly deletedAt: CodecTypes["pg/timestamp-temporal@1"]["output"] | null;
       readonly ownerId: CodecTypes["pg/text@1"]["output"];
     };
+    readonly StripeWebhookEvent: {
+      readonly id: CodecTypes["pg/text@1"]["output"];
+      readonly eventId: CodecTypes["pg/text@1"]["output"];
+      readonly type: CodecTypes["pg/text@1"]["output"];
+      readonly payload: CodecTypes["pg/jsonb@1"]["output"] | null;
+      readonly createdAt: CodecTypes["pg/timestamp-temporal@1"]["output"];
+    };
     readonly User: {
       readonly id: CodecTypes["pg/text@1"]["output"];
       readonly email: CodecTypes["pg/text@1"]["output"];
@@ -365,6 +381,11 @@ export type FieldOutputTypes = {
       readonly createdAt: CodecTypes["pg/timestamp-temporal@1"]["output"];
       readonly updatedAt: CodecTypes["pg/timestamp-temporal@1"]["output"];
       readonly deletedAt: CodecTypes["pg/timestamp-temporal@1"]["output"] | null;
+      readonly stripeCustomerId: CodecTypes["pg/text@1"]["output"] | null;
+      readonly stripeSubscriptionId: CodecTypes["pg/text@1"]["output"] | null;
+      readonly planTier: "FREE" | "PRO" | "STUDIO";
+      readonly subscriptionStatus: CodecTypes["pg/text@1"]["output"] | null;
+      readonly currentPeriodEnd: CodecTypes["pg/timestamp-temporal@1"]["output"] | null;
     };
   };
 };
@@ -476,6 +497,15 @@ export type FieldInputTypes = {
       readonly deletedAt: CodecTypes["pg/timestamp-temporal@1"]["input"] | null;
       readonly chapterId: CodecTypes["pg/text@1"]["input"];
     };
+    readonly SceneCodexAttachment: {
+      readonly id: CodecTypes["pg/text@1"]["input"];
+      readonly position: CodecTypes["pg/int4@1"]["input"];
+      readonly createdAt: CodecTypes["pg/timestamp-temporal@1"]["input"];
+      readonly updatedAt: CodecTypes["pg/timestamp-temporal@1"]["input"];
+      readonly deletedAt: CodecTypes["pg/timestamp-temporal@1"]["input"] | null;
+      readonly sceneId: CodecTypes["pg/text@1"]["input"];
+      readonly entryId: CodecTypes["pg/text@1"]["input"];
+    };
     readonly Series: {
       readonly id: CodecTypes["pg/text@1"]["input"];
       readonly title: CodecTypes["pg/text@1"]["input"];
@@ -486,6 +516,13 @@ export type FieldInputTypes = {
       readonly deletedAt: CodecTypes["pg/timestamp-temporal@1"]["input"] | null;
       readonly ownerId: CodecTypes["pg/text@1"]["input"];
     };
+    readonly StripeWebhookEvent: {
+      readonly id: CodecTypes["pg/text@1"]["input"];
+      readonly eventId: CodecTypes["pg/text@1"]["input"];
+      readonly type: CodecTypes["pg/text@1"]["input"];
+      readonly payload: CodecTypes["pg/jsonb@1"]["input"] | null;
+      readonly createdAt: CodecTypes["pg/timestamp-temporal@1"]["input"];
+    };
     readonly User: {
       readonly id: CodecTypes["pg/text@1"]["input"];
       readonly email: CodecTypes["pg/text@1"]["input"];
@@ -494,6 +531,11 @@ export type FieldInputTypes = {
       readonly createdAt: CodecTypes["pg/timestamp-temporal@1"]["input"];
       readonly updatedAt: CodecTypes["pg/timestamp-temporal@1"]["input"];
       readonly deletedAt: CodecTypes["pg/timestamp-temporal@1"]["input"] | null;
+      readonly stripeCustomerId: CodecTypes["pg/text@1"]["input"] | null;
+      readonly stripeSubscriptionId: CodecTypes["pg/text@1"]["input"] | null;
+      readonly planTier: "FREE" | "PRO" | "STUDIO";
+      readonly subscriptionStatus: CodecTypes["pg/text@1"]["input"] | null;
+      readonly currentPeriodEnd: CodecTypes["pg/timestamp-temporal@1"]["input"] | null;
     };
   };
 };
@@ -588,6 +630,15 @@ export type StorageColumnTypes = {
       readonly title: CodecTypes["pg/text@1"]["output"];
       readonly updated_at: CodecTypes["pg/timestamp-temporal@1"]["output"];
     };
+    readonly scene_codex_attachments: {
+      readonly created_at: CodecTypes["pg/timestamp-temporal@1"]["output"];
+      readonly deleted_at: CodecTypes["pg/timestamp-temporal@1"]["output"] | null;
+      readonly entry_id: CodecTypes["pg/text@1"]["output"];
+      readonly id: CodecTypes["pg/text@1"]["output"];
+      readonly position: CodecTypes["pg/int4@1"]["output"];
+      readonly scene_id: CodecTypes["pg/text@1"]["output"];
+      readonly updated_at: CodecTypes["pg/timestamp-temporal@1"]["output"];
+    };
     readonly scenes: {
       readonly chapter_id: CodecTypes["pg/text@1"]["output"];
       readonly content: CodecTypes["pg/text@1"]["output"];
@@ -615,13 +666,25 @@ export type StorageColumnTypes = {
       readonly title: CodecTypes["pg/text@1"]["output"];
       readonly updated_at: CodecTypes["pg/timestamp-temporal@1"]["output"];
     };
+    readonly stripe_webhook_events: {
+      readonly created_at: CodecTypes["pg/timestamp-temporal@1"]["output"];
+      readonly event_id: CodecTypes["pg/text@1"]["output"];
+      readonly id: CodecTypes["pg/text@1"]["output"];
+      readonly payload: CodecTypes["pg/jsonb@1"]["output"] | null;
+      readonly type: CodecTypes["pg/text@1"]["output"];
+    };
     readonly users: {
       readonly avatar_url: CodecTypes["pg/text@1"]["output"] | null;
       readonly created_at: CodecTypes["pg/timestamp-temporal@1"]["output"];
+      readonly current_period_end: CodecTypes["pg/timestamp-temporal@1"]["output"] | null;
       readonly deleted_at: CodecTypes["pg/timestamp-temporal@1"]["output"] | null;
       readonly email: CodecTypes["pg/text@1"]["output"];
       readonly id: CodecTypes["pg/text@1"]["output"];
       readonly name: CodecTypes["pg/text@1"]["output"] | null;
+      readonly plan_tier: "FREE" | "PRO" | "STUDIO";
+      readonly stripe_customer_id: CodecTypes["pg/text@1"]["output"] | null;
+      readonly stripe_subscription_id: CodecTypes["pg/text@1"]["output"] | null;
+      readonly subscription_status: CodecTypes["pg/text@1"]["output"] | null;
       readonly updated_at: CodecTypes["pg/timestamp-temporal@1"]["output"];
     };
   };
@@ -717,6 +780,15 @@ export type StorageColumnInputTypes = {
       readonly title: CodecTypes["pg/text@1"]["input"];
       readonly updated_at: CodecTypes["pg/timestamp-temporal@1"]["input"];
     };
+    readonly scene_codex_attachments: {
+      readonly created_at: CodecTypes["pg/timestamp-temporal@1"]["input"];
+      readonly deleted_at: CodecTypes["pg/timestamp-temporal@1"]["input"] | null;
+      readonly entry_id: CodecTypes["pg/text@1"]["input"];
+      readonly id: CodecTypes["pg/text@1"]["input"];
+      readonly position: CodecTypes["pg/int4@1"]["input"];
+      readonly scene_id: CodecTypes["pg/text@1"]["input"];
+      readonly updated_at: CodecTypes["pg/timestamp-temporal@1"]["input"];
+    };
     readonly scenes: {
       readonly chapter_id: CodecTypes["pg/text@1"]["input"];
       readonly content: CodecTypes["pg/text@1"]["input"];
@@ -744,13 +816,25 @@ export type StorageColumnInputTypes = {
       readonly title: CodecTypes["pg/text@1"]["input"];
       readonly updated_at: CodecTypes["pg/timestamp-temporal@1"]["input"];
     };
+    readonly stripe_webhook_events: {
+      readonly created_at: CodecTypes["pg/timestamp-temporal@1"]["input"];
+      readonly event_id: CodecTypes["pg/text@1"]["input"];
+      readonly id: CodecTypes["pg/text@1"]["input"];
+      readonly payload: CodecTypes["pg/jsonb@1"]["input"] | null;
+      readonly type: CodecTypes["pg/text@1"]["input"];
+    };
     readonly users: {
       readonly avatar_url: CodecTypes["pg/text@1"]["input"] | null;
       readonly created_at: CodecTypes["pg/timestamp-temporal@1"]["input"];
+      readonly current_period_end: CodecTypes["pg/timestamp-temporal@1"]["input"] | null;
       readonly deleted_at: CodecTypes["pg/timestamp-temporal@1"]["input"] | null;
       readonly email: CodecTypes["pg/text@1"]["input"];
       readonly id: CodecTypes["pg/text@1"]["input"];
       readonly name: CodecTypes["pg/text@1"]["input"] | null;
+      readonly plan_tier: "FREE" | "PRO" | "STUDIO";
+      readonly stripe_customer_id: CodecTypes["pg/text@1"]["input"] | null;
+      readonly stripe_subscription_id: CodecTypes["pg/text@1"]["input"] | null;
+      readonly subscription_status: CodecTypes["pg/text@1"]["input"] | null;
       readonly updated_at: CodecTypes["pg/timestamp-temporal@1"]["input"];
     };
   };
@@ -765,10 +849,23 @@ export namespace Models {
     createdAt: CodecTypes["pg/timestamp-temporal@1"]["output"];
     updatedAt: CodecTypes["pg/timestamp-temporal@1"]["output"];
     deletedAt: CodecTypes["pg/timestamp-temporal@1"]["output"] | null;
+    stripeCustomerId: CodecTypes["pg/text@1"]["output"] | null;
+    stripeSubscriptionId: CodecTypes["pg/text@1"]["output"] | null;
+    planTier: "FREE" | "PRO" | "STUDIO";
+    subscriptionStatus: CodecTypes["pg/text@1"]["output"] | null;
+    currentPeriodEnd: CodecTypes["pg/timestamp-temporal@1"]["output"] | null;
     codexEntries: public_CodexEntry[];
     novels: public_Novel[];
     series: public_Series[];
     readonly [RelationKeys]?: "codexEntries" | "novels" | "series";
+  };
+  export type public_StripeWebhookEvent = {
+    id: CodecTypes["pg/text@1"]["output"];
+    eventId: CodecTypes["pg/text@1"]["output"];
+    type: CodecTypes["pg/text@1"]["output"];
+    payload: CodecTypes["pg/jsonb@1"]["output"] | null;
+    createdAt: CodecTypes["pg/timestamp-temporal@1"]["output"];
+    readonly [RelationKeys]?: never;
   };
   export type public_Series = {
     id: CodecTypes["pg/text@1"]["output"];
@@ -842,8 +939,9 @@ export namespace Models {
     deletedAt: CodecTypes["pg/timestamp-temporal@1"]["output"] | null;
     chapterId: CodecTypes["pg/text@1"]["output"];
     chapter: public_Chapter;
+    codexAttachments: public_SceneCodexAttachment[];
     codexProgressions: public_CodexProgression[];
-    readonly [RelationKeys]?: "chapter" | "codexProgressions";
+    readonly [RelationKeys]?: "chapter" | "codexAttachments" | "codexProgressions";
   };
   export type public_CodexEntry = {
     id: CodecTypes["pg/text@1"]["output"];
@@ -867,6 +965,7 @@ export namespace Models {
     novel: public_Novel | null;
     owner: public_User;
     progressions: public_CodexProgression[];
+    sceneAttachments: public_SceneCodexAttachment[];
     series: public_Series | null;
     sourceRelations: public_CodexRelation[];
     tags: public_CodexTag[];
@@ -876,6 +975,7 @@ export namespace Models {
       | "novel"
       | "owner"
       | "progressions"
+      | "sceneAttachments"
       | "series"
       | "sourceRelations"
       | "tags"
@@ -931,11 +1031,24 @@ export namespace Models {
     scene: public_Scene;
     readonly [RelationKeys]?: "entry" | "scene";
   };
+  export type public_SceneCodexAttachment = {
+    id: CodecTypes["pg/text@1"]["output"];
+    position: CodecTypes["pg/int4@1"]["output"];
+    createdAt: CodecTypes["pg/timestamp-temporal@1"]["output"];
+    updatedAt: CodecTypes["pg/timestamp-temporal@1"]["output"];
+    deletedAt: CodecTypes["pg/timestamp-temporal@1"]["output"] | null;
+    sceneId: CodecTypes["pg/text@1"]["output"];
+    entryId: CodecTypes["pg/text@1"]["output"];
+    entry: public_CodexEntry;
+    scene: public_Scene;
+    readonly [RelationKeys]?: "entry" | "scene";
+  };
 }
 
 export declare const models: {
   public: {
     User: Models.public_User;
+    StripeWebhookEvent: Models.public_StripeWebhookEvent;
     Series: Models.public_Series;
     Novel: Models.public_Novel;
     Act: Models.public_Act;
@@ -946,6 +1059,7 @@ export declare const models: {
     CodexTag: Models.public_CodexTag;
     CodexRelation: Models.public_CodexRelation;
     CodexProgression: Models.public_CodexProgression;
+    SceneCodexAttachment: Models.public_SceneCodexAttachment;
   };
 };
 
@@ -1778,6 +1892,103 @@ type ContractBase = Omit<
                 },
               ];
             };
+            readonly scene_codex_attachments: {
+              columns: {
+                readonly id: {
+                  readonly nativeType: "text";
+                  readonly codecId: "pg/text@1";
+                  readonly nullable: false;
+                };
+                readonly position: {
+                  readonly nativeType: "int4";
+                  readonly codecId: "pg/int4@1";
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: "literal";
+                    readonly value: DefaultLiteralValue<"pg/int4@1", 0>;
+                  };
+                };
+                readonly created_at: {
+                  readonly nativeType: "timestamp";
+                  readonly codecId: "pg/timestamp-temporal@1";
+                  readonly nullable: false;
+                  readonly default: { readonly kind: "function"; readonly expression: "now()" };
+                  readonly typeParams: { readonly precision: 3 };
+                };
+                readonly updated_at: {
+                  readonly nativeType: "timestamp";
+                  readonly codecId: "pg/timestamp-temporal@1";
+                  readonly nullable: false;
+                  readonly typeParams: { readonly precision: 3 };
+                };
+                readonly deleted_at: {
+                  readonly nativeType: "timestamp";
+                  readonly codecId: "pg/timestamp-temporal@1";
+                  readonly nullable: true;
+                  readonly typeParams: { readonly precision: 3 };
+                };
+                readonly scene_id: {
+                  readonly nativeType: "text";
+                  readonly codecId: "pg/text@1";
+                  readonly nullable: false;
+                };
+                readonly entry_id: {
+                  readonly nativeType: "text";
+                  readonly codecId: "pg/text@1";
+                  readonly nullable: false;
+                };
+              };
+              primaryKey: {
+                readonly columns: readonly ["id"];
+                readonly name: "scene_codex_attachments_pkey";
+              };
+              uniques: readonly [
+                {
+                  readonly columns: readonly ["scene_id", "entry_id"];
+                  readonly name: "scene_codex_attachments_scene_id_entry_id_key";
+                },
+              ];
+              indexes: readonly [
+                {
+                  readonly name: "scene_codex_attachments_scene_id_deleted_at_idx";
+                  readonly columns: readonly ["scene_id", "deleted_at"];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: "scene_codex_attachments_entry_id_deleted_at_idx";
+                  readonly columns: readonly ["entry_id", "deleted_at"];
+                  readonly unique: false;
+                },
+              ];
+              foreignKeys: readonly [
+                {
+                  readonly source: {
+                    readonly namespaceId: "public" & NamespaceId;
+                    readonly tableName: "scene_codex_attachments";
+                    readonly columns: readonly ["scene_id"];
+                  };
+                  readonly target: {
+                    readonly namespaceId: "public" & NamespaceId;
+                    readonly tableName: "scenes";
+                    readonly columns: readonly ["id"];
+                  };
+                  readonly name: "scene_codex_attachments_scene_id_fkey";
+                },
+                {
+                  readonly source: {
+                    readonly namespaceId: "public" & NamespaceId;
+                    readonly tableName: "scene_codex_attachments";
+                    readonly columns: readonly ["entry_id"];
+                  };
+                  readonly target: {
+                    readonly namespaceId: "public" & NamespaceId;
+                    readonly tableName: "codex_entries";
+                    readonly columns: readonly ["id"];
+                  };
+                  readonly name: "scene_codex_attachments_entry_id_fkey";
+                },
+              ];
+            };
             readonly scenes: {
               columns: {
                 readonly id: {
@@ -1997,6 +2208,44 @@ type ContractBase = Omit<
                 },
               ];
             };
+            readonly stripe_webhook_events: {
+              columns: {
+                readonly id: {
+                  readonly nativeType: "text";
+                  readonly codecId: "pg/text@1";
+                  readonly nullable: false;
+                };
+                readonly event_id: {
+                  readonly nativeType: "text";
+                  readonly codecId: "pg/text@1";
+                  readonly nullable: false;
+                };
+                readonly type: {
+                  readonly nativeType: "text";
+                  readonly codecId: "pg/text@1";
+                  readonly nullable: false;
+                };
+                readonly payload: {
+                  readonly nativeType: "jsonb";
+                  readonly codecId: "pg/jsonb@1";
+                  readonly nullable: true;
+                };
+                readonly created_at: {
+                  readonly nativeType: "timestamp";
+                  readonly codecId: "pg/timestamp-temporal@1";
+                  readonly nullable: false;
+                  readonly default: { readonly kind: "function"; readonly expression: "now()" };
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+              primaryKey: {
+                readonly columns: readonly ["id"];
+                readonly name: "stripe_webhook_events_pkey";
+              };
+              uniques: readonly [{ readonly columns: readonly ["event_id"] }];
+              indexes: readonly [];
+              foreignKeys: readonly [];
+            };
             readonly users: {
               columns: {
                 readonly id: {
@@ -2038,9 +2287,43 @@ type ContractBase = Omit<
                   readonly nullable: true;
                   readonly typeParams: { readonly precision: 3 };
                 };
+                readonly stripe_customer_id: {
+                  readonly nativeType: "text";
+                  readonly codecId: "pg/text@1";
+                  readonly nullable: true;
+                };
+                readonly stripe_subscription_id: {
+                  readonly nativeType: "text";
+                  readonly codecId: "pg/text@1";
+                  readonly nullable: true;
+                };
+                readonly plan_tier: {
+                  readonly nativeType: "PlanTier";
+                  readonly codecId: "pg/enum@1";
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: "literal";
+                    readonly value: DefaultLiteralValue<"pg/enum@1", "FREE">;
+                  };
+                  readonly typeParams: { readonly typeName: "PlanTier" };
+                };
+                readonly subscription_status: {
+                  readonly nativeType: "text";
+                  readonly codecId: "pg/text@1";
+                  readonly nullable: true;
+                };
+                readonly current_period_end: {
+                  readonly nativeType: "timestamp";
+                  readonly codecId: "pg/timestamp-temporal@1";
+                  readonly nullable: true;
+                  readonly typeParams: { readonly precision: 3 };
+                };
               };
               primaryKey: { readonly columns: readonly ["id"]; readonly name: "users_pkey" };
-              uniques: readonly [];
+              uniques: readonly [
+                { readonly columns: readonly ["stripe_customer_id"] },
+                { readonly columns: readonly ["stripe_subscription_id"] },
+              ];
               indexes: readonly [
                 {
                   readonly name: "users_deleted_at_idx";
@@ -2073,6 +2356,10 @@ type ContractBase = Omit<
                 "OTHER",
               ];
             };
+            readonly PlanTier: {
+              readonly kind: "valueSet";
+              readonly values: readonly ["FREE", "PRO", "STUDIO"];
+            };
             readonly Pov: {
               readonly kind: "valueSet";
               readonly values: readonly ["FIRST", "SECOND", "THIRD_LIMITED", "THIRD_OMNISCIENT"];
@@ -2097,6 +2384,10 @@ type ContractBase = Omit<
   readonly targetFamily: "sql";
   readonly roots: {
     readonly users: { readonly namespace: "public" & NamespaceId; readonly model: "User" };
+    readonly stripe_webhook_events: {
+      readonly namespace: "public" & NamespaceId;
+      readonly model: "StripeWebhookEvent";
+    };
     readonly series: { readonly namespace: "public" & NamespaceId; readonly model: "Series" };
     readonly novels: { readonly namespace: "public" & NamespaceId; readonly model: "Novel" };
     readonly acts: { readonly namespace: "public" & NamespaceId; readonly model: "Act" };
@@ -2118,6 +2409,10 @@ type ContractBase = Omit<
     readonly codex_progressions: {
       readonly namespace: "public" & NamespaceId;
       readonly model: "CodexProgression";
+    };
+    readonly scene_codex_attachments: {
+      readonly namespace: "public" & NamespaceId;
+      readonly model: "SceneCodexAttachment";
     };
   };
   readonly domain: {
@@ -2479,6 +2774,17 @@ type ContractBase = Omit<
                 readonly to: {
                   readonly namespace: "public" & NamespaceId;
                   readonly model: "CodexProgression";
+                };
+                readonly cardinality: "1:N";
+                readonly on: {
+                  readonly localFields: readonly ["id"];
+                  readonly targetFields: readonly ["entryId"];
+                };
+              };
+              readonly sceneAttachments: {
+                readonly to: {
+                  readonly namespace: "public" & NamespaceId;
+                  readonly model: "SceneCodexAttachment";
                 };
                 readonly cardinality: "1:N";
                 readonly on: {
@@ -3032,6 +3338,17 @@ type ContractBase = Omit<
                   readonly targetFields: readonly ["id"];
                 };
               };
+              readonly codexAttachments: {
+                readonly to: {
+                  readonly namespace: "public" & NamespaceId;
+                  readonly model: "SceneCodexAttachment";
+                };
+                readonly cardinality: "1:N";
+                readonly on: {
+                  readonly localFields: readonly ["id"];
+                  readonly targetFields: readonly ["sceneId"];
+                };
+              };
               readonly codexProgressions: {
                 readonly to: {
                   readonly namespace: "public" & NamespaceId;
@@ -3063,6 +3380,89 @@ type ContractBase = Omit<
                 readonly updatedAt: { readonly column: "updated_at" };
                 readonly deletedAt: { readonly column: "deleted_at" };
                 readonly chapterId: { readonly column: "chapter_id" };
+              };
+            };
+          };
+          readonly SceneCodexAttachment: {
+            readonly fields: {
+              readonly id: {
+                readonly nullable: false;
+                readonly type: { readonly kind: "scalar"; readonly codecId: "pg/text@1" };
+              };
+              readonly position: {
+                readonly nullable: false;
+                readonly type: { readonly kind: "scalar"; readonly codecId: "pg/int4@1" };
+              };
+              readonly createdAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: "scalar";
+                  readonly codecId: "pg/timestamp-temporal@1";
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+              readonly updatedAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: "scalar";
+                  readonly codecId: "pg/timestamp-temporal@1";
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+              readonly deletedAt: {
+                readonly nullable: true;
+                readonly type: {
+                  readonly kind: "scalar";
+                  readonly codecId: "pg/timestamp-temporal@1";
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+              readonly sceneId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: "scalar"; readonly codecId: "pg/text@1" };
+              };
+              readonly entryId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: "scalar"; readonly codecId: "pg/text@1" };
+              };
+            };
+            readonly relations: {
+              readonly entry: {
+                readonly to: {
+                  readonly namespace: "public" & NamespaceId;
+                  readonly model: "CodexEntry";
+                };
+                readonly cardinality: "N:1";
+                readonly nullable: false;
+                readonly on: {
+                  readonly localFields: readonly ["entryId"];
+                  readonly targetFields: readonly ["id"];
+                };
+              };
+              readonly scene: {
+                readonly to: {
+                  readonly namespace: "public" & NamespaceId;
+                  readonly model: "Scene";
+                };
+                readonly cardinality: "N:1";
+                readonly nullable: false;
+                readonly on: {
+                  readonly localFields: readonly ["sceneId"];
+                  readonly targetFields: readonly ["id"];
+                };
+              };
+            };
+            readonly storage: {
+              readonly table: "scene_codex_attachments";
+              readonly namespaceId: "public";
+              readonly fields: {
+                readonly id: { readonly column: "id" };
+                readonly position: { readonly column: "position" };
+                readonly createdAt: { readonly column: "created_at" };
+                readonly updatedAt: { readonly column: "updated_at" };
+                readonly deletedAt: { readonly column: "deleted_at" };
+                readonly sceneId: { readonly column: "scene_id" };
+                readonly entryId: { readonly column: "entry_id" };
               };
             };
           };
@@ -3161,6 +3561,46 @@ type ContractBase = Omit<
               };
             };
           };
+          readonly StripeWebhookEvent: {
+            readonly fields: {
+              readonly id: {
+                readonly nullable: false;
+                readonly type: { readonly kind: "scalar"; readonly codecId: "pg/text@1" };
+              };
+              readonly eventId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: "scalar"; readonly codecId: "pg/text@1" };
+              };
+              readonly type: {
+                readonly nullable: false;
+                readonly type: { readonly kind: "scalar"; readonly codecId: "pg/text@1" };
+              };
+              readonly payload: {
+                readonly nullable: true;
+                readonly type: { readonly kind: "scalar"; readonly codecId: "pg/jsonb@1" };
+              };
+              readonly createdAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: "scalar";
+                  readonly codecId: "pg/timestamp-temporal@1";
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+            };
+            readonly relations: Record<string, never>;
+            readonly storage: {
+              readonly table: "stripe_webhook_events";
+              readonly namespaceId: "public";
+              readonly fields: {
+                readonly id: { readonly column: "id" };
+                readonly eventId: { readonly column: "event_id" };
+                readonly type: { readonly column: "type" };
+                readonly payload: { readonly column: "payload" };
+                readonly createdAt: { readonly column: "created_at" };
+              };
+            };
+          };
           readonly User: {
             readonly fields: {
               readonly id: {
@@ -3196,6 +3636,34 @@ type ContractBase = Omit<
                 };
               };
               readonly deletedAt: {
+                readonly nullable: true;
+                readonly type: {
+                  readonly kind: "scalar";
+                  readonly codecId: "pg/timestamp-temporal@1";
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+              readonly stripeCustomerId: {
+                readonly nullable: true;
+                readonly type: { readonly kind: "scalar"; readonly codecId: "pg/text@1" };
+              };
+              readonly stripeSubscriptionId: {
+                readonly nullable: true;
+                readonly type: { readonly kind: "scalar"; readonly codecId: "pg/text@1" };
+              };
+              readonly planTier: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: "scalar";
+                  readonly codecId: "pg/enum@1";
+                  readonly typeParams: { readonly typeName: "PlanTier" };
+                };
+              };
+              readonly subscriptionStatus: {
+                readonly nullable: true;
+                readonly type: { readonly kind: "scalar"; readonly codecId: "pg/text@1" };
+              };
+              readonly currentPeriodEnd: {
                 readonly nullable: true;
                 readonly type: {
                   readonly kind: "scalar";
@@ -3250,6 +3718,11 @@ type ContractBase = Omit<
                 readonly createdAt: { readonly column: "created_at" };
                 readonly updatedAt: { readonly column: "updated_at" };
                 readonly deletedAt: { readonly column: "deleted_at" };
+                readonly stripeCustomerId: { readonly column: "stripe_customer_id" };
+                readonly stripeSubscriptionId: { readonly column: "stripe_subscription_id" };
+                readonly planTier: { readonly column: "plan_tier" };
+                readonly subscriptionStatus: { readonly column: "subscription_status" };
+                readonly currentPeriodEnd: { readonly column: "current_period_end" };
               };
             };
           };

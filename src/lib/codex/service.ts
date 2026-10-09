@@ -1,5 +1,11 @@
 import { Temporal } from "temporal-polyfill";
 import { db } from "@/lib/prisma";
+import {
+  assembleContext,
+  ContextAssemblyError,
+  type ContextCandidateEntry,
+  type ContextProgression,
+} from "./context-assembler";
 import { detectMentionsInText, type MentionDetectionResult } from "./mention-detection";
 import {
   ProgressionEngine,
@@ -7,6 +13,15 @@ import {
   type ProgressionCandidate,
   type SceneReadingOrderKey,
 } from "./progression-engine";
+import type { RelationEdge } from "./relation-engine";
+import { formatAssembledContext } from "./prompt-formatter";
+import { applyTokenBudget, type BudgetedAssembledContext } from "./token-budgeter";
+import {
+  ensureCodexEntryQuota,
+  getEntitlements,
+  resolveContextTokenBudget,
+} from "@/lib/billing/entitlements";
+
 import type {
   CodexEntryFilter,
   CreateCodexAliasInput,
@@ -19,41 +34,9 @@ import type {
   UpdateCodexRelationInput,
 } from "./types";
 
-/**
- * Custom error class for Codex domain validation and authorization failures.
- */
-export class CodexError extends Error {
-  constructor(
-    message: string,
-    public readonly code:
-      | "NOT_FOUND"
-      | "FORBIDDEN"
-      | "VALIDATION_FAILED"
-      | "SCOPING_ERROR"
-      | "CONFLICT",
-    public readonly status: number = 400,
-  ) {
-    super(message);
-    this.name = "CodexError";
-  }
-}
+import { CodexError, handleCodexApiError } from "./errors";
 
-/**
- * Standardized API error handler for Codex REST routes.
- * Ensures malformed JSON (SyntaxError) returns 400 instead of 500.
- */
-export function handleCodexApiError(err: unknown): Response {
-  if (err instanceof SyntaxError) {
-    return Response.json(
-      { error: "Malformed or invalid JSON body", code: "INVALID_JSON" },
-      { status: 400 },
-    );
-  }
-  if (err instanceof CodexError) {
-    return Response.json({ error: err.message, code: err.code }, { status: err.status });
-  }
-  return Response.json({ error: "Internal server error" }, { status: 500 });
-}
+export { CodexError, handleCodexApiError };
 
 function nowTimestamp(): Temporal.PlainDateTime {
   return Temporal.Now.plainDateTimeISO();
@@ -150,6 +133,9 @@ export async function createCodexEntry(userId: string, input: CreateCodexEntryIn
   if (!trimmedName) {
     throw new CodexError("Entry name cannot be empty", "VALIDATION_FAILED", 422);
   }
+
+  // Tier quota guard (STO-1180): 402 with an upgrade trigger on the Free plan.
+  await ensureCodexEntryQuota(userId);
 
   const isSeriesScoped = Boolean(input.seriesScoped);
   const { resolvedNovelId, resolvedSeriesId } = await resolveAndValidateScope(
@@ -1002,4 +988,172 @@ export async function scanMentionsInScene(
 
   const entries = await listCodexEntriesForNovel(userId, sceneContext.novelId);
   return detectMentionsInText(textToScan, entries);
+}
+
+// ─── Context Assembly (STO-1170 / STO-1171 / STO-1172) ───────────────────────
+
+/** Options for {@link assembleSceneContext}; all fields optional. */
+export interface AssembleSceneContextOptions {
+  /** Maximum entries returned after ranking. See `ContextAssemblyOptions`. */
+  maxEntries?: number;
+  /** Maximum relation hops from any seed. */
+  maxRelationDepth?: number;
+  /** Include series-scoped entries of the scene's series. Defaults to `true`. */
+  includeSeriesCodex?: boolean;
+  /** Hard estimated-token budget for the formatted prompt. */
+  maxTokens?: number;
+}
+
+/** Input for {@link assembleSceneContext}. */
+export interface AssembleSceneContextInput {
+  sceneId: string;
+  /** Current scene beat / synopsis text used for mention detection. */
+  beatText?: string;
+  /** Recent prose used for mention detection. */
+  recentProse?: string;
+  /** Codex entry ids manually attached to the generation request. */
+  manualAttachmentIds?: string[];
+  options?: AssembleSceneContextOptions;
+}
+
+/**
+ * Assembles the Codex context for a scene end-to-end (STO-1171): loads
+ * entries, relations, progressions, and the novel's reading order from the
+ * database, runs the pure `assembleContext` engine, applies the token
+ * budget, and renders the XML prompt block.
+ *
+ * All rows are ownership-checked via the scene's novel before assembly.
+ *
+ * @throws {CodexError} NOT_FOUND when the scene (or its reading-order row)
+ *   is missing, FORBIDDEN when the caller does not own the scene.
+ */
+export async function assembleSceneContext(
+  userId: string,
+  input: AssembleSceneContextInput,
+): Promise<{ context: BudgetedAssembledContext; prompt: string }> {
+  const scene = await db.orm.public.Scene.where({ id: input.sceneId }).first();
+  if (!scene || scene.deletedAt !== null) {
+    throw new CodexError("Scene not found", "NOT_FOUND", 404);
+  }
+
+  const sceneContext = await resolveSceneContext(input.sceneId);
+  if (sceneContext.ownerId !== userId) {
+    throw new CodexError("Unauthorized to access scene", "FORBIDDEN", 403);
+  }
+
+  const options = input.options ?? {};
+  const includeSeriesCodex = options.includeSeriesCodex ?? true;
+
+  // Scene-scoped manual attachments (launch phase 3) always join the seeds,
+  // unioned with any caller-supplied ids. Manual seeds win over NEVER-tracked
+  // entries inside the pure assembler.
+  const attachmentRows = await db.orm.public.SceneCodexAttachment.where((a) =>
+    a.sceneId.eq(input.sceneId),
+  )
+    .where((a) => a.deletedAt.isNull())
+    .all();
+  const manualAttachmentIds = Array.from(
+    new Set([...attachmentRows.map((row) => row.entryId), ...(input.manualAttachmentIds ?? [])]),
+  );
+
+  // Tier ceiling on the context token budget (STO-1180): callers cannot buy
+  // a bigger window than their plan allows, and paid tiers default higher.
+  const entitlements = await getEntitlements(userId);
+  const maxTokens = resolveContextTokenBudget(options.maxTokens, entitlements.maxContextTokens);
+
+  // listCodexEntriesForNovel returns book- and series-scoped rows (with
+  // aliases) and already enforces novel ownership.
+  const dbEntries = await listCodexEntriesForNovel(userId, sceneContext.novelId);
+  const candidates: ContextCandidateEntry[] = dbEntries
+    .filter((entry) => includeSeriesCodex || !entry.seriesScoped)
+    .map((entry) => ({
+      id: entry.id,
+      type: entry.type,
+      name: entry.name,
+      aliases: entry.aliases.map((alias) => alias.name),
+      description: entry.description ?? "",
+      trackingMode: entry.trackingMode,
+      seriesScoped: entry.seriesScoped,
+      novelId: entry.novelId ?? null,
+      seriesId: entry.seriesId ?? null,
+      position: entry.position,
+    }));
+
+  const entryIds = candidates.map((entry) => entry.id);
+  const [sourceRelations, targetRelations, progressions] = await Promise.all([
+    entryIds.length
+      ? db.orm.public.CodexRelation.where((r) => r.sourceEntryId.in(entryIds))
+          .where((r) => r.deletedAt.isNull())
+          .all()
+      : Promise.resolve([] as Awaited<ReturnType<typeof db.orm.public.CodexRelation.all>>),
+    entryIds.length
+      ? db.orm.public.CodexRelation.where((r) => r.targetEntryId.in(entryIds))
+          .where((r) => r.deletedAt.isNull())
+          .all()
+      : Promise.resolve([] as Awaited<ReturnType<typeof db.orm.public.CodexRelation.all>>),
+    entryIds.length
+      ? db.orm.public.CodexProgression.where((p) => p.entryId.in(entryIds))
+          .where((p) => p.deletedAt.isNull())
+          .all()
+      : Promise.resolve([] as Awaited<ReturnType<typeof db.orm.public.CodexProgression.all>>),
+  ]);
+
+  // Union by id: an edge may touch the scope from either endpoint.
+  const relationsById = new Map<string, RelationEdge>();
+  for (const row of [...sourceRelations, ...targetRelations]) {
+    if (!relationsById.has(row.id)) {
+      relationsById.set(row.id, {
+        id: row.id,
+        sourceEntryId: row.sourceEntryId,
+        targetEntryId: row.targetEntryId,
+        relationType: row.relationType,
+        reverseType: row.reverseType,
+        description: row.description,
+      });
+    }
+  }
+
+  const contextProgressions: ContextProgression[] = progressions.map((row) => ({
+    id: row.id,
+    entryId: row.entryId,
+    sceneId: row.sceneId,
+    mode: row.mode,
+    description: row.description,
+    position: row.position,
+  }));
+
+  const sceneOrderById = await loadNovelSceneReadingOrder(sceneContext.novelId);
+
+  let assembled;
+  try {
+    assembled = assembleContext(
+      {
+        novelId: sceneContext.novelId,
+        sceneId: input.sceneId,
+        beatText: input.beatText,
+        recentProse: input.recentProse,
+        manualAttachmentIds,
+        options: {
+          maxEntries: options.maxEntries,
+          maxRelationDepth: options.maxRelationDepth,
+          includeSeriesCodex,
+        },
+      },
+      {
+        entries: candidates,
+        relations: [...relationsById.values()],
+        progressions: contextProgressions,
+        sceneOrderById,
+        seriesId: sceneContext.seriesId,
+      },
+    );
+  } catch (err) {
+    if (err instanceof ContextAssemblyError) {
+      throw new CodexError("Scene not found in novel reading order", "NOT_FOUND", 404);
+    }
+    throw err;
+  }
+
+  const context = applyTokenBudget(assembled, { maxTokens });
+  return { context, prompt: formatAssembledContext(context) };
 }

@@ -1,4 +1,9 @@
+import { existsSync } from "node:fs";
 import { defineConfig, devices } from "@playwright/test";
+
+/** Use the system Chrome when present (CI), else Playwright's bundled chromium. */
+const systemChrome = "/usr/bin/google-chrome";
+const hasSystemChrome = existsSync(systemChrome);
 
 export default defineConfig({
   testDir: "./tests/e2e",
@@ -18,9 +23,8 @@ export default defineConfig({
       name: "chromium",
       use: {
         ...devices["Desktop Chrome"],
-        channel: "chrome",
+        ...(hasSystemChrome ? { channel: "chrome", executablePath: systemChrome } : {}),
         launchOptions: {
-          executablePath: "/usr/bin/google-chrome",
           args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"],
         },
       },
@@ -33,6 +37,7 @@ export default defineConfig({
     timeout: 120000,
     env: {
       NEXT_PUBLIC_E2E: "true",
+      PORT: "3000",
     },
   },
 });
