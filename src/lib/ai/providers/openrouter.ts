@@ -119,24 +119,29 @@ export function createOpenRouterProvider(options: OpenRouterProviderOptions): Ll
     return redactSecret(text, apiKey as string);
   }
 
+  function transportError(err: unknown, prefix: string, status?: number): ProviderError {
+    if (err instanceof Error && (err.name === "AbortError" || err.name === "TimeoutError")) {
+      return new ProviderError("OpenRouter request was aborted", "TIMEOUT", "openrouter", status);
+    }
+    const detail = err instanceof Error ? err.message : String(err);
+    return new ProviderError(safe(`${prefix}: ${detail}`), "NETWORK_ERROR", "openrouter", status);
+  }
+
   async function send(path: string, init: RequestInit): Promise<unknown> {
     let response: Response;
     try {
       response = await doFetch(`${baseUrl}${path}`, { ...init, headers: headers() });
     } catch (err) {
-      if (err instanceof Error && err.name === "AbortError") {
-        throw new ProviderError("OpenRouter request was aborted", "TIMEOUT", "openrouter");
-      }
-      const detail = err instanceof Error ? err.message : String(err);
-      throw new ProviderError(
-        safe(`Could not reach OpenRouter: ${detail}`),
-        "NETWORK_ERROR",
-        "openrouter",
-      );
+      throw transportError(err, "Could not reach OpenRouter");
     }
 
     let body: unknown = null;
-    const raw = await response.text();
+    let raw: string;
+    try {
+      raw = await response.text();
+    } catch (err) {
+      throw transportError(err, "Could not read OpenRouter response", response.status);
+    }
     if (raw) {
       try {
         body = JSON.parse(raw);

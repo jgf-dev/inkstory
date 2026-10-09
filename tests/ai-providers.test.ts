@@ -295,6 +295,34 @@ describe("OpenRouter provider: chat", () => {
     );
     expect(err.code).toBe("TIMEOUT");
   });
+
+  it("reports AbortSignal.timeout rejections as timeouts", async () => {
+    const provider = createOpenRouterProvider({
+      apiKey: KEY,
+      fetch: mockFetch(() =>
+        Promise.reject(new DOMException("The operation timed out", "TimeoutError")),
+      ) as unknown as typeof fetch,
+    });
+    const err = await catchError(
+      provider.chat({ model: "m", messages: [{ role: "user", content: "x" }] }),
+    );
+    expect(err.code).toBe("TIMEOUT");
+  });
+
+  it("normalizes response body read failures without leaking the key", async () => {
+    const broken = new Response("{}", { status: 200 });
+    vi.spyOn(broken, "text").mockRejectedValue(new TypeError(`stream reset for ${KEY}`));
+    const provider = createOpenRouterProvider({
+      apiKey: KEY,
+      fetch: mockFetch(broken) as unknown as typeof fetch,
+    });
+    const err = await catchError(
+      provider.chat({ model: "m", messages: [{ role: "user", content: "x" }] }),
+    );
+    expect(err.code).toBe("NETWORK_ERROR");
+    expect(err.status).toBe(200);
+    expect(err.message).not.toContain(KEY);
+  });
 });
 
 describe("OpenRouter provider: listModels", () => {
