@@ -7,10 +7,10 @@ on:
     branches: [main]
   workflow_dispatch:
 
-# Shared CI DATABASE_URL + SonarCloud project metadata: overlapping Analysis
-# jobs race on fixtures and scanner project.protobuf. Keep one at a time.
+# Each run gets its own throwaway Postgres (services below), so runs from
+# different PRs no longer share state. Only supersede runs for the same PR/ref.
 concurrency:
-  group: sonar-analysis-${{ github.repository }}
+  group: sonar-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -20,6 +20,27 @@ permissions:
 jobs:
   Analysis:
     runs-on: ubuntu-latest
+
+    # Ephemeral Postgres per run (major matches supabase/config.toml = 17).
+    # Tests only need plain Postgres; Supabase clients are mocked.
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: inkstory_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d inkstory_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/inkstory_test
+      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/inkstory_test
 
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -154,22 +175,14 @@ jobs:
 
       - name: Emit Prisma contract
         run: ./node_modules/.bin/prisma contract emit
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
-      # CI DATABASE_URL is a shared test DB; apply the current contract so Codex
-      # tables exist before integration coverage runs.
+      # Fresh per-run DB: apply the current contract so tables exist before
+      # integration coverage runs.
       - name: Apply Prisma schema to CI database
         run: ./node_modules/.bin/prisma db update -y --db "$DATABASE_URL"
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          DIRECT_URL: ${{ secrets.DATABASE_URL }}
 
       - name: Run tests with coverage
         run: bun run test:cov
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          DIRECT_URL: ${{ secrets.DATABASE_URL }}
 
       # Automatic Analysis conflicts with CI scanner uploads.
       - name: Disable SonarCloud Automatic Analysis
