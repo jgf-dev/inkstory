@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 env:
   GHA_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -25,4 +26,4 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
       - name: new-relic-exporter
-        uses: newrelic-experimental/gha-new-relic-exporter@v1.2.2
+        uses: newrelic-experimental/gha-new-relic-exporter@b7d097f92d61f3b61bcfe3cb81ef24265793b55b # v1.2.2
