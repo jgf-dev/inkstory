@@ -2,7 +2,6 @@ import { Temporal } from "temporal-polyfill";
 import { db } from "@/lib/prisma";
 import {
   assembleContext,
-  ContextAssemblyError,
   type AssembledContext,
   type ContextAssemblyOptions,
 } from "./context-assembler";
@@ -25,44 +24,10 @@ import type {
   UpdateCodexRelationInput,
 } from "./types";
 
-/**
- * Custom error class for Codex domain validation and authorization failures.
- */
-export class CodexError extends Error {
-  constructor(
-    message: string,
-    public readonly code:
-      | "NOT_FOUND"
-      | "FORBIDDEN"
-      | "VALIDATION_FAILED"
-      | "SCOPING_ERROR"
-      | "CONFLICT",
-    public readonly status: number = 400,
-  ) {
-    super(message);
-    this.name = "CodexError";
-  }
-}
+import { ensureCodexEntryQuota } from "@/lib/billing/entitlements";
+import { CodexError, handleCodexApiError } from "./errors";
 
-/**
- * Standardized API error handler for Codex REST routes.
- * Ensures malformed JSON (SyntaxError) returns 400 instead of 500.
- */
-export function handleCodexApiError(err: unknown): Response {
-  if (err instanceof SyntaxError) {
-    return Response.json(
-      { error: "Malformed or invalid JSON body", code: "INVALID_JSON" },
-      { status: 400 },
-    );
-  }
-  if (err instanceof CodexError) {
-    return Response.json({ error: err.message, code: err.code }, { status: err.status });
-  }
-  if (err instanceof ContextAssemblyError) {
-    return Response.json({ error: err.message, code: "CONTEXT_ASSEMBLY_FAILED" }, { status: 422 });
-  }
-  return Response.json({ error: "Internal server error" }, { status: 500 });
-}
+export { CodexError, handleCodexApiError };
 
 function nowTimestamp(): Temporal.PlainDateTime {
   return Temporal.Now.plainDateTimeISO();
@@ -159,6 +124,9 @@ export async function createCodexEntry(userId: string, input: CreateCodexEntryIn
   if (!trimmedName) {
     throw new CodexError("Entry name cannot be empty", "VALIDATION_FAILED", 422);
   }
+
+  // Tier quota guard (STO-1180): 402 with an upgrade trigger on the Free plan.
+  await ensureCodexEntryQuota(userId);
 
   const isSeriesScoped = Boolean(input.seriesScoped);
   const { resolvedNovelId, resolvedSeriesId } = await resolveAndValidateScope(
