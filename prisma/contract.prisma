@@ -115,6 +115,7 @@ namespace public {
 
     chapter           Chapter             @relation(fields: [chapterId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "scenes_chapter_id_fkey", index: false)
     codexProgressions CodexProgression[]
+    codexPins         SceneCodexPin[]
 
     @@index([chapterId, deletedAt], map: "scenes_chapter_id_deleted_at_idx")
     @@index([chapterId, position], map: "scenes_chapter_id_position_idx")
@@ -146,6 +147,7 @@ namespace public {
     aliases                      CodexAlias[]
     tags                         CodexTag[]
     progressions                 CodexProgression[]
+    scenePins                    SceneCodexPin[]
     sourceRelations              CodexRelation[]            @relation(name: "codex_relations_source_entry_id_fkey")
     targetRelations              CodexRelation[]            @relation(name: "codex_relations_target_entry_id_fkey")
 
@@ -227,6 +229,28 @@ namespace public {
     @@index([sceneId, deletedAt], map: "codex_progressions_scene_id_deleted_at_idx")
     @@index([sceneId, position], map: "codex_progressions_scene_id_position_idx")
     @@map("codex_progressions")
+  }
+
+  // Scene codex pins (STO-1208): an author pins an entry to a scene so it is
+  // always seeded into context assembly for that scene (manualAttachmentIds).
+  // Soft-deleted like other Codex tables. The (sceneId, entryId) unique key
+  // spans deleted rows, so re-pinning after an unpin restores the existing
+  // row (deletedAt = null) instead of inserting a new one.
+  model SceneCodexPin {
+    id        String        @id(map: "scene_codex_pins_pkey")
+    createdAt Timestamp(3)  @default(now()) @map("created_at")
+    updatedAt Timestamp(3)  @map("updated_at")
+    deletedAt Timestamp(3)? @map("deleted_at")
+    sceneId   String        @map("scene_id")
+    entryId   String        @map("entry_id")
+
+    scene     Scene         @relation(fields: [sceneId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "scene_codex_pins_scene_id_fkey", index: false)
+    entry     CodexEntry    @relation(fields: [entryId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "scene_codex_pins_entry_id_fkey", index: false)
+
+    @@unique([sceneId, entryId], map: "scene_codex_pins_scene_id_entry_id_key")
+    @@index([sceneId, deletedAt], map: "scene_codex_pins_scene_id_deleted_at_idx")
+    @@index([entryId, deletedAt], map: "scene_codex_pins_entry_id_deleted_at_idx")
+    @@map("scene_codex_pins")
   }
 
   native_enum CodexTrackingMode {

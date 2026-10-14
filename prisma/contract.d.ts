@@ -34,7 +34,7 @@ import type {
 } from "@prisma/orm-postgres/contract/types";
 
 export type StorageHash =
-  StorageHashBase<"d4f818cad82796ef55c3f5ff808b80b253ae9eff43ecf4c0df65dd4975c385a6">;
+  StorageHashBase<"fd3b66f50b8cb6a292abdb476c4c3e8e39a7e78d1537319bcc11db8a8dafe4c4">;
 export type ExecutionHash = ExecutionHashBase<string>;
 export type ProfileHash =
   ProfileHashBase<"3916f444a8a17ad749191acf9e08dad97d1a327b88c2f1d45d12f240296aa8b2">;
@@ -347,6 +347,14 @@ export type FieldOutputTypes = {
       readonly deletedAt: CodecTypes["pg/timestamp-temporal@1"]["output"] | null;
       readonly chapterId: CodecTypes["pg/text@1"]["output"];
     };
+    readonly SceneCodexPin: {
+      readonly id: CodecTypes["pg/text@1"]["output"];
+      readonly createdAt: CodecTypes["pg/timestamp-temporal@1"]["output"];
+      readonly updatedAt: CodecTypes["pg/timestamp-temporal@1"]["output"];
+      readonly deletedAt: CodecTypes["pg/timestamp-temporal@1"]["output"] | null;
+      readonly sceneId: CodecTypes["pg/text@1"]["output"];
+      readonly entryId: CodecTypes["pg/text@1"]["output"];
+    };
     readonly Series: {
       readonly id: CodecTypes["pg/text@1"]["output"];
       readonly title: CodecTypes["pg/text@1"]["output"];
@@ -476,6 +484,14 @@ export type FieldInputTypes = {
       readonly deletedAt: CodecTypes["pg/timestamp-temporal@1"]["input"] | null;
       readonly chapterId: CodecTypes["pg/text@1"]["input"];
     };
+    readonly SceneCodexPin: {
+      readonly id: CodecTypes["pg/text@1"]["input"];
+      readonly createdAt: CodecTypes["pg/timestamp-temporal@1"]["input"];
+      readonly updatedAt: CodecTypes["pg/timestamp-temporal@1"]["input"];
+      readonly deletedAt: CodecTypes["pg/timestamp-temporal@1"]["input"] | null;
+      readonly sceneId: CodecTypes["pg/text@1"]["input"];
+      readonly entryId: CodecTypes["pg/text@1"]["input"];
+    };
     readonly Series: {
       readonly id: CodecTypes["pg/text@1"]["input"];
       readonly title: CodecTypes["pg/text@1"]["input"];
@@ -586,6 +602,14 @@ export type StorageColumnTypes = {
       readonly series_id: CodecTypes["pg/text@1"]["output"] | null;
       readonly subtitle: CodecTypes["pg/text@1"]["output"] | null;
       readonly title: CodecTypes["pg/text@1"]["output"];
+      readonly updated_at: CodecTypes["pg/timestamp-temporal@1"]["output"];
+    };
+    readonly scene_codex_pins: {
+      readonly created_at: CodecTypes["pg/timestamp-temporal@1"]["output"];
+      readonly deleted_at: CodecTypes["pg/timestamp-temporal@1"]["output"] | null;
+      readonly entry_id: CodecTypes["pg/text@1"]["output"];
+      readonly id: CodecTypes["pg/text@1"]["output"];
+      readonly scene_id: CodecTypes["pg/text@1"]["output"];
       readonly updated_at: CodecTypes["pg/timestamp-temporal@1"]["output"];
     };
     readonly scenes: {
@@ -717,6 +741,14 @@ export type StorageColumnInputTypes = {
       readonly title: CodecTypes["pg/text@1"]["input"];
       readonly updated_at: CodecTypes["pg/timestamp-temporal@1"]["input"];
     };
+    readonly scene_codex_pins: {
+      readonly created_at: CodecTypes["pg/timestamp-temporal@1"]["input"];
+      readonly deleted_at: CodecTypes["pg/timestamp-temporal@1"]["input"] | null;
+      readonly entry_id: CodecTypes["pg/text@1"]["input"];
+      readonly id: CodecTypes["pg/text@1"]["input"];
+      readonly scene_id: CodecTypes["pg/text@1"]["input"];
+      readonly updated_at: CodecTypes["pg/timestamp-temporal@1"]["input"];
+    };
     readonly scenes: {
       readonly chapter_id: CodecTypes["pg/text@1"]["input"];
       readonly content: CodecTypes["pg/text@1"]["input"];
@@ -842,8 +874,9 @@ export namespace Models {
     deletedAt: CodecTypes["pg/timestamp-temporal@1"]["output"] | null;
     chapterId: CodecTypes["pg/text@1"]["output"];
     chapter: public_Chapter;
+    codexPins: public_SceneCodexPin[];
     codexProgressions: public_CodexProgression[];
-    readonly [RelationKeys]?: "chapter" | "codexProgressions";
+    readonly [RelationKeys]?: "chapter" | "codexPins" | "codexProgressions";
   };
   export type public_CodexEntry = {
     id: CodecTypes["pg/text@1"]["output"];
@@ -867,6 +900,7 @@ export namespace Models {
     novel: public_Novel | null;
     owner: public_User;
     progressions: public_CodexProgression[];
+    scenePins: public_SceneCodexPin[];
     series: public_Series | null;
     sourceRelations: public_CodexRelation[];
     tags: public_CodexTag[];
@@ -876,6 +910,7 @@ export namespace Models {
       | "novel"
       | "owner"
       | "progressions"
+      | "scenePins"
       | "series"
       | "sourceRelations"
       | "tags"
@@ -931,6 +966,17 @@ export namespace Models {
     scene: public_Scene;
     readonly [RelationKeys]?: "entry" | "scene";
   };
+  export type public_SceneCodexPin = {
+    id: CodecTypes["pg/text@1"]["output"];
+    createdAt: CodecTypes["pg/timestamp-temporal@1"]["output"];
+    updatedAt: CodecTypes["pg/timestamp-temporal@1"]["output"];
+    deletedAt: CodecTypes["pg/timestamp-temporal@1"]["output"] | null;
+    sceneId: CodecTypes["pg/text@1"]["output"];
+    entryId: CodecTypes["pg/text@1"]["output"];
+    entry: public_CodexEntry;
+    scene: public_Scene;
+    readonly [RelationKeys]?: "entry" | "scene";
+  };
 }
 
 export declare const models: {
@@ -946,6 +992,7 @@ export declare const models: {
     CodexTag: Models.public_CodexTag;
     CodexRelation: Models.public_CodexRelation;
     CodexProgression: Models.public_CodexProgression;
+    SceneCodexPin: Models.public_SceneCodexPin;
   };
 };
 
@@ -1778,6 +1825,94 @@ type ContractBase = Omit<
                 },
               ];
             };
+            readonly scene_codex_pins: {
+              columns: {
+                readonly id: {
+                  readonly nativeType: "text";
+                  readonly codecId: "pg/text@1";
+                  readonly nullable: false;
+                };
+                readonly created_at: {
+                  readonly nativeType: "timestamp";
+                  readonly codecId: "pg/timestamp-temporal@1";
+                  readonly nullable: false;
+                  readonly default: { readonly kind: "function"; readonly expression: "now()" };
+                  readonly typeParams: { readonly precision: 3 };
+                };
+                readonly updated_at: {
+                  readonly nativeType: "timestamp";
+                  readonly codecId: "pg/timestamp-temporal@1";
+                  readonly nullable: false;
+                  readonly typeParams: { readonly precision: 3 };
+                };
+                readonly deleted_at: {
+                  readonly nativeType: "timestamp";
+                  readonly codecId: "pg/timestamp-temporal@1";
+                  readonly nullable: true;
+                  readonly typeParams: { readonly precision: 3 };
+                };
+                readonly scene_id: {
+                  readonly nativeType: "text";
+                  readonly codecId: "pg/text@1";
+                  readonly nullable: false;
+                };
+                readonly entry_id: {
+                  readonly nativeType: "text";
+                  readonly codecId: "pg/text@1";
+                  readonly nullable: false;
+                };
+              };
+              primaryKey: {
+                readonly columns: readonly ["id"];
+                readonly name: "scene_codex_pins_pkey";
+              };
+              uniques: readonly [
+                {
+                  readonly columns: readonly ["scene_id", "entry_id"];
+                  readonly name: "scene_codex_pins_scene_id_entry_id_key";
+                },
+              ];
+              indexes: readonly [
+                {
+                  readonly name: "scene_codex_pins_scene_id_deleted_at_idx";
+                  readonly columns: readonly ["scene_id", "deleted_at"];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: "scene_codex_pins_entry_id_deleted_at_idx";
+                  readonly columns: readonly ["entry_id", "deleted_at"];
+                  readonly unique: false;
+                },
+              ];
+              foreignKeys: readonly [
+                {
+                  readonly source: {
+                    readonly namespaceId: "public" & NamespaceId;
+                    readonly tableName: "scene_codex_pins";
+                    readonly columns: readonly ["scene_id"];
+                  };
+                  readonly target: {
+                    readonly namespaceId: "public" & NamespaceId;
+                    readonly tableName: "scenes";
+                    readonly columns: readonly ["id"];
+                  };
+                  readonly name: "scene_codex_pins_scene_id_fkey";
+                },
+                {
+                  readonly source: {
+                    readonly namespaceId: "public" & NamespaceId;
+                    readonly tableName: "scene_codex_pins";
+                    readonly columns: readonly ["entry_id"];
+                  };
+                  readonly target: {
+                    readonly namespaceId: "public" & NamespaceId;
+                    readonly tableName: "codex_entries";
+                    readonly columns: readonly ["id"];
+                  };
+                  readonly name: "scene_codex_pins_entry_id_fkey";
+                },
+              ];
+            };
             readonly scenes: {
               columns: {
                 readonly id: {
@@ -2118,6 +2253,10 @@ type ContractBase = Omit<
     readonly codex_progressions: {
       readonly namespace: "public" & NamespaceId;
       readonly model: "CodexProgression";
+    };
+    readonly scene_codex_pins: {
+      readonly namespace: "public" & NamespaceId;
+      readonly model: "SceneCodexPin";
     };
   };
   readonly domain: {
@@ -2479,6 +2618,17 @@ type ContractBase = Omit<
                 readonly to: {
                   readonly namespace: "public" & NamespaceId;
                   readonly model: "CodexProgression";
+                };
+                readonly cardinality: "1:N";
+                readonly on: {
+                  readonly localFields: readonly ["id"];
+                  readonly targetFields: readonly ["entryId"];
+                };
+              };
+              readonly scenePins: {
+                readonly to: {
+                  readonly namespace: "public" & NamespaceId;
+                  readonly model: "SceneCodexPin";
                 };
                 readonly cardinality: "1:N";
                 readonly on: {
@@ -3032,6 +3182,17 @@ type ContractBase = Omit<
                   readonly targetFields: readonly ["id"];
                 };
               };
+              readonly codexPins: {
+                readonly to: {
+                  readonly namespace: "public" & NamespaceId;
+                  readonly model: "SceneCodexPin";
+                };
+                readonly cardinality: "1:N";
+                readonly on: {
+                  readonly localFields: readonly ["id"];
+                  readonly targetFields: readonly ["sceneId"];
+                };
+              };
               readonly codexProgressions: {
                 readonly to: {
                   readonly namespace: "public" & NamespaceId;
@@ -3063,6 +3224,84 @@ type ContractBase = Omit<
                 readonly updatedAt: { readonly column: "updated_at" };
                 readonly deletedAt: { readonly column: "deleted_at" };
                 readonly chapterId: { readonly column: "chapter_id" };
+              };
+            };
+          };
+          readonly SceneCodexPin: {
+            readonly fields: {
+              readonly id: {
+                readonly nullable: false;
+                readonly type: { readonly kind: "scalar"; readonly codecId: "pg/text@1" };
+              };
+              readonly createdAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: "scalar";
+                  readonly codecId: "pg/timestamp-temporal@1";
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+              readonly updatedAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: "scalar";
+                  readonly codecId: "pg/timestamp-temporal@1";
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+              readonly deletedAt: {
+                readonly nullable: true;
+                readonly type: {
+                  readonly kind: "scalar";
+                  readonly codecId: "pg/timestamp-temporal@1";
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+              readonly sceneId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: "scalar"; readonly codecId: "pg/text@1" };
+              };
+              readonly entryId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: "scalar"; readonly codecId: "pg/text@1" };
+              };
+            };
+            readonly relations: {
+              readonly entry: {
+                readonly to: {
+                  readonly namespace: "public" & NamespaceId;
+                  readonly model: "CodexEntry";
+                };
+                readonly cardinality: "N:1";
+                readonly nullable: false;
+                readonly on: {
+                  readonly localFields: readonly ["entryId"];
+                  readonly targetFields: readonly ["id"];
+                };
+              };
+              readonly scene: {
+                readonly to: {
+                  readonly namespace: "public" & NamespaceId;
+                  readonly model: "Scene";
+                };
+                readonly cardinality: "N:1";
+                readonly nullable: false;
+                readonly on: {
+                  readonly localFields: readonly ["sceneId"];
+                  readonly targetFields: readonly ["id"];
+                };
+              };
+            };
+            readonly storage: {
+              readonly table: "scene_codex_pins";
+              readonly namespaceId: "public";
+              readonly fields: {
+                readonly id: { readonly column: "id" };
+                readonly createdAt: { readonly column: "created_at" };
+                readonly updatedAt: { readonly column: "updated_at" };
+                readonly deletedAt: { readonly column: "deleted_at" };
+                readonly sceneId: { readonly column: "scene_id" };
+                readonly entryId: { readonly column: "entry_id" };
               };
             };
           };
