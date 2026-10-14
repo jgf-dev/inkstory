@@ -17,7 +17,7 @@ Commands: `bun run dev`, `bun run test`, `bun run test:e2e`, `bun run db:update`
 
 Progressions (STO-1153) resolve descriptions with Act→Chapter→Scene order (`ADDITION` / `REPLACEMENT`) via `resolveCodexEntryAtScene`. Relation CRUD is on the API; graph expansion (STO-1154) ships on `main` as the pure `RelationEngine` (`src/lib/codex/relation-engine.ts`) — BFS, cycle detection, depth limit (default 2), dedupe — with no dedicated HTTP endpoint.
 
-Context assembly (STO-1170) is the pure `assembleContext` in `src/lib/codex/context-assembler.ts`: it takes pre-loaded entries, relations, progressions, and scene reading order, seeds from manual attachments → `ALWAYS` entries → detected mentions, expands relations (default depth 2), ranks/truncates (default 40), then applies progressions at the current scene. DB loading and the inspection API are STO-1171.
+Context assembly (STO-1170) is the pure `assembleContext` in `src/lib/codex/context-assembler.ts`: it takes pre-loaded entries, relations, progressions, and scene reading order, seeds from manual attachments → `ALWAYS` entries → detected mentions, expands relations (default depth 2), ranks/truncates (default 40), then applies progressions at the current scene. DB loading lives in `assembleCodexContextForScene` (`src/lib/codex/service.ts`), and `POST /api/context/assemble` returns the full `AssembledContext` for inspection (STO-1171); generation flows and Prompt Preview should call the same service function.
 
 <!-- INSFORGE:START -->
 
