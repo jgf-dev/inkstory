@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { Outliner } from "../src/app/dashboard/novels/[id]/_components/Outliner";
 import { SceneEditor } from "../src/app/dashboard/novels/[id]/_components/SceneEditor";
 import { MentionsPanel } from "../src/app/dashboard/novels/[id]/_components/MentionsPanel";
+import { AiAssistantDrawer } from "../src/app/dashboard/novels/[id]/_components/AiAssistantDrawer";
 import { WritingWorkspace } from "../src/app/dashboard/novels/[id]/_components/WritingWorkspace";
 import type { NovelOutline } from "../src/lib/writing/service";
 import type { MentionDetectionResult } from "../src/lib/codex/mention-detection";
@@ -208,6 +209,22 @@ describe("Writing Surface UI (launch phase 3)", { timeout: 20_000 }, () => {
     });
   });
 
+  describe("Drawers", () => {
+    it("AiAssistantDrawer renders mode tabs and generate button", () => {
+      const html = renderToStaticMarkup(
+        React.createElement(AiAssistantDrawer, {
+          sceneId: "scene-1",
+          content: "prose",
+          onClose: () => {},
+          onInsertText: () => {},
+        }),
+      );
+      expect(html).toContain("Continue scene");
+      expect(html).toContain("Expand beat");
+      expect(html).toContain("Generate");
+    });
+  });
+
   describe("Novel workspace page (server component)", () => {
     it("redirects to /login when unauthenticated", async () => {
       mockGetUser.mockResolvedValueOnce({ data: { user: null } });
@@ -230,6 +247,8 @@ describe("Writing Surface UI (launch phase 3)", { timeout: 20_000 }, () => {
       expect(mockSyncAuthUser).toHaveBeenCalled();
       expect(html).toContain('data-testid="writing-workspace"');
       expect(html).toContain("Storm Tide");
+      expect(html).toContain("AI Assistant");
+      expect(html).toContain("AI Assistant");
       expect(mockGetNovelOutline).toHaveBeenCalledWith("user-1", "novel-1");
     });
 
@@ -260,6 +279,7 @@ describe("Writing Surface UI (launch phase 3)", { timeout: 20_000 }, () => {
       expect(html).toContain('data-testid="outliner"');
       expect(html).toContain('data-testid="mentions-panel"');
       expect(html).toContain("No scene selected");
+      expect(html).toContain("AI Assistant");
     });
   });
 });

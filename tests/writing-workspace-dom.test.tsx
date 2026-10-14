@@ -3,6 +3,7 @@ import React from "react";
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { WritingWorkspace } from "../src/app/dashboard/novels/[id]/_components/WritingWorkspace";
+import { AiAssistantDrawer } from "../src/app/dashboard/novels/[id]/_components/AiAssistantDrawer";
 import type { NovelOutline } from "../src/lib/writing/service";
 
 vi.mock("next/link", () => ({
@@ -82,7 +83,7 @@ afterEach(() => {
 });
 
 describe("WritingWorkspace", () => {
-  it("loads the initial scene, scans mentions", async () => {
+  it("loads the initial scene, scans mentions and toggles the AI drawer", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     const fetchMock = routeFetch((url) => {
       if (url === "/api/scenes/scene-1") return { status: 200, body: { scene: makeScene() } };
@@ -98,6 +99,13 @@ describe("WritingWorkspace", () => {
       await vi.advanceTimersByTimeAsync(1300);
     });
     expect(fetchMock.mock.calls.some((c) => c[0] === "/api/codex/mentions")).toBe(true);
+
+    fireEvent.click(screen.getByText("AI Assistant", { selector: "button" }));
+    expect(screen.getByTestId("ai-assistant-drawer")).toBeTruthy();
+    fireEvent.click(screen.getByLabelText("Close AI assistant drawer"));
+    expect(screen.queryByTestId("ai-assistant-drawer")).toBeNull();
+    fireEvent.click(screen.getByText("AI Assistant", { selector: "button" }));
+    fireEvent.click(screen.getByText("AI Assistant", { selector: "button" }));
   });
 
   it("scans empty prose locally and clears detection on scan errors", async () => {
@@ -246,7 +254,7 @@ describe("WritingWorkspace", () => {
     expect(await screen.findByText("Failed to create node")).toBeTruthy();
   });
 
-  it("rolls saved word counts into the outline", async () => {
+  it("rolls saved word counts into the outline and appends AI text", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     routeFetch((url, init) => {
       if (url === "/api/scenes/scene-1" && init.method === "GET")
@@ -256,6 +264,8 @@ describe("WritingWorkspace", () => {
           status: 200,
           body: { scene: { ...makeScene(), title: "Dockside", wordCount: 100 } },
         };
+      if (url === "/api/ai/generate")
+        return { status: 200, body: { text: "The tide turned.", model: "m1" } };
       return { status: 200, body: { matchedEntryIds: [], matches: [] } };
     });
     render(
@@ -267,5 +277,89 @@ describe("WritingWorkspace", () => {
       await vi.advanceTimersByTimeAsync(900);
     });
     await waitFor(() => expect(screen.getByText(/104 words/)).toBeTruthy());
+
+    fireEvent.click(screen.getByText("AI Assistant", { selector: "button" }));
+    fireEvent.click(screen.getByText("Generate"));
+    await screen.findByTestId("ai-result");
+    fireEvent.click(screen.getByText("Append to scene"));
+    expect((screen.getByLabelText("Scene text") as HTMLTextAreaElement).value).toContain(
+      "The tide turned.",
+    );
+  });
+});
+
+describe("AiAssistantDrawer", () => {
+  function setup() {
+    const props = { sceneId: "scene-1", content: "", onClose: vi.fn(), onInsertText: vi.fn() };
+    render(React.createElement(AiAssistantDrawer, props));
+    return props;
+  }
+
+  it("generates, copies and inserts text", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal("navigator", { clipboard: { writeText } });
+    const fetchMock = routeFetch(() => ({ status: 200, body: { text: "Out", model: "m" } }));
+    const p = setup();
+    fireEvent.click(screen.getByText("Expand beat"));
+    expect(screen.getByText("Beat to expand")).toBeTruthy();
+    fireEvent.change(screen.getByPlaceholderText(/Mara confronts/), { target: { value: "beat" } });
+    fireEvent.click(screen.getByText("Generate"));
+    await screen.findByTestId("ai-result");
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({
+      sceneId: "scene-1",
+      mode: "beat_expansion",
+      beatText: "beat",
+    });
+    fireEvent.click(screen.getByText("Copy"));
+    expect(await screen.findByText("Copied")).toBeTruthy();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1600);
+    });
+    expect(screen.getByText("Copy")).toBeTruthy();
+    fireEvent.click(screen.getByText("Append to scene"));
+    expect(p.onInsertText).toHaveBeenCalledWith("Out");
+    fireEvent.click(screen.getByText("Continue scene"));
+    expect(screen.getByText("Beat hint (optional)")).toBeTruthy();
+  });
+
+  it("falls back to the prompt builder when AI is not configured", async () => {
+    vi.stubGlobal("navigator", {
+      clipboard: { writeText: vi.fn().mockRejectedValue(new Error("denied")) },
+    });
+    routeFetch(() => ({
+      status: 503,
+      body: {
+        error: "AI not configured",
+        code: "AI_NOT_CONFIGURED",
+        prompt: { system: "SYS", user: "USR" },
+      },
+    }));
+    setup();
+    fireEvent.click(screen.getByText("Generate"));
+    await screen.findByTestId("ai-not-configured");
+    expect(screen.getByText("SYS")).toBeTruthy();
+    fireEvent.click(screen.getAllByText("Copy")[0]);
+    expect(await screen.findByText(/Copy failed/)).toBeTruthy();
+  });
+
+  it("handles prompt-less 503s, other API errors and unknown failures", async () => {
+    routeFetch(() => ({ status: 503, body: { error: "AI off", code: "AI_NOT_CONFIGURED" } }));
+    const p = setup();
+    fireEvent.click(screen.getByText("Generate"));
+    await screen.findByTestId("ai-not-configured");
+
+    routeFetch(() => ({ status: 429, body: { error: "Rate limited" } }));
+    fireEvent.click(screen.getByText("Generate"));
+    expect(await screen.findByText("Rate limited")).toBeTruthy();
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({ ok: true, status: 200, text: async () => "null" }),
+    );
+    fireEvent.click(screen.getByText("Generate"));
+    expect(await screen.findByText("Generation failed")).toBeTruthy();
+    fireEvent.click(screen.getByLabelText("Close AI assistant drawer"));
+    expect(p.onClose).toHaveBeenCalled();
   });
 });
