@@ -1,5 +1,5 @@
 /**
- * Subscription state sync (STO-1180): the single write path that mirrors
+ * Subscription state sync (STO-1210): the single write path that mirrors
  * Stripe subscription state onto User rows, plus webhook event-id logging for
  * idempotent processing.
  *

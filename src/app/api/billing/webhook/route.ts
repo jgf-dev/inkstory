@@ -46,7 +46,7 @@ function subscriptionToSnapshot(sub: Stripe.Subscription): SubscriptionSnapshot 
 /**
  * POST /api/billing/webhook
  *
- * Stripe webhook receiver (STO-1180). Verifies signatures against
+ * Stripe webhook receiver (STO-1210). Verifies signatures against
  * `STRIPE_WEBHOOK_SECRET`, deduplicates by event id (processed events are
  * logged in `stripe_webhook_events`), and syncs subscription state:
  *

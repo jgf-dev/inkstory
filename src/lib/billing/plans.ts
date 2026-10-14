@@ -1,5 +1,5 @@
 /**
- * Subscription plan definitions (STO-1180).
+ * Subscription plan definitions (STO-1210).
  *
  * Tiers per the launch plan: Free (1 book, 30 entries), Author Pro ($15/mo or
  * $144/yr), Studio ($35/mo). Limits here are the single source of truth for
