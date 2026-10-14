@@ -11,6 +11,7 @@ description: >-
   Triggers on "prisma composer", "@prisma/composer", "prisma app", the
   `prisma-composer` CLI, `compute()`, `module()`, `contract()`,
   `service.load()`, `mockService`, `bootstrapService`.
+group: smart.database
 ---
 
 # Prisma Composer core concepts

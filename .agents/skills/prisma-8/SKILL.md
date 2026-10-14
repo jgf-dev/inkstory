@@ -18,6 +18,7 @@ description: >-
 metadata:
   library: "@prisma/orm-postgres"
   library_version: "8.0.0-rc.9"
+group: smart.database
 ---
 
 # Prisma Next (Prisma 8)

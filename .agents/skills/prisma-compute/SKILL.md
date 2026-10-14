@@ -5,6 +5,7 @@ license: MIT
 metadata:
   author: prisma
   version: "1.5.1"
+group: smart.devops
 ---
 
 # Prisma Compute

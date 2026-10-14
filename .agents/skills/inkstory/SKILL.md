@@ -1,6 +1,7 @@
 ---
 name: inkstory-conventions
 description: Development conventions and patterns for inkstory. TypeScript Next.js project with mixed commits.
+group: smart.frontend
 ---
 
 # Inkstory Conventions
