@@ -163,8 +163,10 @@ export function CodexEditor({
       setError(res.error || "Failed to refresh entry");
       return;
     }
-    applyEntry(res.data as Record<string, any>);
-  }, [entryId, applyEntry]);
+    // Only refresh sub-entity collections (aliases, tags, relations,
+    // progressions); keep uncommitted edits in the main form intact.
+    setEntry(res.data as Record<string, any>);
+  }, [entryId]);
 
   useEffect(() => {
     let active = true;
