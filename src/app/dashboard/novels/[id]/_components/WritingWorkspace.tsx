@@ -309,6 +309,7 @@ export function WritingWorkspace({
           <aside className="border-ink-200 w-80 shrink-0 overflow-hidden border-l bg-white">
             {rightDrawer === "ai" && (
               <AiAssistantDrawer
+                key={scene.id}
                 sceneId={scene.id}
                 content={prose}
                 onClose={() => setRightDrawer(null)}
