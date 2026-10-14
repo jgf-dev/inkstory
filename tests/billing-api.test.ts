@@ -123,6 +123,20 @@ describe("billing routes", { timeout: 20_000 }, () => {
       expect((await res.json()).code).toBe("VALIDATION_FAILED");
     });
 
+    it("returns 400 when Studio is requested with annual billing", async () => {
+      const res = await checkout(
+        new NextRequest("http://localhost:3000/api/billing/checkout", {
+          method: "POST",
+          body: JSON.stringify({ plan: "STUDIO", interval: "annual" }),
+        }),
+      );
+      expect(res.status).toBe(400);
+      const body = await res.json();
+      expect(body.code).toBe("VALIDATION_FAILED");
+      expect(body.error).toMatch(/monthly/i);
+      expect(createCheckoutSession).not.toHaveBeenCalled();
+    });
+
     it("returns 503 when Stripe is not configured", async () => {
       mockStripeConfigured.mockReturnValueOnce(false);
       const res = await checkout(
@@ -164,8 +178,8 @@ describe("billing routes", { timeout: 20_000 }, () => {
           line_items: [{ price: "price_pro_annual", quantity: 1 }],
           customer_email: `billing-${runId}@inkstory.local`,
           client_reference_id: userId,
-          success_url: "http://localhost:3000/dashboard/billing?status=success",
-          cancel_url: "http://localhost:3000/dashboard/billing?status=cancelled",
+          success_url: "http://localhost:3000/dashboard?billing=success",
+          cancel_url: "http://localhost:3000/dashboard?billing=cancelled",
         }),
       );
     });
@@ -229,7 +243,7 @@ describe("billing routes", { timeout: 20_000 }, () => {
       expect(createPortalSession).toHaveBeenCalledWith(
         expect.objectContaining({
           customer: "cus_portal",
-          return_url: "http://localhost:3000/dashboard/billing",
+          return_url: "http://localhost:3000/dashboard",
         }),
       );
     });

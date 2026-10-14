@@ -59,7 +59,7 @@ function priceDisplay(tier: Exclude<PlanTier, "FREE"> | "FREE", annual: boolean)
   }
   const pricing = PLAN_PRICING[tier as Exclude<PlanTier, "FREE">];
   if (annual && pricing.annual) {
-    return `$${Math.round(pricing.annual / 12)}`;
+    return `$${Math.round(pricing.annual / 12) / 100}`;
   }
   return `$${pricing.monthly / 100}`;
 }

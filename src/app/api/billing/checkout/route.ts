@@ -15,6 +15,10 @@ function priceIdFor(plan: "PRO" | "STUDIO", interval: "monthly" | "annual"): str
       ? process.env.STRIPE_PRICE_PRO_ANNUAL
       : process.env.STRIPE_PRICE_PRO_MONTHLY;
   }
+  // Studio has monthly only — annual is rejected upstream with VALIDATION_FAILED.
+  if (interval === "annual") {
+    return undefined;
+  }
   return process.env.STRIPE_PRICE_STUDIO_MONTHLY;
 }
 
@@ -51,6 +55,16 @@ export async function POST(request: NextRequest) {
       );
     }
     const interval = body.interval === "annual" ? "annual" : "monthly";
+
+    if (body.plan === "STUDIO" && interval === "annual") {
+      return Response.json(
+        {
+          error: "Studio plan is only available with monthly billing",
+          code: "VALIDATION_FAILED",
+        },
+        { status: 400 },
+      );
+    }
 
     if (!isStripeConfigured()) {
       return Response.json(
@@ -100,8 +114,8 @@ export async function POST(request: NextRequest) {
       // Copied onto the subscription so webhook events can resolve the user
       // even for first-time customers.
       subscription_data: { metadata: { userId: user.id } },
-      success_url: `${appBaseUrl()}/dashboard/billing?status=success`,
-      cancel_url: `${appBaseUrl()}/dashboard/billing?status=cancelled`,
+      success_url: `${appBaseUrl()}/dashboard?billing=success`,
+      cancel_url: `${appBaseUrl()}/dashboard?billing=cancelled`,
     });
 
     return Response.json({ checkoutUrl: session.url });
