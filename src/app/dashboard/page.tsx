@@ -1,3 +1,4 @@
+import type { Route } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -105,7 +106,7 @@ export default async function DashboardPage() {
               (novel: { id: string; title: string; subtitle: string | null }) => (
                 <li key={novel.id}>
                   <Link
-                    href={`/dashboard/novels/${novel.id}`}
+                    href={`/dashboard/novels/${novel.id}` as Route}
                     className="border-ink-200 hover:border-ink-300 hover:bg-ink-50 flex items-center justify-between rounded-lg border px-4 py-3 transition-colors"
                   >
                     <span>

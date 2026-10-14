@@ -1,4 +1,5 @@
 "use client";
+import type { Route } from "next";
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -250,7 +251,7 @@ export function OnboardingWizard({ hasNovels, series }: OnboardingWizardProps) {
             <div className="mt-5 flex flex-col gap-2">
               {createdNovelId ? (
                 <Link
-                  href={`/dashboard/novels/${createdNovelId}`}
+                  href={`/dashboard/novels/${createdNovelId}` as Route}
                   className="rounded-md bg-ink-800 px-4 py-2 text-center text-sm font-medium text-ink-50 hover:bg-ink-900"
                 >
                   Open the writing desk →
