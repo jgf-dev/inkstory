@@ -88,3 +88,28 @@ export async function recordStripeEventProcessed(eventId: string, type: string):
     update: {},
   });
 }
+
+/**
+ * Claims a webhook event for processing by inserting its StripeWebhookEvent
+ * row first. The unique `eventId` makes the insert the idempotency gate:
+ * returns `false` when the event was already claimed (duplicate delivery or a
+ * concurrent retry), `true` when this request owns processing.
+ */
+export async function claimStripeEvent(eventId: string, type: string): Promise<boolean> {
+  try {
+    await db.orm.public.StripeWebhookEvent.create({ id: crypto.randomUUID(), eventId, type });
+    return true;
+  } catch (err) {
+    // Unique-key conflict on eventId: another delivery already claimed it.
+    // Any other failure (no row present afterwards) is a real error.
+    if (await isStripeEventProcessed(eventId)) {
+      return false;
+    }
+    throw err;
+  }
+}
+
+/** Releases a claim after a processing failure so Stripe's retry is processed. */
+export async function releaseStripeEvent(eventId: string): Promise<void> {
+  await db.orm.public.StripeWebhookEvent.where({ eventId }).delete();
+}

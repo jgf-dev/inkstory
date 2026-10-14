@@ -5,8 +5,8 @@ import { getStripe, isWebhookConfigured } from "@/lib/stripe";
 import {
   applySubscriptionToUser,
   downgradeToFree,
-  isStripeEventProcessed,
-  recordStripeEventProcessed,
+  claimStripeEvent,
+  releaseStripeEvent,
   type SubscriptionSnapshot,
 } from "@/lib/billing/subscription-sync";
 import { tierForPriceId } from "@/lib/billing/plans";
@@ -82,7 +82,16 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: "Invalid webhook signature" }, { status: 400 });
   }
 
-  if (await isStripeEventProcessed(event.id)) {
+  // Idempotency: insert the StripeWebhookEvent row FIRST. A unique-key
+  // conflict on eventId means this event was already handled (or is being
+  // handled), so acknowledge with 200 without re-processing.
+  let claimed: boolean;
+  try {
+    claimed = await claimStripeEvent(event.id, event.type);
+  } catch {
+    return Response.json({ error: "Internal server error" }, { status: 500 });
+  }
+  if (!claimed) {
     return Response.json({ received: true, duplicate: true });
   }
 
@@ -139,9 +148,10 @@ export async function POST(request: NextRequest) {
         break;
     }
 
-    await recordStripeEventProcessed(event.id, event.type);
     return Response.json({ received: true });
   } catch {
+    // Release the claim so Stripe's retry of this event is processed.
+    await releaseStripeEvent(event.id).catch(() => undefined);
     // Processing failed: do NOT record the event so Stripe's retry can replay it.
     return Response.json({ error: "Internal server error" }, { status: 500 });
   }

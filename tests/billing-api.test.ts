@@ -4,6 +4,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vite-
 import { POST as checkout } from "../src/app/api/billing/checkout/route";
 import { POST as portal } from "../src/app/api/billing/portal/route";
 import { POST as webhook } from "../src/app/api/billing/webhook/route";
+import * as subscriptionSync from "../src/lib/billing/subscription-sync";
 import { recordStripeEventProcessed } from "../src/lib/billing/subscription-sync";
 import { db } from "../src/lib/prisma";
 
@@ -358,6 +359,48 @@ describe("billing routes", { timeout: 20_000 }, () => {
       retrieveSubscription.mockResolvedValueOnce(subscriptionFixture());
       const retry = await webhookRequest({});
       expect((await retry.json()).duplicate).toBeUndefined();
+    });
+
+    it("acks a duplicate delivery of the same event with 200 without re-processing", async () => {
+      const event = {
+        id: `evt_double_${runId}`,
+        type: "customer.subscription.updated",
+        data: {
+          object: subscriptionFixture({
+            items: { data: [{ price: { id: "price_pro_monthly" } }] },
+            metadata: { userId },
+          }),
+        },
+      };
+      constructEventAsync.mockResolvedValueOnce(event).mockResolvedValueOnce(event);
+      const syncSpy = vi.spyOn(subscriptionSync, "applySubscriptionToUser");
+
+      const first = await webhookRequest({});
+      expect(first.status).toBe(200);
+      expect((await first.json()).duplicate).toBeUndefined();
+      expect(syncSpy).toHaveBeenCalledTimes(1);
+
+      const second = await webhookRequest({});
+      expect(second.status).toBe(200);
+      expect((await second.json()).duplicate).toBe(true);
+      expect(syncSpy).toHaveBeenCalledTimes(1);
+
+      const rows = await db.orm.public.StripeWebhookEvent.where({ eventId: event.id }).all();
+      expect(rows).toHaveLength(1);
+      syncSpy.mockRestore();
+    });
+
+    it("returns 500 when the event cannot be claimed", async () => {
+      constructEventAsync.mockResolvedValueOnce({
+        id: `evt_claim_fail_${runId}`,
+        type: "invoice.paid",
+        data: { object: {} },
+      });
+      const claimSpy = vi
+        .spyOn(subscriptionSync, "claimStripeEvent")
+        .mockRejectedValueOnce(new Error("db down"));
+      expect((await webhookRequest({})).status).toBe(500);
+      claimSpy.mockRestore();
     });
 
     it("records processed events for idempotency", async () => {
