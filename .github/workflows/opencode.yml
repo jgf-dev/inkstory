@@ -26,8 +26,8 @@ jobs:
           persist-credentials: false
 
       - name: Run opencode
-        uses: anomalyco/opencode/github@803d9eb7ad5f4dfd832d7506a7cad83ded52253e # v1.4.9
+        uses: anomalyco/opencode/github@latest
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         with:
-          model: openrouter/qwen/qwen3.8-flash
+          model: openrouter/meta/muse-spark-1.3-contributor
