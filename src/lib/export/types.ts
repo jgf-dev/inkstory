@@ -60,7 +60,7 @@ export interface ExportNovel {
 export class ExportError extends Error {
   constructor(
     message: string,
-    public readonly code: "NOT_FOUND" | "FORBIDDEN" | "VALIDATION_FAILED",
+    public readonly code: "NOT_FOUND" | "VALIDATION_FAILED",
     public readonly status: number,
   ) {
     super(message);

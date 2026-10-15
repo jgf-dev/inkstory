@@ -376,12 +376,24 @@ describe("export service + route (database)", { timeout: 20_000 }, () => {
     expect(String.fromCharCode(bytes[0], bytes[1])).toBe("PK");
   });
 
-  it("returns 401, 400, 403 and 404", async () => {
+  it("returns 401 and 400", async () => {
     mockGetUser.mockResolvedValueOnce({ data: { user: null } });
     expect((await call(novelId)).status).toBe(401);
     expect((await call(novelId, "?format=pdf")).status).toBe(400);
+  });
+
+  it("returns 404 (not 403) for another user's book", async () => {
     mockGetUser.mockResolvedValueOnce({ data: { user: { id: otherUserId } } });
-    expect((await call(novelId)).status).toBe(403);
+    const res = await call(novelId);
+    expect(res.status).toBe(404);
+    expect(await res.json()).toEqual({ error: "Novel not found", code: "NOT_FOUND" });
+    await expect(exportNovel(otherUserId, novelId, base)).rejects.toMatchObject({
+      status: 404,
+      code: "NOT_FOUND",
+    });
+  });
+
+  it("returns 404 for a deleted or missing book", async () => {
     expect((await call(deletedNovelId)).status).toBe(404);
     expect((await call(`missing-${runId}`)).status).toBe(404);
   });

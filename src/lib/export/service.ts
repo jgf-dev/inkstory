@@ -9,11 +9,9 @@ const byPosition = <T extends { position: number }>(a: T, b: T) => a.position - 
 /** Loads the non-deleted act → chapter → scene tree for a novel the user owns. */
 export async function loadNovelForExport(userId: string, novelId: string): Promise<ExportNovel> {
   const novel = await db.orm.public.Novel.where({ id: novelId }).first();
-  if (!novel || novel.deletedAt !== null) {
+  // Another user's novel is reported as missing so its existence is not revealed.
+  if (!novel || novel.deletedAt !== null || novel.ownerId !== userId) {
     throw new ExportError("Novel not found", "NOT_FOUND", 404);
-  }
-  if (novel.ownerId !== userId) {
-    throw new ExportError("You do not have permission to export this novel", "FORBIDDEN", 403);
   }
 
   const acts = await db.orm.public.Act.where((a) => a.novelId.eq(novelId))

@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
  *
  * Optional: content=prose|summary|both, actTitles, chapterTitles, sceneTitles,
  * subtitles (true|false), actIds, chapterIds, sceneIds (comma-separated).
- * Returns the manuscript as a file download. Read-only; owner only.
+ * Returns the manuscript as a file download. Read-only; owner only (other users get 404).
  */
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
