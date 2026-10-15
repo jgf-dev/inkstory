@@ -33,6 +33,7 @@
     "pg": "8.23.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",
+    "stripe": "^23.0.0",
     "temporal-polyfill": "1.0.4"
   },
   "devDependencies": {

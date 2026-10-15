@@ -11,6 +11,15 @@ namespace public {
     updatedAt    Timestamp(3)       @map("updated_at")
     deletedAt    Timestamp(3)?      @map("deleted_at")
 
+    // Stripe billing (STO-1180). planTier is the source of truth for
+    // entitlements; stripe* fields mirror the Stripe customer/subscription so
+    // webhooks can match rows and the billing portal can look up the customer.
+    stripeCustomerId     String?             @unique @map("stripe_customer_id")
+    stripeSubscriptionId String?             @unique @map("stripe_subscription_id")
+    planTier             pg.enum(PlanTier)   @default("FREE") @map("plan_tier")
+    subscriptionStatus   String?             @map("subscription_status")
+    currentPeriodEnd     Timestamp(3)?       @map("current_period_end")
+
     series       Series[]
     novels       Novel[]
     codexEntries CodexEntry[]
@@ -18,6 +27,17 @@ namespace public {
     @@index([deletedAt], map: "users_deleted_at_idx")
     @@index([email], map: "users_email_key", unique: true)
     @@map("users")
+  }
+
+  model StripeWebhookEvent {
+    id        String      @id(map: "stripe_webhook_events_pkey")
+    // Stripe event object id (evt_...); unique for idempotent processing.
+    eventId   String      @unique @map("event_id")
+    type      String
+    payload   Jsonb?      @map("payload")
+    createdAt Timestamp(3) @default(now()) @map("created_at")
+
+    @@map("stripe_webhook_events")
   }
 
   model Series {
@@ -243,6 +263,12 @@ namespace public {
     FACTION = "FACTION"
     CONCEPT = "CONCEPT"
     OTHER = "OTHER"
+  }
+
+  native_enum PlanTier {
+    FREE = "FREE"
+    PRO = "PRO"
+    STUDIO = "STUDIO"
   }
 
   native_enum Pov {
