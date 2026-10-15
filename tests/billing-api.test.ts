@@ -344,6 +344,66 @@ describe("billing routes", { timeout: 20_000 }, () => {
       expect(user?.subscriptionStatus).toBeNull();
     });
 
+    function stubEventLog() {
+      return [
+        vi.spyOn(subscriptionSync, "claimStripeEvent").mockResolvedValue("claimed"),
+        vi.spyOn(subscriptionSync, "markStripeEventProcessed").mockResolvedValue(undefined),
+      ];
+    }
+
+    it("reads current_period_end from the subscription item (stripe v23)", async () => {
+      const stubs = stubEventLog();
+      const syncSpy = vi
+        .spyOn(subscriptionSync, "applySubscriptionToUser")
+        .mockResolvedValue(undefined as never);
+      constructEventAsync.mockResolvedValueOnce({
+        id: `evt_item_period_${runId}`,
+        type: "customer.subscription.updated",
+        data: {
+          object: subscriptionFixture({
+            current_period_end: undefined,
+            items: {
+              data: [{ price: { id: "price_pro_monthly" }, current_period_end: 1_900_000_000 }],
+            },
+            metadata: { userId },
+          }),
+        },
+      });
+
+      expect((await webhookRequest({})).status).toBe(200);
+      const snapshot = syncSpy.mock.calls[0]?.[1];
+      expect(snapshot?.currentPeriodEnd?.toString()).toBe(
+        Temporal.Instant.fromEpochMilliseconds(1_900_000_000_000)
+          .toZonedDateTimeISO("UTC")
+          .toPlainDateTime()
+          .toString(),
+      );
+      syncSpy.mockRestore();
+      for (const stub of stubs) stub.mockRestore();
+    });
+
+    for (const status of ["unpaid", "incomplete_expired", "canceled"]) {
+      it(`downgrades to Free on customer.subscription.updated with status ${status}`, async () => {
+        const stubs = stubEventLog();
+        const downgradeSpy = vi
+          .spyOn(subscriptionSync, "downgradeToFree")
+          .mockResolvedValue(undefined as never);
+        const syncSpy = vi.spyOn(subscriptionSync, "applySubscriptionToUser");
+        constructEventAsync.mockResolvedValueOnce({
+          id: `evt_lapsed_${status}_${runId}`,
+          type: "customer.subscription.updated",
+          data: { object: subscriptionFixture({ status, metadata: { userId } }) },
+        });
+
+        expect((await webhookRequest({})).status).toBe(200);
+        expect(downgradeSpy).toHaveBeenCalledWith("cus_123");
+        expect(syncSpy).not.toHaveBeenCalled();
+        downgradeSpy.mockRestore();
+        syncSpy.mockRestore();
+        for (const stub of stubs) stub.mockRestore();
+      });
+    }
+
     it("acks verified unhandled event types", async () => {
       constructEventAsync.mockResolvedValueOnce({
         id: `evt_other_${runId}`,

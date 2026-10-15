@@ -32,10 +32,18 @@ function epochSecondsToDateTime(seconds: number): Temporal.PlainDateTime {
     .toPlainDateTime();
 }
 
+/** Subscription statuses that mean the author no longer has a paid plan. */
+const LAPSED_STATUSES: ReadonlySet<string> = new Set(["canceled", "unpaid", "incomplete_expired"]);
+
 /** Maps a Stripe Subscription object onto our subscription snapshot. */
 function subscriptionToSnapshot(sub: Stripe.Subscription): SubscriptionSnapshot {
-  const priceId = sub.items.data[0]?.price?.id ?? null;
-  const periodEnd = (sub as unknown as { current_period_end?: number | null }).current_period_end;
+  const item = sub.items.data[0];
+  const priceId = item?.price?.id ?? null;
+  // Stripe API 2025-03-31+ (stripe v18+) moved `current_period_end` onto the
+  // subscription item; fall back to the legacy top-level field.
+  const periodEnd =
+    (item as unknown as { current_period_end?: number | null } | undefined)?.current_period_end ??
+    (sub as unknown as { current_period_end?: number | null }).current_period_end;
   return {
     stripeCustomerId: customerIdOf(sub.customer) ?? "",
     stripeSubscriptionId: sub.id,
@@ -54,7 +62,8 @@ function subscriptionToSnapshot(sub: Stripe.Subscription): SubscriptionSnapshot 
  *
  * - `checkout.session.completed` — resolves the subscription and applies it.
  * - `customer.subscription.updated` — applies tier/status/period end.
- * - `customer.subscription.deleted` (or `canceled` status) — downgrades to Free.
+ * - `customer.subscription.deleted` (or a lapsed status: `canceled`, `unpaid`,
+ *   `incomplete_expired`) — downgrades to Free.
  *
  * Answers 200 for processed (or already-processed) events, 409 while another
  * delivery of the same event is still in flight, 500 on processing failures
@@ -138,7 +147,8 @@ export async function POST(request: NextRequest) {
         const customerId = customerIdOf(subscription.customer);
         if (customerId) {
           const canceled =
-            event.type === "customer.subscription.deleted" || subscription.status === "canceled";
+            event.type === "customer.subscription.deleted" ||
+            LAPSED_STATUSES.has(subscription.status);
           const userIdHint = (subscription.metadata?.userId as string | undefined) ?? null;
           if (canceled) {
             await downgradeToFree(customerId);
