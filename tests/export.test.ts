@@ -184,6 +184,12 @@ describe("renderMarkdown", () => {
     expect(md.split(SCENE_BREAK)).toHaveLength(2);
   });
 
+  it("does not put a scene break right under an act or chapter heading", () => {
+    const md = renderMarkdown(novel, { ...base, includeSceneTitles: false });
+    expect(md.split(SCENE_BREAK)).toHaveLength(2);
+    expect(md).not.toContain(`### Storm\n\n${SCENE_BREAK}`);
+  });
+
   it("round-trips through parseExportedMarkdown", () => {
     const parsed = parseExportedMarkdown(renderMarkdown(novel, { ...base, content: "both" }));
     expect(parsed.title).toBe("The Glass Tide");

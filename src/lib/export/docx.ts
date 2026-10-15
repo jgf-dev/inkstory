@@ -27,10 +27,12 @@ export async function renderDocx(novel: ExportNovel, options: RenderOptions): Pr
   for (const act of novel.acts) {
     if (options.includeActTitles) {
       children.push(new Paragraph({ text: act.title, heading: HeadingLevel.HEADING_1 }));
+      firstScene = true;
     }
     for (const chapter of act.chapters) {
       if (options.includeChapterTitles) {
         children.push(new Paragraph({ text: chapter.title, heading: HeadingLevel.HEADING_2 }));
+        firstScene = true;
       }
       for (const scene of chapter.scenes) {
         if (options.includeSceneTitles) {

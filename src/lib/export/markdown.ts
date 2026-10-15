@@ -30,9 +30,15 @@ export function renderMarkdown(novel: ExportNovel, options: RenderOptions): stri
 
   let firstScene = true;
   for (const act of novel.acts) {
-    if (options.includeActTitles) out.push(`## ${oneLine(act.title)}`);
+    if (options.includeActTitles) {
+      out.push(`## ${oneLine(act.title)}`);
+      firstScene = true;
+    }
     for (const chapter of act.chapters) {
-      if (options.includeChapterTitles) out.push(`### ${oneLine(chapter.title)}`);
+      if (options.includeChapterTitles) {
+        out.push(`### ${oneLine(chapter.title)}`);
+        firstScene = true;
+      }
       for (const scene of chapter.scenes) {
         if (options.includeSceneTitles) {
           out.push(`#### ${oneLine(scene.title)}`);
