@@ -1045,10 +1045,15 @@ export async function assembleCodexContextForScene(
   }
 
   const novelId = sceneContext.novelId;
-  const [entries, sceneOrderById] = await Promise.all([
+  const [entries, sceneOrderById, pins] = await Promise.all([
     listCodexEntriesForNovel(userId, novelId),
     loadNovelSceneReadingOrder(novelId),
+    loadActiveScenePins(userId, input.sceneId, sceneContext),
   ]);
+  const manualAttachmentIds =
+    pins.length > 0
+      ? Array.from(new Set([...(input.manualAttachmentIds ?? []), ...pins.map((p) => p.entryId)]))
+      : input.manualAttachmentIds;
 
   const entryIds = entries.map((entry) => entry.id);
   const [relations, progressions] =
@@ -1069,7 +1074,7 @@ export async function assembleCodexContextForScene(
       sceneId: input.sceneId,
       beatText: input.beatText,
       recentProse: input.recentProse,
-      manualAttachmentIds: input.manualAttachmentIds,
+      manualAttachmentIds,
       options: input.options,
     },
     {
@@ -1105,4 +1110,153 @@ export async function assembleCodexContextForScene(
       seriesId: sceneContext.seriesId,
     },
   );
+}
+
+// ─── Scene Codex Pins (STO-1208) ─────────────────────────────────────────────
+
+type CodexEntryRow = NonNullable<
+  Awaited<ReturnType<ReturnType<typeof db.orm.public.CodexEntry.where>["first"]>>
+>;
+
+/**
+ * True when a Codex entry is visible from a scene's novel: a book-scoped entry
+ * of the same novel, or a series-scoped entry of the novel's series.
+ */
+function isEntryInSceneScope(
+  entry: Pick<CodexEntryRow, "novelId" | "seriesId" | "seriesScoped">,
+  scope: { novelId: string; seriesId: string | null },
+): boolean {
+  if (entry.seriesScoped) {
+    return scope.seriesId !== null && entry.seriesId === scope.seriesId;
+  }
+  return entry.novelId === scope.novelId;
+}
+
+async function resolveOwnedScene(userId: string, sceneId: string) {
+  const sceneContext = await resolveSceneContext(sceneId);
+  if (sceneContext.ownerId !== userId) {
+    throw new CodexError("Unauthorized to access this scene", "FORBIDDEN", 403);
+  }
+  return sceneContext;
+}
+
+async function resolvePinnableEntry(
+  userId: string,
+  entryId: string,
+  scope: { novelId: string; seriesId: string | null },
+) {
+  const entry = await db.orm.public.CodexEntry.where({ id: entryId }).first();
+  if (!entry || entry.deletedAt !== null) {
+    throw new CodexError("Codex entry not found", "NOT_FOUND", 404);
+  }
+  if (entry.ownerId !== userId) {
+    throw new CodexError("Unauthorized to pin this codex entry", "FORBIDDEN", 403);
+  }
+  if (!isEntryInSceneScope(entry, scope)) {
+    throw new CodexError("Codex entry is not in this scene's book or series", "SCOPING_ERROR", 422);
+  }
+  return entry;
+}
+
+function findPin(sceneId: string, entryId: string) {
+  return db.orm.public.SceneCodexPin.where((p) => p.sceneId.eq(sceneId))
+    .where((p) => p.entryId.eq(entryId))
+    .first();
+}
+
+async function restorePin(pinId: string) {
+  const now = nowTimestamp();
+  await db.orm.public.SceneCodexPin.where({ id: pinId }).update({
+    deletedAt: null,
+    updatedAt: now,
+  });
+  const restored = await db.orm.public.SceneCodexPin.where({ id: pinId }).first();
+  if (!restored) {
+    throw new CodexError("Scene pin not found", "NOT_FOUND", 404);
+  }
+  return restored;
+}
+
+/**
+ * Pins a Codex entry to a scene so it is always included in that scene's
+ * assembled context. Idempotent: an existing (or soft-deleted) pin is restored.
+ */
+export async function pinCodexEntryToScene(userId: string, sceneId: string, entryId: string) {
+  const scope = await resolveOwnedScene(userId, sceneId);
+  await resolvePinnableEntry(userId, entryId, scope);
+
+  const existing = await findPin(sceneId, entryId);
+  if (existing) {
+    return existing.deletedAt === null ? existing : restorePin(existing.id);
+  }
+
+  const now = nowTimestamp();
+  try {
+    return await db.orm.public.SceneCodexPin.create({
+      id: crypto.randomUUID(),
+      sceneId,
+      entryId,
+      createdAt: now,
+      updatedAt: now,
+      deletedAt: null,
+    });
+  } catch (err) {
+    // Lost a race on the (sceneId, entryId) unique key: read back and restore.
+    const raced = await findPin(sceneId, entryId);
+    if (!raced) {
+      throw err;
+    }
+    return raced.deletedAt === null ? raced : restorePin(raced.id);
+  }
+}
+
+/**
+ * Soft-deletes a scene pin. Idempotent: unpinning an entry that is not pinned
+ * succeeds without changes.
+ */
+export async function unpinCodexEntryFromScene(userId: string, sceneId: string, entryId: string) {
+  await resolveOwnedScene(userId, sceneId);
+  const now = nowTimestamp();
+  await db.orm.public.SceneCodexPin.where((p) => p.sceneId.eq(sceneId))
+    .where((p) => p.entryId.eq(entryId))
+    .where((p) => p.deletedAt.isNull())
+    .update({ deletedAt: now, updatedAt: now });
+  return { success: true, sceneId, entryId };
+}
+
+/**
+ * Loads active pins for a scene whose entries are live and in the scene's
+ * book or series. Pins of soft-deleted entries are kept (not deleted) so that
+ * restoring the entry brings its pins back; they are filtered out here.
+ */
+async function loadActiveScenePins(
+  userId: string,
+  sceneId: string,
+  scope: { novelId: string; seriesId: string | null },
+) {
+  const pins = await db.orm.public.SceneCodexPin.where((p) => p.sceneId.eq(sceneId))
+    .where((p) => p.deletedAt.isNull())
+    .all();
+  if (pins.length === 0) {
+    return [];
+  }
+  const entries = await db.orm.public.CodexEntry.where((e) =>
+    e.id.in(pins.map((pin) => pin.entryId)),
+  )
+    .where((e) => e.ownerId.eq(userId))
+    .where((e) => e.deletedAt.isNull())
+    .all();
+  const liveEntryIds = new Set(
+    entries.filter((entry) => isEntryInSceneScope(entry, scope)).map((entry) => entry.id),
+  );
+  return pins.filter((pin) => liveEntryIds.has(pin.entryId));
+}
+
+/**
+ * Lists the active pins of a scene (deleted or out-of-scope entries excluded).
+ */
+export async function listScenePins(userId: string, sceneId: string) {
+  const scope = await resolveOwnedScene(userId, sceneId);
+  const pins = await loadActiveScenePins(userId, sceneId, scope);
+  return pins.sort((a, b) => a.createdAt.toString().localeCompare(b.createdAt.toString()));
 }

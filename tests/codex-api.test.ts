@@ -21,6 +21,11 @@ import {
 } from "../src/app/api/codex/relations/[id]/route";
 import { POST as createRelation } from "../src/app/api/codex/relations/route";
 import { DELETE as deleteTag } from "../src/app/api/codex/tags/[id]/route";
+import { GET as listPinsRoute } from "../src/app/api/scenes/[id]/pins/route";
+import {
+  DELETE as unpinRoute,
+  PUT as pinRoute,
+} from "../src/app/api/scenes/[id]/pins/[entryId]/route";
 import { POST as assembleContextRoute } from "../src/app/api/context/assemble/route";
 import { ContextAssemblyError } from "../src/lib/codex/context-assembler";
 import * as codexService from "../src/lib/codex/service";
@@ -467,6 +472,67 @@ describe("Codex REST Route Handlers", () => {
 
       const internal = await post({ sceneId: "scene-1" });
       expect(internal.status).toBe(500);
+    });
+  });
+
+  describe("Scene codex pins routes (STO-1208)", () => {
+    const pinCtx = { params: Promise.resolve({ id: "scene-1", entryId: "entry-1" }) };
+    const sceneCtx = { params: Promise.resolve({ id: "scene-1" }) };
+    const req = (method: string) =>
+      new NextRequest("http://localhost:3000/api/scenes/scene-1/pins/entry-1", { method });
+
+    it("returns 401 on every pin route when unauthenticated", async () => {
+      mockGetUser.mockResolvedValue({ data: { user: null } });
+      expect((await listPinsRoute(req("GET"), sceneCtx)).status).toBe(401);
+      expect((await pinRoute(req("PUT"), pinCtx)).status).toBe(401);
+      expect((await unpinRoute(req("DELETE"), pinCtx)).status).toBe(401);
+    });
+
+    it("GET lists pins for the scene", async () => {
+      const pins = [{ id: "pin-1", sceneId: "scene-1", entryId: "entry-1" }];
+      const spy = vi.spyOn(codexService, "listScenePins").mockResolvedValueOnce(pins as never);
+      const res = await listPinsRoute(req("GET"), sceneCtx);
+      expect(res.status).toBe(200);
+      expect(await res.json()).toEqual({ pins });
+      expect(spy).toHaveBeenCalledWith(userId, "scene-1");
+    });
+
+    it("PUT pins an entry and returns 200", async () => {
+      const pin = { id: "pin-1", sceneId: "scene-1", entryId: "entry-1" };
+      const spy = vi
+        .spyOn(codexService, "pinCodexEntryToScene")
+        .mockResolvedValueOnce(pin as never);
+      const res = await pinRoute(req("PUT"), pinCtx);
+      expect(res.status).toBe(200);
+      expect(await res.json()).toEqual({ pin });
+      expect(spy).toHaveBeenCalledWith(userId, "scene-1", "entry-1");
+    });
+
+    it("DELETE unpins an entry and returns 204", async () => {
+      const spy = vi
+        .spyOn(codexService, "unpinCodexEntryFromScene")
+        .mockResolvedValueOnce({ success: true, sceneId: "scene-1", entryId: "entry-1" });
+      const res = await unpinRoute(req("DELETE"), pinCtx);
+      expect(res.status).toBe(204);
+      expect(await res.text()).toBe("");
+      expect(spy).toHaveBeenCalledWith(userId, "scene-1", "entry-1");
+    });
+
+    it("maps CodexError and unknown errors through handleCodexApiError", async () => {
+      vi.spyOn(codexService, "pinCodexEntryToScene").mockRejectedValueOnce(
+        new CodexError("Codex entry is not in this scene's book or series", "SCOPING_ERROR", 422),
+      );
+      const scoped = await pinRoute(req("PUT"), pinCtx);
+      expect(scoped.status).toBe(422);
+      expect((await scoped.json()).code).toBe("SCOPING_ERROR");
+
+      vi.spyOn(codexService, "unpinCodexEntryFromScene").mockRejectedValueOnce(
+        new CodexError("Scene not found", "NOT_FOUND", 404),
+      );
+      expect((await unpinRoute(req("DELETE"), pinCtx)).status).toBe(404);
+
+      vi.spyOn(codexService, "listScenePins").mockRejectedValueOnce(new Error("boom"));
+      expect((await listPinsRoute(req("GET"), sceneCtx)).status).toBe(500);
     });
   });
 });

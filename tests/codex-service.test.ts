@@ -14,6 +14,9 @@ import {
   deleteCodexRelation,
   deleteCodexTag,
   getCodexEntry,
+  listScenePins,
+  pinCodexEntryToScene,
+  unpinCodexEntryFromScene,
   listCodexEntriesForNovel,
   listCodexEntriesForSeries,
   loadNovelSceneReadingOrder,
@@ -911,6 +914,162 @@ describe("Codex Service & Scoping Engine", { timeout: 20_000 }, () => {
       await expect(
         assembleCodexContextForScene(userId, { sceneId: "missing-scene" }),
       ).rejects.toMatchObject({ code: "NOT_FOUND", status: 404 });
+    });
+  });
+
+  describe("Scene codex pins (STO-1208)", () => {
+    const inContext = async (entryId: string) => {
+      const context = await assembleCodexContextForScene(userId, {
+        sceneId: sceneA1Id,
+        beatText: "Nothing mentioned.",
+        options: { maxEntries: 500 },
+      });
+      return context.entries.find((entry) => entry.id === entryId);
+    };
+    const neverEntry = (name: string, extra: Record<string, unknown> = { novelId: novelAId }) =>
+      createCodexEntry(userId, { name, trackingMode: "NEVER", ...extra });
+
+    it("pins an entry so it is assembled as a manual attachment", async () => {
+      const entry = await neverEntry("Pinned Lantern");
+      expect(await inContext(entry.id)).toBeUndefined();
+
+      const pin = await pinCodexEntryToScene(userId, sceneA1Id, entry.id);
+      expect(pin).toMatchObject({ sceneId: sceneA1Id, entryId: entry.id, deletedAt: null });
+      expect((await inContext(entry.id))?.source).toBe("manual");
+
+      const pins = await listScenePins(userId, sceneA1Id);
+      expect(pins.map((p) => p.entryId)).toContain(entry.id);
+    });
+
+    it("pins series-scoped entries of the scene's series", async () => {
+      const entry = await neverEntry("Series Pin", { seriesScoped: true, seriesId });
+      await pinCodexEntryToScene(userId, sceneA1Id, entry.id);
+      expect((await inContext(entry.id))?.source).toBe("manual");
+    });
+
+    it("is idempotent and re-pin restores the existing soft-deleted row", async () => {
+      const entry = await neverEntry("Repin Compass");
+      const first = await pinCodexEntryToScene(userId, sceneA1Id, entry.id);
+      const again = await pinCodexEntryToScene(userId, sceneA1Id, entry.id);
+      expect(again.id).toBe(first.id);
+
+      await unpinCodexEntryFromScene(userId, sceneA1Id, entry.id);
+      await unpinCodexEntryFromScene(userId, sceneA1Id, entry.id); // idempotent
+      const restored = await pinCodexEntryToScene(userId, sceneA1Id, entry.id);
+      expect(restored.id).toBe(first.id);
+      expect(restored.deletedAt).toBeNull();
+
+      const rows = await db.orm.public.SceneCodexPin.where((p) => p.entryId.eq(entry.id)).all();
+      expect(rows).toHaveLength(1);
+    });
+
+    it("handles concurrent pins of the same entry without duplicating rows", async () => {
+      const entry = await neverEntry("Racing Pin");
+      const [a, b] = await Promise.all([
+        pinCodexEntryToScene(userId, sceneA1Id, entry.id),
+        pinCodexEntryToScene(userId, sceneA1Id, entry.id),
+      ]);
+      expect(a.id).toBe(b.id);
+      const rows = await db.orm.public.SceneCodexPin.where((p) => p.entryId.eq(entry.id)).all();
+      expect(rows).toHaveLength(1);
+    });
+
+    it("excludes a deleted (unpinned) pin from assembly", async () => {
+      const entry = await neverEntry("Unpinned Mirror");
+      await pinCodexEntryToScene(userId, sceneA1Id, entry.id);
+      await unpinCodexEntryFromScene(userId, sceneA1Id, entry.id);
+      expect(await inContext(entry.id)).toBeUndefined();
+      const pins = await listScenePins(userId, sceneA1Id);
+      expect(pins.some((p) => p.entryId === entry.id)).toBe(false);
+    });
+
+    it("excludes a pin on a deleted entry, and restores it when the entry is restored", async () => {
+      const entry = await neverEntry("Deleted Anchor");
+      const pin = await pinCodexEntryToScene(userId, sceneA1Id, entry.id);
+      await deleteCodexEntry(userId, entry.id);
+
+      // The pin row itself is not soft-deleted.
+      const row = await db.orm.public.SceneCodexPin.where({ id: pin.id }).first();
+      expect(row?.deletedAt).toBeNull();
+      expect(await inContext(entry.id)).toBeUndefined();
+      expect((await listScenePins(userId, sceneA1Id)).some((p) => p.id === pin.id)).toBe(false);
+
+      await db.orm.public.CodexEntry.where({ id: entry.id }).update({ deletedAt: null });
+      expect((await inContext(entry.id))?.source).toBe("manual");
+    });
+
+    it("excludes a pin on an entry from another book or series", async () => {
+      // Scope can only drift via direct data changes, since pinning validates it.
+      const entry = await neverEntry("Drifting Map");
+      await pinCodexEntryToScene(userId, sceneA1Id, entry.id);
+      await db.orm.public.CodexEntry.where({ id: entry.id }).update({ novelId: novelBId });
+      expect(await inContext(entry.id)).toBeUndefined();
+
+      const seriesEntry = await neverEntry("Drifting Sigil", { seriesScoped: true, seriesId });
+      await pinCodexEntryToScene(userId, sceneA1Id, seriesEntry.id);
+      const otherSeriesId = `test-codex-series-other-${runId}`;
+      const now = Temporal.Now.plainDateTimeISO();
+      await db.orm.public.Series.create({
+        id: otherSeriesId,
+        ownerId: userId,
+        title: "Other",
+        position: 5,
+        createdAt: now,
+        updatedAt: now,
+        deletedAt: null,
+      });
+      await db.orm.public.CodexEntry.where({ id: seriesEntry.id }).update({
+        seriesId: otherSeriesId,
+      });
+      expect(await inContext(seriesEntry.id)).toBeUndefined();
+    });
+
+    it("rejects pinning entries outside the scene's book or series with 422", async () => {
+      const otherBook = await neverEntry("Book Two Only", { novelId: novelBId });
+      await expect(pinCodexEntryToScene(userId, sceneA1Id, otherBook.id)).rejects.toMatchObject({
+        code: "SCOPING_ERROR",
+        status: 422,
+      });
+      const standalone = await neverEntry("Standalone Only", { novelId: novelStandaloneId });
+      await expect(pinCodexEntryToScene(userId, sceneA1Id, standalone.id)).rejects.toBeInstanceOf(
+        CodexError,
+      );
+    });
+
+    it("rejects missing entries, other users, and missing scenes", async () => {
+      const entry = await neverEntry("Guarded Key");
+      await expect(pinCodexEntryToScene(userId, sceneA1Id, "missing-entry")).rejects.toMatchObject({
+        code: "NOT_FOUND",
+        status: 404,
+      });
+      await expect(pinCodexEntryToScene(otherUserId, sceneA1Id, entry.id)).rejects.toMatchObject({
+        code: "FORBIDDEN",
+        status: 403,
+      });
+      await expect(
+        unpinCodexEntryFromScene(otherUserId, sceneA1Id, entry.id),
+      ).rejects.toMatchObject({ code: "FORBIDDEN" });
+      await expect(listScenePins(userId, "missing-scene")).rejects.toMatchObject({
+        code: "NOT_FOUND",
+      });
+
+      const now = Temporal.Now.plainDateTimeISO();
+      const foreignEntryId = `test-codex-foreign-${runId}`;
+      await db.orm.public.CodexEntry.create({
+        id: foreignEntryId,
+        name: "Foreign",
+        ownerId: otherUserId,
+        novelId: novelAId,
+        seriesScoped: false,
+        position: 0,
+        createdAt: now,
+        updatedAt: now,
+        deletedAt: null,
+      } as never);
+      await expect(pinCodexEntryToScene(userId, sceneA1Id, foreignEntryId)).rejects.toMatchObject({
+        code: "FORBIDDEN",
+        status: 403,
+      });
     });
   });
 });
