@@ -6,7 +6,9 @@ import {
   applySubscriptionToUser,
   downgradeToFree,
   claimStripeEvent,
+  markStripeEventProcessed,
   releaseStripeEvent,
+  type StripeEventClaim,
   type SubscriptionSnapshot,
 } from "@/lib/billing/subscription-sync";
 import { tierForPriceId } from "@/lib/billing/plans";
@@ -54,8 +56,10 @@ function subscriptionToSnapshot(sub: Stripe.Subscription): SubscriptionSnapshot 
  * - `customer.subscription.updated` — applies tier/status/period end.
  * - `customer.subscription.deleted` (or `canceled` status) — downgrades to Free.
  *
- * Always answers 200 for verified events (except signature failures: 400) so
- * Stripe does not retry healthy deliveries.
+ * Answers 200 for processed (or already-processed) events, 409 while another
+ * delivery of the same event is still in flight, 500 on processing failures
+ * (the claim is released so Stripe's retry replays it), and 400 for
+ * signature failures.
  */
 export async function POST(request: NextRequest) {
   if (!isWebhookConfigured()) {
@@ -82,17 +86,23 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: "Invalid webhook signature" }, { status: 400 });
   }
 
-  // Idempotency: insert the StripeWebhookEvent row FIRST. A unique-key
-  // conflict on eventId means this event was already handled (or is being
-  // handled), so acknowledge with 200 without re-processing.
-  let claimed: boolean;
+  // Idempotency: insert the StripeWebhookEvent row FIRST. Only events that
+  // finished processing are acked as duplicates; a claim still in flight gets
+  // a 409 so Stripe retries (the first delivery may yet fail and release it).
+  let claim: StripeEventClaim;
   try {
-    claimed = await claimStripeEvent(event.id, event.type);
+    claim = await claimStripeEvent(event.id, event.type);
   } catch {
     return Response.json({ error: "Internal server error" }, { status: 500 });
   }
-  if (!claimed) {
+  if (claim === "processed") {
     return Response.json({ received: true, duplicate: true });
+  }
+  if (claim === "in_flight") {
+    return Response.json(
+      { error: "Event is already being processed", code: "EVENT_IN_FLIGHT" },
+      { status: 409 },
+    );
   }
 
   try {
@@ -148,6 +158,7 @@ export async function POST(request: NextRequest) {
         break;
     }
 
+    await markStripeEventProcessed(event.id);
     return Response.json({ received: true });
   } catch {
     // Release the claim so Stripe's retry of this event is processed.

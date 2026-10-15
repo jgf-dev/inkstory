@@ -5,7 +5,11 @@ import { POST as checkout } from "../src/app/api/billing/checkout/route";
 import { POST as portal } from "../src/app/api/billing/portal/route";
 import { POST as webhook } from "../src/app/api/billing/webhook/route";
 import * as subscriptionSync from "../src/lib/billing/subscription-sync";
-import { recordStripeEventProcessed } from "../src/lib/billing/subscription-sync";
+import {
+  STRIPE_EVENT_CLAIM_TTL_MS,
+  claimStripeEvent,
+  recordStripeEventProcessed,
+} from "../src/lib/billing/subscription-sync";
 import { db } from "../src/lib/prisma";
 
 const mockGetUser = vi.fn();
@@ -402,6 +406,66 @@ describe("billing routes", { timeout: 20_000 }, () => {
       const rows = await db.orm.public.StripeWebhookEvent.where({ eventId: event.id }).all();
       expect(rows).toHaveLength(1);
       syncSpy.mockRestore();
+    });
+
+    it("answers 409 (retryable) while another delivery's claim is still in flight", async () => {
+      const eventId = `evt_inflight_${runId}`;
+      expect(await claimStripeEvent(eventId, "customer.subscription.updated")).toBe("claimed");
+
+      const event = {
+        id: eventId,
+        type: "customer.subscription.updated",
+        data: { object: subscriptionFixture({ metadata: { userId } }) },
+      };
+      constructEventAsync.mockResolvedValueOnce(event);
+      const syncSpy = vi.spyOn(subscriptionSync, "applySubscriptionToUser");
+      const res = await webhookRequest({});
+      expect(res.status).toBe(409);
+      expect((await res.json()).code).toBe("EVENT_IN_FLIGHT");
+      expect(syncSpy).not.toHaveBeenCalled();
+
+      // The first delivery fails and releases its claim: Stripe's retry is processed.
+      await subscriptionSync.releaseStripeEvent(eventId);
+      constructEventAsync.mockResolvedValueOnce(event);
+      const retry = await webhookRequest({});
+      expect(retry.status).toBe(200);
+      expect((await retry.json()).duplicate).toBeUndefined();
+      expect(syncSpy).toHaveBeenCalledTimes(1);
+      syncSpy.mockRestore();
+
+      const [row] = await db.orm.public.StripeWebhookEvent.where({ eventId }).all();
+      expect((row?.payload as { status?: string } | null)?.status).toBe("processed");
+    });
+
+    it("takes over an abandoned in-flight claim after the TTL", async () => {
+      const eventId = `evt_stale_${runId}`;
+      const longAgo = Date.now() - STRIPE_EVENT_CLAIM_TTL_MS - 1_000;
+      expect(await claimStripeEvent(eventId, "invoice.paid", longAgo)).toBe("claimed");
+      // A fresh claim inside the TTL is still in flight.
+      expect(await claimStripeEvent(eventId, "invoice.paid", longAgo + 1_000)).toBe("in_flight");
+
+      constructEventAsync.mockResolvedValueOnce({
+        id: eventId,
+        type: "invoice.paid",
+        data: { object: {} },
+      });
+      const res = await webhookRequest({});
+      expect(res.status).toBe(200);
+      expect((await res.json()).duplicate).toBeUndefined();
+
+      const rows = await db.orm.public.StripeWebhookEvent.where({ eventId }).all();
+      expect(rows).toHaveLength(1);
+      expect(await claimStripeEvent(eventId, "invoice.paid")).toBe("processed");
+    });
+
+    it("rethrows claim errors that are not unique conflicts", async () => {
+      const createSpy = vi
+        .spyOn(db.orm.public.StripeWebhookEvent, "create")
+        .mockRejectedValueOnce(new Error("db down"));
+      await expect(claimStripeEvent(`evt_db_down_${runId}`, "invoice.paid")).rejects.toThrow(
+        "db down",
+      );
+      createSpy.mockRestore();
     });
 
     it("returns 500 when the event cannot be claimed", async () => {
