@@ -181,7 +181,7 @@ describe("renderMarkdown", () => {
     expect(md).not.toContain("_A Novel_");
     expect(md).not.toContain("_Dawn_");
     expect(md).toContain("> Line one\n>\n> Line two");
-    expect(md.match(new RegExp(SCENE_BREAK.replace(/\*/g, "\\*"), "g"))).toHaveLength(1);
+    expect(md.split(SCENE_BREAK)).toHaveLength(2);
   });
 
   it("round-trips through parseExportedMarkdown", () => {
