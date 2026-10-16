@@ -394,6 +394,22 @@ describe("export → import round-trip (in memory)", () => {
       content: "Mira stepped off.\n\nGulls.",
     });
   });
+
+  it("docx reads Quote-style summaries back as summaries", async () => {
+    const m = await parseManuscript(await renderDocx(novel, all), "docx", opts);
+    const [harbor, inn] = m.acts[0].chapters[0].scenes;
+    expect(harbor).toMatchObject({
+      subtitle: "Dawn",
+      summary: "Arrives.",
+      content: "Mira stepped off.\n\nGulls.",
+    });
+    expect(inn.summary).toBeNull();
+    const off = await parseManuscript(await renderDocx(novel, all), "docx", { summaries: false });
+    expect(off.acts[0].chapters[0].scenes[0]).toMatchObject({
+      summary: null,
+      content: "Arrives.\n\nMira stepped off.\n\nGulls.",
+    });
+  });
 });
 
 describe("import service + route (database)", { timeout: 30_000 }, () => {
@@ -502,36 +518,32 @@ describe("import service + route (database)", { timeout: 30_000 }, () => {
     expect((await post(novelId, { file: mdFile("x") })).status).toBe(500);
   });
 
-  it("rolls back created acts when a write fails", async () => {
+  it("leaves nothing behind when a write fails part-way", async () => {
+    const scene = { subtitle: null, summary: null, content: "x", wordCount: 1 };
     const bad: ImportManuscript = {
       title: null,
       subtitle: null,
       acts: [
         {
-          title: "Rollback",
-          chapters: [
-            {
-              title: "C",
-              scenes: [
-                {
-                  title: "S",
-                  subtitle: null,
-                  summary: null,
-                  content: "x",
-                  wordCount: 1,
-                  position: "nope",
-                } as never,
-              ],
-            },
-          ],
+          title: "Rollback 1",
+          chapters: [{ title: `C1-${runId}`, scenes: [{ ...scene, title: `Ok-${runId}` }] }],
+        },
+        // NOT NULL violation on scenes.title, after act 1 has been written.
+        {
+          title: "Rollback 2",
+          chapters: [{ title: `C2-${runId}`, scenes: [{ ...scene, title: null as never }] }],
         },
       ],
     };
-    const spy = vi.spyOn(db.orm.public.Scene, "create").mockRejectedValueOnce(new Error("db down"));
-    await expect(importManuscript(userId, novelId, bad)).rejects.toThrow("db down");
-    spy.mockRestore();
+    await expect(importManuscript(userId, novelId, bad)).rejects.toThrow();
     const acts = await db.orm.public.Act.where((a) => a.novelId.eq(novelId)).all();
     expect(acts.map((a) => a.title)).toEqual(["Existing"]);
+    const chapters = await db.orm.public.Chapter.where((c) => c.actId.eq(acts[0].id)).all();
+    expect(chapters).toHaveLength(0);
+    for (const title of [`C1-${runId}`, `C2-${runId}`]) {
+      expect(await db.orm.public.Chapter.where({ title }).first()).toBeNull();
+    }
+    expect(await db.orm.public.Scene.where({ title: `Ok-${runId}` }).first()).toBeNull();
   });
 
   it("import → edit → export round-trip keeps structure and text (md + docx)", async () => {
@@ -557,7 +569,7 @@ describe("import service + route (database)", { timeout: 30_000 }, () => {
         params: Promise.resolve({ id: novelId }),
       });
     const md = await (await exp("format=md&content=both")).text();
-    const docx = Buffer.from(await (await exp("format=docx")).arrayBuffer());
+    const docx = Buffer.from(await (await exp("format=docx&content=both")).arrayBuffer());
 
     // 4. Re-import both and compare with the edited source.
     const expected = [
@@ -577,7 +589,12 @@ describe("import service + route (database)", { timeout: 30_000 }, () => {
       expect(m.acts[1].chapters[0].scenes[1].content).toBe("She took the attic room.");
       expect(m.acts[2].chapters[0].scenes[0].content).toBe("Rain fell for days.");
     }
-    expect(fromMd.acts[1].chapters[0].scenes[0].summary).toBe("Mira arrives.");
+    for (const m of [fromMd, fromDocx]) {
+      expect(m.acts[1].chapters[0].scenes[0].summary).toBe("Mira arrives.");
+      expect(m.acts[1].chapters[0].scenes[1].summary).toBeNull();
+    }
     expect(fromMd.acts[2].chapters[0].scenes[0].summary).toBe("It rains.\nHard.");
+    // DOCX joins a summary's lines into one Quote paragraph.
+    expect(fromDocx.acts[2].chapters[0].scenes[0].summary).toBe("It rains. Hard.");
   });
 });

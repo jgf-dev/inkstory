@@ -21,8 +21,8 @@ export interface ImportResult {
 
 /**
  * Writes an already-parsed manuscript into a novel the user owns. Imported
- * acts are appended after the novel's existing acts. If a write fails, the
- * acts created so far are removed (chapters and scenes cascade).
+ * acts are appended after the novel's existing acts, all inside one
+ * transaction.
  */
 export async function importManuscript(
   userId: string,
@@ -35,17 +35,18 @@ export async function importManuscript(
     throw new ImportError("No content was found to import", "VALIDATION_FAILED", 400);
   }
 
-  const existing = await db.orm.public.Act.where((a) => a.novelId.eq(novelId))
-    .where((a) => a.deletedAt.isNull())
-    .all();
-  const start = existing.reduce((max, a) => Math.max(max, a.position + 1), 0);
   const now = nowTimestamp();
-  const actIds: string[] = [];
 
-  try {
+  // One transaction: a failure part-way leaves nothing behind.
+  const actIds = await db.transaction(async (tx) => {
+    const existing = await tx.orm.public.Act.where((a) => a.novelId.eq(novelId))
+      .where((a) => a.deletedAt.isNull())
+      .all();
+    const start = existing.reduce((max, a) => Math.max(max, a.position + 1), 0);
+    const ids: string[] = [];
     for (const [ai, act] of manuscript.acts.entries()) {
       const actId = crypto.randomUUID();
-      await db.orm.public.Act.create({
+      await tx.orm.public.Act.create({
         id: actId,
         novelId,
         title: act.title,
@@ -53,10 +54,10 @@ export async function importManuscript(
         createdAt: now,
         updatedAt: now,
       });
-      actIds.push(actId);
+      ids.push(actId);
       for (const [ci, chapter] of act.chapters.entries()) {
         const chapterId = crypto.randomUUID();
-        await db.orm.public.Chapter.create({
+        await tx.orm.public.Chapter.create({
           id: chapterId,
           actId,
           title: chapter.title,
@@ -65,7 +66,7 @@ export async function importManuscript(
           updatedAt: now,
         });
         for (const [si, scene] of chapter.scenes.entries()) {
-          await db.orm.public.Scene.create({
+          await tx.orm.public.Scene.create({
             id: crypto.randomUUID(),
             chapterId,
             title: scene.title,
@@ -80,11 +81,7 @@ export async function importManuscript(
         }
       }
     }
-  } catch (err) {
-    for (const id of actIds) {
-      await db.orm.public.Act.where({ id }).delete();
-    }
-    throw err;
-  }
+    return ids;
+  });
   return { preview, actIds };
 }
