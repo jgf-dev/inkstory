@@ -292,6 +292,19 @@ describe("renderDocx", () => {
     expect(texts).toContain("Mira arrives.");
   });
 
+  it("writes summaries in Word's Quote style, prose in Normal", async () => {
+    const buf = await renderDocx(novel, { ...base, content: "both" });
+    const paras = await docxParagraphs(buf);
+    expect(paras.find((p) => p.text === "Mira arrives.")?.style).toBe("Quote");
+    expect(paras.find((p) => p.text === "It rains.")?.style).toBe("Quote");
+    expect(paras.find((p) => p.text === "Mira stepped off the ferry.")?.style).not.toBe("Quote");
+    const styles = await (await JSZip.loadAsync(buf)).file("word/styles.xml")!.async("string");
+    expect(styles).toMatch(/w:styleId="Quote"[\s\S]*?<w:name w:val="Quote"\/>/);
+    const xml = await (await JSZip.loadAsync(buf)).file("word/document.xml")!.async("string");
+    const quote = xml.split("<w:p>").find((p) => p.includes("Mira arrives."))!;
+    expect(quote).not.toContain("<w:i/>");
+  });
+
   it("puts scene breaks between scenes, never right under a chapter heading", async () => {
     const paras = await docxParagraphs(await renderDocx(twoChapters, untitledScenes));
     expect(paras.map((p) => p.text)).toEqual([

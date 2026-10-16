@@ -4,18 +4,30 @@ import type { ExportNovel, ExportOptions } from "./types";
 
 type RenderOptions = Omit<ExportOptions, "format" | "actIds" | "chapterIds" | "sceneIds">;
 
-function paragraphs(text: string, italics = false): Paragraph[] {
+/** Word's built-in "Quote" paragraph style, defined so the name survives re-import. */
+const QUOTE_STYLE = {
+  id: "Quote",
+  name: "Quote",
+  basedOn: "Normal",
+  next: "Normal",
+  quickFormat: true,
+  run: { italics: true },
+  paragraph: { indent: { left: 720, right: 720 } },
+};
+
+function paragraphs(text: string, italics = false, style?: string): Paragraph[] {
   return text
     .trim()
     .split(/\n\s*\n/)
     .map((p) => p.replace(/\s*\n\s*/g, " ").trim())
     .filter((p) => p.length > 0)
-    .map((p) => new Paragraph({ children: [new TextRun({ text: p, italics })] }));
+    .map((p) => new Paragraph({ style, children: [new TextRun({ text: p, italics })] }));
 }
 
 /**
  * Renders the (already selected) novel as a DOCX document. Uses Word's
- * built-in Title / Heading 1–3 styles so the outline survives re-import.
+ * built-in Title / Heading 1–3 styles so the outline survives re-import, and
+ * the built-in Quote style for scene summaries.
  */
 export async function renderDocx(novel: ExportNovel, options: RenderOptions): Promise<Buffer> {
   const children: Paragraph[] = [new Paragraph({ text: novel.title, heading: HeadingLevel.TITLE })];
@@ -45,13 +57,17 @@ export async function renderDocx(novel: ExportNovel, options: RenderOptions): Pr
           children.push(...paragraphs(scene.subtitle, true));
         }
         if (options.content !== "prose" && scene.summary?.trim()) {
-          children.push(...paragraphs(scene.summary, true));
+          children.push(...paragraphs(scene.summary, false, QUOTE_STYLE.id));
         }
         if (options.content !== "summary") children.push(...paragraphs(scene.content));
       }
     }
   }
 
-  const doc = new Document({ title: novel.title, sections: [{ children }] });
+  const doc = new Document({
+    title: novel.title,
+    styles: { paragraphStyles: [QUOTE_STYLE] },
+    sections: [{ children }],
+  });
   return Packer.toBuffer(doc);
 }
