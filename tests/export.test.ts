@@ -1,3 +1,4 @@
+import JSZip from "jszip";
 import { Temporal } from "temporal-polyfill";
 import { NextRequest } from "next/server";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vite-plus/test";
@@ -67,6 +68,41 @@ const novel: ExportNovel = {
 };
 
 const base: ExportOptions = parseExportOptions(new URLSearchParams());
+
+/** One act, two chapters, two scenes each: exercises per-chapter scene breaks. */
+const twoChapters: ExportNovel = {
+  id: "n2",
+  title: "Two Chapters",
+  subtitle: null,
+  acts: [
+    {
+      id: "a1",
+      title: "Only Act",
+      chapters: ["One", "Two"].map((name, c) => ({
+        id: `c${c}`,
+        title: `Chapter ${name}`,
+        scenes: [0, 1].map((s) => ({
+          id: `c${c}s${s}`,
+          title: `Scene ${c}.${s}`,
+          subtitle: null,
+          content: `Prose ${c}.${s}.`,
+          summary: null,
+        })),
+      })),
+    },
+  ],
+};
+
+const untitledScenes = { ...base, includeActTitles: false, includeSceneTitles: false };
+
+/** Paragraph style + text, in order, from a rendered DOCX. */
+async function docxParagraphs(buf: Buffer): Promise<{ style: string | null; text: string }[]> {
+  const xml = await (await JSZip.loadAsync(buf)).file("word/document.xml")!.async("string");
+  return [...xml.matchAll(/<w:p[ >][\s\S]*?<\/w:p>/g)].map(([p]) => ({
+    style: /<w:pStyle w:val="([^"]+)"/.exec(p)?.[1] ?? null,
+    text: [...p.matchAll(/<w:t(?: [^>]*)?>([^<]*)<\/w:t>/g)].map((m) => m[1]).join(""),
+  }));
+}
 
 describe("parseExportOptions", () => {
   it("applies defaults", () => {
@@ -190,6 +226,22 @@ describe("renderMarkdown", () => {
     expect(md).not.toContain(`### Storm\n\n${SCENE_BREAK}`);
   });
 
+  it("resets scene breaks per chapter when chapter titles are shown", () => {
+    const md = renderMarkdown(twoChapters, untitledScenes);
+    expect(md.split(SCENE_BREAK)).toHaveLength(3);
+    expect(md).not.toContain(`### Chapter One\n\n${SCENE_BREAK}`);
+    expect(md).not.toContain(`### Chapter Two\n\n${SCENE_BREAK}`);
+    expect(md).toContain(`Prose 0.0.\n\n${SCENE_BREAK}\n\nProse 0.1.`);
+    expect(md).toContain(`Prose 1.0.\n\n${SCENE_BREAK}\n\nProse 1.1.`);
+    expect(md).toContain("Prose 0.1.\n\n### Chapter Two\n\nProse 1.0.");
+  });
+
+  it("keeps scene breaks across chapters when no headings separate them", () => {
+    const md = renderMarkdown(twoChapters, { ...untitledScenes, includeChapterTitles: false });
+    expect(md.split(SCENE_BREAK)).toHaveLength(4);
+    expect(md).toContain(`Prose 0.1.\n\n${SCENE_BREAK}\n\nProse 1.0.`);
+  });
+
   it("round-trips through parseExportedMarkdown", () => {
     const parsed = parseExportedMarkdown(renderMarkdown(novel, { ...base, content: "both" }));
     expect(parsed.title).toBe("The Glass Tide");
@@ -235,6 +287,30 @@ describe("renderDocx", () => {
       includeSubtitles: false,
     });
     expect(plain.subarray(0, 2).toString()).toBe("PK");
+    const texts = (await docxParagraphs(buf)).map((p) => p.text);
+    expect(texts).toContain("Mira stepped off the ferry.");
+    expect(texts).toContain("Mira arrives.");
+  });
+
+  it("puts scene breaks between scenes, never right under a chapter heading", async () => {
+    const paras = await docxParagraphs(await renderDocx(twoChapters, untitledScenes));
+    expect(paras.map((p) => p.text)).toEqual([
+      "Two Chapters",
+      "Chapter One",
+      "Prose 0.0.",
+      SCENE_BREAK,
+      "Prose 0.1.",
+      "Chapter Two",
+      "Prose 1.0.",
+      SCENE_BREAK,
+      "Prose 1.1.",
+    ]);
+    expect(paras.find((p) => p.text === "Chapter Two")?.style).toBe("Heading2");
+
+    const flat = await docxParagraphs(
+      await renderDocx(twoChapters, { ...untitledScenes, includeChapterTitles: false }),
+    );
+    expect(flat.filter((p) => p.text === SCENE_BREAK)).toHaveLength(3);
   });
 });
 
