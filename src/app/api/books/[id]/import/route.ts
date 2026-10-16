@@ -12,6 +12,8 @@ import {
 
 export const dynamic = "force-dynamic";
 
+const MULTIPART_OVERHEAD_BYTES = 64 * 1024;
+
 function field(form: FormData, name: string): string | null {
   const value = form.get(name);
   return typeof value === "string" ? value : null;
@@ -39,6 +41,13 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     }
     const { id } = await params;
     await assertNovelOwner(user.id, id);
+
+    // Reject oversized uploads before buffering the multipart body. The
+    // allowance covers multipart boundaries and the small text fields.
+    const declared = Number(request.headers.get("content-length") ?? "");
+    if (Number.isFinite(declared) && declared > MAX_IMPORT_BYTES + MULTIPART_OVERHEAD_BYTES) {
+      throw new ImportError("File is too large (10 MB max)", "VALIDATION_FAILED", 413);
+    }
 
     let form: FormData;
     try {

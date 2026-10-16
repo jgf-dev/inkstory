@@ -46,9 +46,9 @@ export function markdownToBlocks(markdown: string): ImportBlock[] {
       flush();
       blocks.push({ type: "heading", level: heading[1].length, text: collapse(heading[2]) });
       afterHeading = true;
-    } else if (line.startsWith(">")) {
+    } else if (/^ {0,3}>/.test(line)) {
       if (para.length) flush();
-      quote.push(line.replace(/^> ?/, ""));
+      quote.push(line.replace(/^ {0,3}> ?/, ""));
     } else if (line.trim() === "") {
       flush();
     } else {

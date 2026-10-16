@@ -198,6 +198,14 @@ describe("markdown import", () => {
     expect(subs.acts[0].chapters[0].scenes[0]).toMatchObject({ subtitle: "one", content: "_two_" });
   });
 
+  it("treats quote markers indented up to three spaces as quotes", () => {
+    expect(markdownToBlocks("para\n   > q1\n  >q2\n    > code")).toEqual([
+      { type: "paragraph", text: "para" },
+      { type: "quote", text: "q1\nq2" },
+      { type: "paragraph", text: "> code" },
+    ]);
+  });
+
   it("parses a quote right after a paragraph and text after a quote", () => {
     expect(markdownToBlocks("para\n> q\nafter")).toEqual([
       { type: "paragraph", text: "para" },
@@ -491,6 +499,15 @@ describe("import service + route (database)", { timeout: 30_000 }, () => {
     expect((await post(novelId, { file: mdFile("x", "book.pdf") })).status).toBe(415);
     const big = new File([new Uint8Array(MAX_IMPORT_BYTES + 1)], "big.md");
     expect((await post(novelId, { file: big })).status).toBe(413);
+    const declaredTooBig = await importRoute(
+      new NextRequest(`http://localhost/api/books/${novelId}/import`, {
+        method: "POST",
+        body: "x",
+        headers: { "content-length": String(MAX_IMPORT_BYTES * 2) },
+      }),
+      { params: Promise.resolve({ id: novelId }) },
+    );
+    expect(declaredTooBig.status).toBe(413);
     const notForm = await importRoute(
       new NextRequest(`http://localhost/api/books/${novelId}/import`, {
         method: "POST",
