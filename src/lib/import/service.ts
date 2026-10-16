@@ -39,6 +39,14 @@ export async function importManuscript(
 
   // One transaction: a failure part-way leaves nothing behind.
   const actIds = await db.transaction(async (tx) => {
+    // Serialise imports into the same novel: the lock is held until the
+    // transaction ends, so the next act position is read only after any
+    // concurrent import has committed. Must stay the first statement.
+    await tx.execute(
+      db.raw.sql`SELECT pg_advisory_xact_lock(hashtext(${`novel-import:${novelId}`}))`
+        .affectedCount()
+        .build(),
+    );
     const existing = await tx.orm.public.Act.where((a) => a.novelId.eq(novelId))
       .where((a) => a.deletedAt.isNull())
       .all();

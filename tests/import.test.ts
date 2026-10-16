@@ -563,6 +563,44 @@ describe("import service + route (database)", { timeout: 30_000 }, () => {
     expect(await db.orm.public.Scene.where({ title: `Ok-${runId}` }).first()).toBeNull();
   });
 
+  it("serialises concurrent imports into one book so act positions stay unique", async () => {
+    const raceNovelId = `test-import-race-${runId}`;
+    const now = Temporal.Now.plainDateTimeISO();
+    await db.orm.public.Novel.create({
+      id: raceNovelId,
+      ownerId: userId,
+      title: "Race",
+      updatedAt: now,
+    });
+    try {
+      const scene = { subtitle: null, summary: null, content: "x", wordCount: 1 };
+      const manuscript = (tag: string): ImportManuscript => ({
+        title: null,
+        subtitle: null,
+        acts: [1, 2, 3].map((n) => ({
+          title: `${tag}-${n}`,
+          chapters: [{ title: `${tag}-c${n}`, scenes: [{ ...scene, title: `${tag}-s${n}` }] }],
+        })),
+      });
+      await Promise.all([
+        importManuscript(userId, raceNovelId, manuscript("A")),
+        importManuscript(userId, raceNovelId, manuscript("B")),
+        importManuscript(userId, raceNovelId, manuscript("C")),
+      ]);
+      const acts = await db.orm.public.Act.where((a) => a.novelId.eq(raceNovelId)).all();
+      const positions = acts.map((a) => a.position).sort((a, b) => a - b);
+      expect(positions).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8]);
+      // Each import's acts stay together and in order.
+      const byPosition = [...acts].sort((a, b) => a.position - b.position).map((a) => a.title);
+      for (let i = 0; i < 9; i += 3) {
+        const tag = byPosition[i].split("-")[0];
+        expect(byPosition.slice(i, i + 3)).toEqual([`${tag}-1`, `${tag}-2`, `${tag}-3`]);
+      }
+    } finally {
+      await db.orm.public.Novel.where({ id: raceNovelId }).delete();
+    }
+  });
+
   it("import → edit → export round-trip keeps structure and text (md + docx)", async () => {
     // 1. Import (summaries on).
     const res = await post(novelId, { file: mdFile(exportedMd), confirm: "true" });
