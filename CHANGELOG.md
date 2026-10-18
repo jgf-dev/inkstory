@@ -2,6 +2,19 @@
 
 All notable changes to InkStory are tracked here. This file follows [Keep a Changelog](https://keepachangelog.com/) and the project adheres to [Semantic Versioning](https://semver.org/).
 
+## [PR-95](https://github.com/jgf-dev/inkstory/pull/95) - 2026-10-18
+
+### Summary
+
+Implemented the BYOK provider layer with a vendor-neutral LLM interface, normalized error model, and OpenRouter adapter ([STO-1175](https://linear.app/jgfdev/issue/STO-1175/421-provider-interface-openrouter-adapter)).
+
+### Added
+
+- `src/lib/ai/providers/types.ts`: vendor-neutral `LlmProvider` interface, chat completion request/result types, token usage normalization, retryable `ProviderError` classification, and `redactSecret` helper to prevent API key leakage.
+- `src/lib/ai/providers/openrouter.ts`: OpenRouter adapter supporting OpenAI-compatible chat completions and model catalog querying, attribution headers (`HTTP-Referer`, `X-Title`), handling for 200-with-error bodies, and normalized abort/timeout error handling.
+- `src/lib/ai/providers/index.ts`: `createProvider` factory and provider registry supporting configuration-driven provider initialization.
+- `tests/ai-providers.test.ts`: test suite covering request serialization, response normalization, catalog parsing, timeout/abort propagation, HTTP status mappings, and API key redaction.
+
 ## [Unreleased] - 2026-09-21
 
 ### Summary
