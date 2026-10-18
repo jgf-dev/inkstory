@@ -16,6 +16,7 @@ concurrency:
 permissions:
   contents: read
   pull-requests: read
+  packages: read
 
 jobs:
   Analysis:
@@ -23,9 +24,14 @@ jobs:
 
     # Ephemeral Postgres per run (major matches supabase/config.toml = 17).
     # Tests only need plain Postgres; Supabase clients are mocked.
+    # Pulled from our GHCR mirror (mirror-postgres-image.yml) to avoid public
+    # registry rate limits on shared runners.
     services:
       postgres:
-        image: public.ecr.aws/docker/library/postgres:17
+        image: ghcr.io/jgf-dev/postgres:17
+        credentials:
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
@@ -207,8 +213,8 @@ jobs:
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
           GITHUB_EVENT_NAME: push
           GITHUB_REF: refs/heads/main
-          GITHUB_HEAD_REF: ''
-          GITHUB_BASE_REF: ''
+          GITHUB_HEAD_REF: ""
+          GITHUB_BASE_REF: ""
         with:
           args: >-
             -Dsonar.projectKey=jgf-dev_inkstory
