@@ -2,6 +2,24 @@
 
 All notable changes to InkStory are tracked here. This file follows [Keep a Changelog](https://keepachangelog.com/) and the project adheres to [Semantic Versioning](https://semver.org/).
 
+## [PR-101](https://github.com/jgf-dev/inkstory/pull/101) - 2026-10-18
+
+### Summary
+
+Added Ollama and LM Studio local BYOK provider adapters with optional API key handling ([STO-1177](https://linear.app/jgfdev/issue/STO-1177/423-local-providers-ollama-lm-studio)).
+
+### Added
+
+- `src/lib/ai/providers/ollama.ts`: Ollama adapter connecting to local Ollama instances (`http://127.0.0.1:11434/v1`) with optional API key authentication.
+- `src/lib/ai/providers/lmstudio.ts`: LM Studio adapter connecting to local LM Studio instances (`http://127.0.0.1:1234/v1`) with optional token authentication and bare-string error message handling.
+- `src/lib/ai/providers/index.ts`: added `LOCAL_PROVIDERS` and `isLocalProvider` helper for UI key requirement checks.
+- `tests/ai-providers.test.ts`: parameterized test suites for Ollama and LM Studio covering local server connection errors, catalog parsing, and auth proxy configurations.
+
+### Changed
+
+- `src/lib/ai/providers/types.ts`: added `ollama` and `lmstudio` to `ProviderId`.
+- `src/lib/ai/providers/index.ts`: registered `ollama` and `lmstudio` in `ProviderId`, `SUPPORTED_PROVIDERS`, `ProviderConfig`, and `createProvider`.
+
 ## [PR-100](https://github.com/jgf-dev/inkstory/pull/100) - 2026-10-18
 
 ### Summary
