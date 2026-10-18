@@ -23,9 +23,12 @@ jobs:
 
     # Ephemeral Postgres per run (major matches supabase/config.toml = 17).
     # Tests only need plain Postgres; Supabase clients are mocked.
+    # Pulled via Google's Docker Hub mirror: anonymous Docker Hub pulls hit
+    # rate limits and ECR Public returns "toomanyrequests: Data limit exceeded"
+    # on shared GitHub runner IPs.
     services:
       postgres:
-        image: public.ecr.aws/docker/library/postgres:17
+        image: mirror.gcr.io/library/postgres:17
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
