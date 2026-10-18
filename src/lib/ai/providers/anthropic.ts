@@ -1,3 +1,4 @@
+import { createTransportError, readJsonResponse } from "./http";
 import {
   ProviderError,
   redactSecret,
@@ -175,43 +176,21 @@ export function createAnthropicProvider(options: AnthropicProviderOptions): LlmP
     return redactSecret(text, apiKey as string);
   }
 
-  function transportError(err: unknown, prefix: string, status?: number): ProviderError {
-    if (err instanceof Error && (err.name === "AbortError" || err.name === "TimeoutError")) {
-      return new ProviderError("Anthropic request was aborted", "TIMEOUT", "anthropic", status);
-    }
-    const detail = err instanceof Error ? err.message : String(err);
-    return new ProviderError(safe(`${prefix}: ${detail}`), "NETWORK_ERROR", "anthropic", status);
-  }
-
   async function send(path: string, init: RequestInit): Promise<unknown> {
     let response: Response;
     try {
       response = await doFetch(`${baseUrl}${path}`, { ...init, headers: headers() });
     } catch (err) {
-      throw transportError(err, "Could not reach Anthropic");
+      throw createTransportError(
+        err,
+        "Could not reach Anthropic",
+        "Anthropic",
+        "anthropic",
+        apiKey,
+      );
     }
 
-    let body: unknown = null;
-    let raw: string;
-    try {
-      raw = await response.text();
-    } catch (err) {
-      throw transportError(err, "Could not read Anthropic response", response.status);
-    }
-    if (raw) {
-      try {
-        body = JSON.parse(raw);
-      } catch {
-        if (response.ok) {
-          throw new ProviderError(
-            "Anthropic returned a non-JSON response",
-            "INVALID_RESPONSE",
-            "anthropic",
-            response.status,
-          );
-        }
-      }
-    }
+    const body = await readJsonResponse(response, "Anthropic", "anthropic", apiKey);
 
     if (!response.ok) {
       const typed = body as AnthropicMessagesResponse | null;
