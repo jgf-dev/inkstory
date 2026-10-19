@@ -1,3 +1,4 @@
+export { readBodyWithLimit } from "./body";
 export { htmlToBlocks, isSceneBreak, markdownToBlocks } from "./blocks";
 export { detectFormat, docxToHtml, parseManuscript } from "./parse";
 export { previewManuscript } from "./preview";

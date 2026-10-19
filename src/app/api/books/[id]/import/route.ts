@@ -8,11 +8,16 @@ import {
   MAX_IMPORT_BYTES,
   parseManuscript,
   previewManuscript,
+  readBodyWithLimit,
 } from "@/lib/import";
 
 export const dynamic = "force-dynamic";
 
 const MULTIPART_OVERHEAD_BYTES = 64 * 1024;
+
+const MAX_BODY_BYTES = MAX_IMPORT_BYTES + MULTIPART_OVERHEAD_BYTES;
+
+const tooLarge = () => new ImportError("File is too large (10 MB max)", "VALIDATION_FAILED", 413);
 
 function field(form: FormData, name: string): string | null {
   const value = form.get(name);
@@ -45,13 +50,17 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     // Reject oversized uploads before buffering the multipart body. The
     // allowance covers multipart boundaries and the small text fields.
     const declared = Number(request.headers.get("content-length") ?? "");
-    if (Number.isFinite(declared) && declared > MAX_IMPORT_BYTES + MULTIPART_OVERHEAD_BYTES) {
-      throw new ImportError("File is too large (10 MB max)", "VALIDATION_FAILED", 413);
+    if (Number.isFinite(declared) && declared > MAX_BODY_BYTES) {
+      throw tooLarge();
     }
+    // Content-Length is optional and can lie, so also cap the streamed body.
+    const body = await readBodyWithLimit(request.body, MAX_BODY_BYTES);
 
     let form: FormData;
     try {
-      form = await request.formData();
+      form = await new Response(body, {
+        headers: { "content-type": request.headers.get("content-type") ?? "" },
+      }).formData();
     } catch {
       throw new ImportError("Expected multipart/form-data", "VALIDATION_FAILED", 400);
     }
@@ -60,7 +69,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       throw new ImportError("Missing file", "VALIDATION_FAILED", 400);
     }
     if (file.size > MAX_IMPORT_BYTES) {
-      throw new ImportError("File is too large (10 MB max)", "VALIDATION_FAILED", 413);
+      throw tooLarge();
     }
     const name = "name" in file && typeof file.name === "string" ? file.name : "";
     const format = detectFormat(name, field(form, "format"));

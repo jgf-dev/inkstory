@@ -18,6 +18,7 @@ import {
   MAX_IMPORT_BYTES,
   parseManuscript,
   previewManuscript,
+  readBodyWithLimit,
   type ImportManuscript,
 } from "../src/lib/import";
 import {
@@ -519,6 +520,33 @@ describe("import service + route (database)", { timeout: 30_000 }, () => {
     expect(notForm.status).toBe(400);
     const empty = await post(novelId, { file: mdFile("", "e.md"), confirm: "true" });
     expect(empty.status).toBe(400);
+  });
+
+  it("caps a streamed body that has no Content-Length", async () => {
+    let pulled = 0;
+    const chunk = new Uint8Array(1024 * 1024);
+    const stream = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        pulled += 1;
+        if (pulled > 50) controller.close();
+        else controller.enqueue(chunk);
+      },
+    });
+    const req = new NextRequest(`http://localhost/api/books/${novelId}/import`, {
+      method: "POST",
+      body: stream,
+      headers: { "content-type": "multipart/form-data; boundary=x" },
+      duplex: "half",
+    } as ConstructorParameters<typeof NextRequest>[1]);
+    expect(req.headers.get("content-length")).toBeNull();
+    const res = await importRoute(req, { params: Promise.resolve({ id: novelId }) });
+    expect(res.status).toBe(413);
+    // Reading stopped soon after the limit instead of draining all 50 MB.
+    expect(pulled).toBeLessThan(15);
+  });
+
+  it("reads an empty body as empty", async () => {
+    expect(await readBodyWithLimit(null, 10)).toHaveLength(0);
   });
 
   it("previews without writing", async () => {
