@@ -37,7 +37,12 @@ export interface TokenBudgetMeta {
   maxTokens: number;
   /** Estimated tokens of the input context before budgeting. */
   estimatedTokensBefore: number;
-  /** Estimated tokens of the returned context (always <= `maxTokens`). */
+  /**
+   * Estimated tokens of the returned context. The wrapper is a floor: this is
+   * at most `maxTokens` whenever the wrapper fits, but when `maxTokens` is
+   * below the wrapper's own cost every entry is dropped and this equals the
+   * wrapper tokens, which then exceeds `maxTokens`.
+   */
   estimatedTokensAfter: number;
   /** Entries removed entirely because nothing fit. */
   droppedEntryIds: string[];

@@ -98,9 +98,8 @@ export function buildSceneMessages(input: BuildScenePromptInput): ChatMessage[] 
     "Story bible entries that apply to this scene are provided below. Respect their facts and current state; never contradict them.",
     "Return prose only — no headings, no commentary, no markdown fences.",
     "",
-    "<story_bible>",
+    // Already wrapped in <codex_context><story_bible> by formatAssembledContext.
     input.codexPrompt,
-    "</story_bible>",
   ].join("\n");
 
   const beatLine = input.beatText?.trim()

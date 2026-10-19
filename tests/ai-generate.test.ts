@@ -50,14 +50,17 @@ describe("AI generation (scene continuation / beat expansion)", () => {
       sceneContent: "Mara reached the quay.",
       summary: null,
       beatText: null,
-      codexPrompt: "<entity type='CHARACTER'>Mara</entity>",
+      codexPrompt:
+        "<codex_context>\n<story_bible>\n<entity type='CHARACTER'>Mara</entity>\n</story_bible>\n</codex_context>",
     };
 
     it("embeds the codex prompt in the system message with POV/tense directives", () => {
       const messages = buildSceneMessages(base);
       expect(messages).toHaveLength(2);
       expect(messages[0].role).toBe("system");
-      expect(messages[0].content).toContain("<story_bible>");
+      // The formatter's wrapper is passed through once, not wrapped again.
+      expect(messages[0].content.split("<story_bible>")).toHaveLength(2);
+      expect(messages[0].content.split("</story_bible>")).toHaveLength(2);
       expect(messages[0].content).toContain("<entity type='CHARACTER'>Mara</entity>");
       expect(messages[0].content).toContain("third person limited");
       expect(messages[0].content).toContain("past tense");

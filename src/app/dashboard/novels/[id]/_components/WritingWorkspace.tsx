@@ -18,6 +18,8 @@ export interface WritingWorkspaceProps {
 export interface InsertRequest {
   seq: number;
   text: string;
+  /** Scene the text was meant for; the editor ignores requests for other scenes. */
+  sceneId: string;
 }
 
 type RightDrawer = "ai" | null;
@@ -56,6 +58,8 @@ export function WritingWorkspace({
   const loadScene = useCallback(async (sceneId: string) => {
     setSceneLoading(true);
     setSceneError(null);
+    // A pending AI insert belongs to the scene it was made for.
+    setInsertRequest(null);
     try {
       const res = await apiGet<{ scene: EditorScene }>(`/api/scenes/${sceneId}`);
       setScene(res.scene);
@@ -212,8 +216,9 @@ export function WritingWorkspace({
   }
 
   function handleInsertIntoScene(text: string) {
-    if (!text.trim()) return;
-    setInsertRequest((prev) => ({ seq: (prev?.seq ?? 0) + 1, text }));
+    if (!text.trim() || !scene) return;
+    const sceneId = scene.id;
+    setInsertRequest((prev) => ({ seq: (prev?.seq ?? 0) + 1, text, sceneId }));
   }
 
   return (
