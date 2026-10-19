@@ -1,0 +1,52 @@
+name: Mirror Postgres CI image
+
+# Copies the Postgres 17 image used by the Sonar test database into GHCR so CI
+# never pulls from rate-limited public registries (ECR Public / Docker Hub).
+# Re-runs weekly so the mirror keeps picking up Postgres 17 patch releases.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 6 * * 1" # Mondays 06:17 UTC
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/mirror-postgres-image.yml
+
+concurrency:
+  group: mirror-postgres-image
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  SOURCE_IMAGE: docker.io/library/postgres:17
+  TARGET_IMAGE: ghcr.io/jgf-dev/postgres:17
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Log in to GHCR
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: echo "$GHCR_TOKEN" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      # imagetools copies the full multi-arch manifest list registry-to-registry
+      # (no local pull), so every platform of the source tag is mirrored.
+      # Retry: GHCR can 403 (read_package) on parallel manifest PUTs while a
+      # package/tag is first being created; a second attempt succeeds.
+      - name: Copy image to GHCR
+        run: |
+          for attempt in 1 2 3; do
+            if docker buildx imagetools create --tag "$TARGET_IMAGE" "$SOURCE_IMAGE"; then
+              exit 0
+            fi
+            echo "::warning::imagetools copy attempt ${attempt} failed; retrying"
+            sleep $((attempt * 10))
+          done
+          exit 1
+
+      - name: Verify mirrored image
+        run: docker buildx imagetools inspect "$TARGET_IMAGE"
