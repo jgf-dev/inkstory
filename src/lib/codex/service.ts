@@ -837,26 +837,55 @@ export async function loadNovelSceneReadingOrder(
     .where((a) => a.deletedAt.isNull())
     .all();
 
+  if (acts.length === 0) {
+    return new Map();
+  }
+
+  const actMap = new Map<string, number>();
+  for (const act of acts) {
+    actMap.set(act.id, act.position);
+  }
+  const actIds = Array.from(actMap.keys());
+
+  const chapters = await db.orm.public.Chapter.where((c) => c.actId.in(actIds))
+    .where((c) => c.deletedAt.isNull())
+    .all();
+
+  if (chapters.length === 0) {
+    return new Map();
+  }
+
+  const chapterMap = new Map<string, { chapterPosition: number; actPosition: number }>();
+  for (const chapter of chapters) {
+    const actPosition = actMap.get(chapter.actId);
+    if (actPosition !== undefined) {
+      chapterMap.set(chapter.id, {
+        chapterPosition: chapter.position,
+        actPosition,
+      });
+    }
+  }
+  const chapterIds = Array.from(chapterMap.keys());
+
+  if (chapterIds.length === 0) {
+    return new Map();
+  }
+
+  const scenes = await db.orm.public.Scene.where((s) => s.chapterId.in(chapterIds))
+    .where((s) => s.deletedAt.isNull())
+    .all();
+
   const rows: SceneReadingOrderKey[] = [];
 
-  for (const act of acts) {
-    const chapters = await db.orm.public.Chapter.where((c) => c.actId.eq(act.id))
-      .where((c) => c.deletedAt.isNull())
-      .all();
-
-    for (const chapter of chapters) {
-      const scenes = await db.orm.public.Scene.where((s) => s.chapterId.eq(chapter.id))
-        .where((s) => s.deletedAt.isNull())
-        .all();
-
-      for (const scene of scenes) {
-        rows.push({
-          sceneId: scene.id,
-          actPosition: act.position,
-          chapterPosition: chapter.position,
-          scenePosition: scene.position,
-        });
-      }
+  for (const scene of scenes) {
+    const parentMeta = chapterMap.get(scene.chapterId);
+    if (parentMeta) {
+      rows.push({
+        sceneId: scene.id,
+        actPosition: parentMeta.actPosition,
+        chapterPosition: parentMeta.chapterPosition,
+        scenePosition: scene.position,
+      });
     }
   }
 
