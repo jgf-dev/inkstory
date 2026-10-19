@@ -225,6 +225,35 @@ describe("Library Service (novel & series creation)", { timeout: 30_000 }, () =>
       expect(novels).toHaveLength(1);
     });
 
+    it("does not mistake an author's own series of the same name for the sample", async () => {
+      const ownUserId = crypto.randomUUID();
+      const ts = await now();
+      await db.orm.public.User.upsert({
+        create: {
+          id: ownUserId,
+          email: `lib-own-${runId}@inkstory.local`,
+          planTier: "PRO",
+          updatedAt: ts,
+        },
+        update: { updatedAt: ts },
+      });
+      const ownSeriesId = `lib-own-series-${runId}`;
+      await db.orm.public.Series.create({
+        id: ownSeriesId,
+        ownerId: ownUserId,
+        title: "The Ashfall Cycle",
+        position: 0,
+        updatedAt: ts,
+      });
+      try {
+        const result = await seedStarterBible(ownUserId);
+        expect(result.created).toBe(true);
+        expect(result.seriesId).not.toBe(ownSeriesId);
+      } finally {
+        await db.orm.public.User.where({ id: ownUserId }).delete();
+      }
+    });
+
     it("respects the Free-tier novel quota", async () => {
       const quotaUserId = crypto.randomUUID();
       const ts = await now();

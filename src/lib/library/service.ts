@@ -111,22 +111,36 @@ export async function createSeries(userId: string, input: CreateSeriesInput) {
 
 // ─── Starter bible (onboarding) ──────────────────────────────────────────────
 
+const STARTER_SERIES_TITLE = "The Ashfall Cycle";
+const STARTER_SERIES_DESCRIPTION = "Sample series — explore, edit, or delete everything.";
+const STARTER_NOVEL_TITLE = "The Glass Weaver";
+
 /**
  * Seeds a small sample fantasy bible for the current user: one series, one
  * novel, a two-scene outline, five codex entries with aliases, relations, a
  * progression, and custom fields. Repeated clicks resolve to the existing
- * sample series (title match) and return without duplicating.
+ * sample series and return without duplicating.
  */
 export async function seedStarterBible(userId: string) {
   const now = nowTimestamp();
 
-  // Sample-series marker row lets repeat clicks resolve to the same series.
-  const existing = await db.orm.public.Series.where((s) => s.ownerId.eq(userId))
-    .where((s) => s.title.eq("The Ashfall Cycle"))
+  // Repeat clicks resolve to the existing sample. A series only counts as the
+  // sample when it has the sample's title and description and still holds the
+  // sample novel, so an author's own "The Ashfall Cycle" is never mistaken
+  // for it.
+  const candidates = await db.orm.public.Series.where((s) => s.ownerId.eq(userId))
+    .where((s) => s.title.eq(STARTER_SERIES_TITLE))
+    .where((s) => s.description.eq(STARTER_SERIES_DESCRIPTION))
     .where((s) => s.deletedAt.isNull())
-    .first();
-  if (existing) {
-    return { seriesId: existing.id, created: false as const };
+    .all();
+  for (const candidate of candidates) {
+    const sampleNovel = await db.orm.public.Novel.where((n) => n.seriesId.eq(candidate.id))
+      .where((n) => n.title.eq(STARTER_NOVEL_TITLE))
+      .where((n) => n.deletedAt.isNull())
+      .first();
+    if (sampleNovel) {
+      return { seriesId: candidate.id, created: false as const };
+    }
   }
 
   // The sample bible includes a novel, so it must respect the tier's quota.
@@ -137,8 +151,8 @@ export async function seedStarterBible(userId: string) {
   return db.transaction(async (tx) => {
     const series = await tx.orm.public.Series.create({
       id: crypto.randomUUID(),
-      title: "The Ashfall Cycle",
-      description: "Sample series — explore, edit, or delete everything.",
+      title: STARTER_SERIES_TITLE,
+      description: STARTER_SERIES_DESCRIPTION,
       position: 0,
       ownerId: userId,
       createdAt: now,
@@ -148,7 +162,7 @@ export async function seedStarterBible(userId: string) {
 
     const novel = await tx.orm.public.Novel.create({
       id: crypto.randomUUID(),
-      title: "The Glass Weaver",
+      title: STARTER_NOVEL_TITLE,
       subtitle: "Book One of the Ashfall Cycle",
       description: "An archivist smuggler discovers the city's founding charter is a forgery.",
       position: 0,

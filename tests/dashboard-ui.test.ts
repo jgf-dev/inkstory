@@ -36,7 +36,7 @@ describe("Dashboard LibraryCreator (launch phase 4)", { timeout: 20_000 }, () =>
     expect(html).toContain("library-creator");
   });
 
-  it("renders modals and validation errors when open", () => {
+  it("renders no modal markup while the create modals are closed", () => {
     const html = renderToStaticMarkup(
       React.createElement(LibraryCreator, {
         series: [{ id: "s-1", title: "The Ashfall Cycle" }],
