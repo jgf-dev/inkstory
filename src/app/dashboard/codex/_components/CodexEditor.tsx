@@ -11,6 +11,12 @@ import {
   updateCodexEntryAction,
 } from "@/lib/codex/actions";
 import type { CodexTrackingMode, CodexType } from "@/lib/codex/types";
+import {
+  CodexAliasesSection,
+  CodexProgressionsSection,
+  CodexRelationsSection,
+  CodexTagsSection,
+} from "./CodexEditorSections";
 
 interface CodexEditorProps {
   entryId: string;
@@ -213,7 +219,7 @@ export function CodexEditor({
 
   if (loading) {
     return (
-      <div className="flex h-64 items-center justify-center text-sm text-ink-500">
+      <div className="flex h-64 items-center justify-center p-8 text-sm text-ink-500">
         Loading entry details...
       </div>
     );
@@ -221,49 +227,41 @@ export function CodexEditor({
 
   if (!entry) {
     return (
-      <div className="flex h-64 items-center justify-center text-sm text-ink-500">
-        {error || "Entry not found."}
+      <div className="p-8 text-center text-sm text-ink-500">
+        Failed to load Codex entry or entry has been deleted.
       </div>
     );
   }
 
   return (
-    <div className="space-y-6" data-testid="codex-editor">
-      {/* Header */}
+    <div className="space-y-6">
+      {/* Top Bar: Title & Actions */}
       <div className="flex items-center justify-between border-b border-ink-200 pb-4">
         <div className="flex items-center gap-3">
-          <div
-            className="h-5 w-5 rounded-full ring-2 ring-ink-200"
-            style={{ backgroundColor: color || "#3b82f6" }}
-          />
-          <div>
-            <h2 className="text-2xl font-semibold text-ink-900">{name || "Untitled Entry"}</h2>
-            <div className="mt-1 flex items-center gap-2">
-              <span className="rounded bg-ink-200 px-2 py-0.5 text-xs font-medium text-ink-700">
-                {type}
-              </span>
-              <span className="rounded bg-ink-100 px-2 py-0.5 text-xs text-ink-600">
-                {entry.seriesScoped ? "Series-Scoped" : "Book-Scoped"}
-              </span>
-              <span className="rounded bg-ink-100 px-2 py-0.5 text-xs text-ink-600">
-                {trackingMode}
-              </span>
-            </div>
-          </div>
+          <div className="h-4 w-4 rounded-full" style={{ backgroundColor: color }} />
+          <h2 className="text-xl font-bold text-ink-900">{entry.name}</h2>
+          <span className="rounded bg-ink-100 px-2 py-0.5 text-xs font-semibold uppercase tracking-wider text-ink-700">
+            {entry.type}
+          </span>
+          {entry.seriesScoped && (
+            <span className="rounded bg-amber-100 px-2 py-0.5 text-xs font-semibold uppercase tracking-wider text-amber-800">
+              Series-Scoped
+            </span>
+          )}
         </div>
 
         <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={handleDelete}
-            className="rounded-md border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50"
+            className="rounded-md border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100"
           >
             Delete
           </button>
           <button
             type="button"
             onClick={handleSave}
-            disabled={saving}
+            disabled={saving || !name.trim()}
             className="rounded-md bg-ink-800 px-4 py-1.5 text-xs font-medium text-ink-50 hover:bg-ink-900 disabled:opacity-50"
           >
             {saving ? "Saving..." : "Save Changes"}
@@ -271,6 +269,7 @@ export function CodexEditor({
         </div>
       </div>
 
+      {/* Notifications */}
       {error && (
         <div className="rounded-md border border-red-300 bg-red-50 p-3 text-sm text-red-700">
           {error}
@@ -361,159 +360,30 @@ export function CodexEditor({
 
         {/* Right column: Aliases, Tags, Relations, Progressions */}
         <div className="space-y-6">
-          {/* Aliases */}
-          <div className="rounded-lg border border-ink-200 bg-ink-50 p-4">
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-ink-600">
-              Aliases (Mention Detection)
-            </h3>
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              {entry.aliases?.map((a: any) => (
-                <span
-                  key={a.id}
-                  className="flex items-center gap-1 rounded bg-ink-100 px-2 py-0.5 text-xs text-ink-800"
-                >
-                  {a.name}
-                  <button
-                    type="button"
-                    onClick={() => handleDeleteAlias(a.id)}
-                    className="text-ink-400 hover:text-ink-700 ml-1"
-                  >
-                    ×
-                  </button>
-                </span>
-              ))}
-              {(!entry.aliases || entry.aliases.length === 0) && (
-                <p className="text-xs text-ink-400">No aliases added yet.</p>
-              )}
-            </div>
+          <CodexAliasesSection
+            aliases={entry.aliases}
+            onDeleteAlias={handleDeleteAlias}
+            onAddAlias={handleAddAlias}
+            newAliasName={newAliasName}
+            setNewAliasName={setNewAliasName}
+            addingAlias={addingAlias}
+          />
 
-            <form onSubmit={handleAddAlias} className="mt-3 flex gap-2">
-              <input
-                type="text"
-                placeholder="New alias name..."
-                value={newAliasName}
-                onChange={(e) => setNewAliasName(e.target.value)}
-                className="w-full rounded border border-ink-200 bg-ink-100 px-2 py-1 text-xs focus:border-ink-400 focus:outline-hidden"
-              />
-              <button
-                type="submit"
-                disabled={addingAlias || !newAliasName.trim()}
-                className="rounded bg-ink-700 px-3 py-1 text-xs font-medium text-ink-50 hover:bg-ink-800 disabled:opacity-50"
-              >
-                Add
-              </button>
-            </form>
-          </div>
+          <CodexTagsSection
+            tags={entry.tags}
+            onDeleteTag={handleDeleteTag}
+            onAddTag={handleAddTag}
+            newTagName={newTagName}
+            setNewTagName={setNewTagName}
+            addingTag={addingTag}
+          />
 
-          {/* Tags */}
-          <div className="rounded-lg border border-ink-200 bg-ink-50 p-4">
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-ink-600">Tags</h3>
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              {entry.tags?.map((t: any) => (
-                <span
-                  key={t.id}
-                  className="flex items-center gap-1 rounded bg-ink-100 px-2 py-0.5 text-xs text-ink-800"
-                >
-                  {t.name}
-                  <button
-                    type="button"
-                    onClick={() => handleDeleteTag(t.id)}
-                    className="text-ink-400 hover:text-ink-700 ml-1"
-                  >
-                    ×
-                  </button>
-                </span>
-              ))}
-              {(!entry.tags || entry.tags.length === 0) && (
-                <p className="text-xs text-ink-400">No tags added yet.</p>
-              )}
-            </div>
+          <CodexRelationsSection
+            sourceRelations={entry.sourceRelations}
+            targetRelations={entry.targetRelations}
+          />
 
-            <form onSubmit={handleAddTag} className="mt-3 flex gap-2">
-              <input
-                type="text"
-                placeholder="New tag..."
-                value={newTagName}
-                onChange={(e) => setNewTagName(e.target.value)}
-                className="w-full rounded border border-ink-200 bg-ink-100 px-2 py-1 text-xs focus:border-ink-400 focus:outline-hidden"
-              />
-              <button
-                type="submit"
-                disabled={addingTag || !newTagName.trim()}
-                className="rounded bg-ink-700 px-3 py-1 text-xs font-medium text-ink-50 hover:bg-ink-800 disabled:opacity-50"
-              >
-                Add
-              </button>
-            </form>
-          </div>
-
-          {/* Graph Relations */}
-          <div className="rounded-lg border border-ink-200 bg-ink-50 p-4">
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-ink-600">
-              Relations Graph
-            </h3>
-            <div className="mt-2 space-y-1.5">
-              {entry.sourceRelations?.map((r: any) => (
-                <div
-                  key={r.id}
-                  className="rounded border border-ink-200 bg-ink-100 p-2 text-xs text-ink-700"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-semibold text-ink-900">{r.relationType}</span>
-                    <span className="font-medium text-ink-600">
-                      → {r.targetEntry?.name ?? r.targetEntryId}
-                    </span>
-                  </div>
-                  {r.description && <p className="mt-0.5 text-ink-500">{r.description}</p>}
-                </div>
-              ))}
-              {entry.targetRelations?.map((r: any) => (
-                <div
-                  key={r.id}
-                  className="rounded border border-ink-200 bg-ink-100 p-2 text-xs text-ink-700"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-semibold text-ink-900">
-                      {r.reverseType || r.relationType}
-                    </span>
-                    <span className="font-medium text-ink-600">
-                      ← {r.sourceEntry?.name ?? r.sourceEntryId}
-                    </span>
-                  </div>
-                  {r.description && <p className="mt-0.5 text-ink-500">{r.description}</p>}
-                </div>
-              ))}
-              {(!entry.sourceRelations || entry.sourceRelations.length === 0) &&
-                (!entry.targetRelations || entry.targetRelations.length === 0) && (
-                  <p className="text-xs text-ink-400">No relations established yet.</p>
-                )}
-            </div>
-          </div>
-
-          {/* Temporal Progressions */}
-          <div className="rounded-lg border border-ink-200 bg-ink-50 p-4">
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-ink-600">
-              Temporal Progressions
-            </h3>
-            <div className="mt-2 space-y-1.5">
-              {entry.progressions?.map((p: any) => (
-                <div
-                  key={p.id}
-                  className="rounded border border-ink-200 bg-ink-100 p-2 text-xs text-ink-700"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-semibold uppercase tracking-wide text-ink-600">
-                      {p.mode}
-                    </span>
-                  </div>
-                  <p className="mt-0.5 text-ink-800">{p.description}</p>
-                </div>
-              ))}
-              {(!entry.progressions || entry.progressions.length === 0) && (
-                <p className="text-xs text-ink-400">No progressions recorded yet.</p>
-              )}
-            </div>
-          </div>
+          <CodexProgressionsSection progressions={entry.progressions} />
         </div>
       </div>
     </div>
