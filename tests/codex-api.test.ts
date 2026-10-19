@@ -481,13 +481,14 @@ describe("Codex REST Route Handlers", () => {
       const mockChapters = [
         { id: "chap-1", actId: "act-1", position: 0, deletedAt: null },
         { id: "chap-2", actId: "act-2", position: 0, deletedAt: null },
+        { id: "chap-orphan", actId: "act-unknown", position: 0, deletedAt: null },
       ] as any;
       const mockScenes = [
         { id: "scene-1", chapterId: "chap-1", position: 0, deletedAt: null },
         { id: "scene-2", chapterId: "chap-2", position: 1, deletedAt: null },
+        { id: "scene-orphan", chapterId: "chap-missing", position: 2, deletedAt: null },
       ] as any;
 
-      // We test loadNovelSceneReadingOrder directly with mocks on db.orm.public
       const { db } = await import("../src/lib/prisma");
       vi.spyOn(db.orm.public.Act, "where").mockReturnValue({
         where: () => ({ all: async () => mockActs }),
@@ -515,13 +516,39 @@ describe("Codex REST Route Handlers", () => {
       });
     });
 
-    it("returns empty map when novel has no acts or chapters or scenes", async () => {
+    it("returns empty map when novel has no acts", async () => {
       const { db } = await import("../src/lib/prisma");
       vi.spyOn(db.orm.public.Act, "where").mockReturnValue({
         where: () => ({ all: async () => [] }),
       } as any);
 
       const orderMap = await codexService.loadNovelSceneReadingOrder("novel-empty");
+      expect(orderMap.size).toBe(0);
+    });
+
+    it("returns empty map when acts exist but chapters query returns empty array", async () => {
+      const { db } = await import("../src/lib/prisma");
+      vi.spyOn(db.orm.public.Act, "where").mockReturnValue({
+        where: () => ({ all: async () => [{ id: "act-1", position: 0 }] }),
+      } as any);
+      vi.spyOn(db.orm.public.Chapter, "where").mockReturnValue({
+        where: () => ({ all: async () => [] }),
+      } as any);
+
+      const orderMap = await codexService.loadNovelSceneReadingOrder("novel-no-chapters");
+      expect(orderMap.size).toBe(0);
+    });
+
+    it("returns empty map when chapters exist but none match valid act IDs", async () => {
+      const { db } = await import("../src/lib/prisma");
+      vi.spyOn(db.orm.public.Act, "where").mockReturnValue({
+        where: () => ({ all: async () => [{ id: "act-1", position: 0 }] }),
+      } as any);
+      vi.spyOn(db.orm.public.Chapter, "where").mockReturnValue({
+        where: () => ({ all: async () => [{ id: "chap-1", actId: "act-other", position: 0 }] }),
+      } as any);
+
+      const orderMap = await codexService.loadNovelSceneReadingOrder("novel-no-valid-chapters");
       expect(orderMap.size).toBe(0);
     });
   });
