@@ -90,15 +90,10 @@ export interface NovelOutline {
 }
 
 /**
- * Deterministic sibling ordering: position first, then creation time, then id
- * as the final tie-break so equal positions still render stably.
+ * The single sibling ordering used everywhere (outline reads and moves):
+ * position first, then creation time, then id as the final tie-break.
  */
-function byPositionThenId<T extends { position: number; id: string }>(a: T, b: T): number {
-  return a.position - b.position || a.id.localeCompare(b.id);
-}
-
-/** Row-level sibling ordering with a creation-time tie-break. */
-function byPositionThenCreated(
+export function byPositionThenCreated(
   a: { position: number; createdAt: unknown; id: string },
   b: { position: number; createdAt: unknown; id: string },
 ): number {
@@ -119,6 +114,7 @@ export async function getNovelOutline(userId: string, novelId: string): Promise<
   const acts = await db.orm.public.Act.where((a) => a.novelId.eq(novel.id))
     .where((a) => a.deletedAt.isNull())
     .all();
+  acts.sort(byPositionThenCreated);
   const actIds = acts.map((a) => a.id);
 
   const chapters = actIds.length
@@ -126,6 +122,7 @@ export async function getNovelOutline(userId: string, novelId: string): Promise<
         .where((c) => c.deletedAt.isNull())
         .all()
     : [];
+  chapters.sort(byPositionThenCreated);
   const chapterIds = chapters.map((c) => c.id);
 
   const scenes = chapterIds.length
@@ -133,6 +130,7 @@ export async function getNovelOutline(userId: string, novelId: string): Promise<
         .where((s) => s.deletedAt.isNull())
         .all()
     : [];
+  scenes.sort(byPositionThenCreated);
 
   const scenesByChapter = new Map<string, OutlineScene[]>();
   for (const scene of scenes) {
@@ -154,19 +152,17 @@ export async function getNovelOutline(userId: string, novelId: string): Promise<
       id: chapter.id,
       title: chapter.title,
       position: chapter.position,
-      scenes: (scenesByChapter.get(chapter.id) ?? []).sort(byPositionThenId),
+      scenes: scenesByChapter.get(chapter.id) ?? [],
     });
     chaptersByAct.set(chapter.actId, list);
   }
 
-  const outlineActs: OutlineAct[] = acts
-    .map((act) => ({
-      id: act.id,
-      title: act.title,
-      position: act.position,
-      chapters: (chaptersByAct.get(act.id) ?? []).sort(byPositionThenId),
-    }))
-    .sort(byPositionThenId);
+  const outlineActs: OutlineAct[] = acts.map((act) => ({
+    id: act.id,
+    title: act.title,
+    position: act.position,
+    chapters: chaptersByAct.get(act.id) ?? [],
+  }));
 
   const totals = {
     acts: outlineActs.length,
@@ -217,16 +213,23 @@ const DEFAULT_TITLES: Record<OutlineKind, string> = {
   scene: "New Scene",
 };
 
-async function computeNextPosition(kind: OutlineKind, parentId: string | null): Promise<number> {
+/**
+ * Next free position among a node's siblings. For acts the parent is the
+ * novel, so `parentId` is the novel id; for chapters/scenes it is the act or
+ * chapter id.
+ */
+async function computeNextPosition(kind: OutlineKind, parentId: string): Promise<number> {
   let siblings: Array<{ position: number }> = [];
   if (kind === "act") {
-    siblings = await db.orm.public.Act.where((a) => a.deletedAt.isNull()).all();
+    siblings = await db.orm.public.Act.where((a) => a.novelId.eq(parentId))
+      .where((a) => a.deletedAt.isNull())
+      .all();
   } else if (kind === "chapter") {
-    siblings = await db.orm.public.Chapter.where((c) => c.actId.eq(parentId!))
+    siblings = await db.orm.public.Chapter.where((c) => c.actId.eq(parentId))
       .where((c) => c.deletedAt.isNull())
       .all();
   } else {
-    siblings = await db.orm.public.Scene.where((s) => s.chapterId.eq(parentId!))
+    siblings = await db.orm.public.Scene.where((s) => s.chapterId.eq(parentId))
       .where((s) => s.deletedAt.isNull())
       .all();
   }
@@ -248,7 +251,7 @@ export async function createOutlineNode(
   const kind = input.kind;
 
   if (kind === "act") {
-    const position = input.position ?? (await computeNextPosition("act", null));
+    const position = input.position ?? (await computeNextPosition("act", novel.id));
     const act = await db.orm.public.Act.create({
       id: crypto.randomUUID(),
       novelId: novel.id,
