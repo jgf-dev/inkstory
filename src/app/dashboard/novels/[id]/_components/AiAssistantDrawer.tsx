@@ -56,7 +56,7 @@ export function AiAssistantDrawer({
     try {
       const res = await apiPost<GenerateSuccess & { prompt?: PromptPreview; code?: string }>(
         "/api/ai/generate",
-        { sceneId, mode, beatText: beatText || undefined, content: content || undefined },
+        { sceneId, mode, beatText: beatText || undefined, content },
       );
       setOutcome({ kind: "generated", result: { text: res.text, model: res.model } });
     } catch (err) {
