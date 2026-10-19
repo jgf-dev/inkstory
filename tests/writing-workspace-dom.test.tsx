@@ -362,4 +362,56 @@ describe("AiAssistantDrawer", () => {
     fireEvent.click(screen.getByLabelText("Close AI assistant drawer"));
     expect(p.onClose).toHaveBeenCalled();
   });
+
+  it("ignores stale loadScene responses when selection changed", async () => {
+    let resolveScene1!: () => void;
+    let resolveScene2!: () => void;
+
+    const fn = vi.fn((url: string) => {
+      if (url === "/api/scenes/scene-1") {
+        return new Promise((resolve) => {
+          resolveScene1 = () =>
+            resolve({
+              ok: true,
+              status: 200,
+              text: async () => JSON.stringify({ scene: makeScene("scene-1", "Prose One") }),
+            });
+        });
+      }
+      if (url === "/api/scenes/scene-2") {
+        return new Promise((resolve) => {
+          resolveScene2 = () =>
+            resolve({
+              ok: true,
+              status: 200,
+              text: async () => JSON.stringify({ scene: makeScene("scene-2", "Prose Two") }),
+            });
+        });
+      }
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        text: async () => JSON.stringify({ matchedEntryIds: [], matches: [] }),
+      });
+    });
+    vi.stubGlobal("fetch", fn);
+
+    render(React.createElement(WritingWorkspace, { outline: makeOutline(), initialSceneId: null }));
+
+    fireEvent.click(screen.getByTestId("scene-link-scene-1"));
+    fireEvent.click(screen.getByTestId("scene-link-scene-2"));
+
+    await act(async () => {
+      resolveScene2();
+    });
+
+    expect(await screen.findByDisplayValue("Prose Two")).toBeTruthy();
+
+    await act(async () => {
+      resolveScene1();
+    });
+
+    expect(screen.getByDisplayValue("Prose Two")).toBeTruthy();
+    expect(screen.queryByDisplayValue("Prose One")).toBeNull();
+  });
 });

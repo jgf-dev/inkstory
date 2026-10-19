@@ -8,11 +8,17 @@
  * All storage access is guarded so SSR and private-mode browsers are safe.
  */
 
+import type { PovValue, TenseValue } from "./meta";
+import { isPovValue, isTenseValue } from "./meta";
+
 export interface SceneDraft {
   sceneId: string;
   title: string;
   content: string;
   summary: string;
+  pov?: PovValue;
+  tense?: TenseValue;
+  excludeFromAi?: boolean;
   /** Client timestamp (ms) of the last draft edit. */
   savedAt: number;
   /** True when the last matching server save attempt failed or never ran. */
@@ -62,7 +68,7 @@ export function loadDraft(sceneId: string): SceneDraft | null {
       window.localStorage.removeItem(draftKey(sceneId));
       return null;
     }
-    return {
+    const result: SceneDraft = {
       sceneId,
       title: typeof parsed.title === "string" ? parsed.title : "",
       content: parsed.content,
@@ -70,6 +76,10 @@ export function loadDraft(sceneId: string): SceneDraft | null {
       savedAt: parsed.savedAt,
       unsaved: parsed.unsaved === true,
     };
+    if (isPovValue(parsed.pov)) result.pov = parsed.pov;
+    if (isTenseValue(parsed.tense)) result.tense = parsed.tense;
+    if (typeof parsed.excludeFromAi === "boolean") result.excludeFromAi = parsed.excludeFromAi;
+    return result;
   } catch {
     return null;
   }

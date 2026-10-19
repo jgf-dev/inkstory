@@ -44,6 +44,24 @@ export function Outliner(props: OutlinerProps) {
     setRenaming(null);
   }
 
+  function renderRenameInput() {
+    if (!renaming) return null;
+    return (
+      <input
+        type="text"
+        autoFocus
+        value={renaming.value}
+        onChange={(e) => setRenaming({ ...renaming, value: e.target.value })}
+        onBlur={commitRenaming}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") commitRenaming();
+          if (e.key === "Escape") setRenaming(null);
+        }}
+        className="w-full rounded border border-ink-300 px-1 py-0.5 text-xs text-ink-900 focus:outline-hidden"
+      />
+    );
+  }
+
   function renderNodeActions(kind: OutlineKind, id: string, title: string) {
     return (
       <span className="inline-flex items-center gap-0.5 opacity-0 transition-opacity group-hover/node:opacity-100 focus-within:opacity-100">
@@ -123,113 +141,128 @@ export function Outliner(props: OutlinerProps) {
           </div>
         )}
 
-        {outline.acts.map((act) => (
-          <div key={act.id} className="group/node mb-1">
-            <div className="flex items-center justify-between rounded px-2 py-1 hover:bg-ink-50">
-              <span className="truncate text-sm font-semibold text-ink-900">{act.title}</span>
-              <span className="flex items-center gap-1">
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => props.onCreateNode("chapter", act.id)}
-                  className="rounded px-1 text-xs text-ink-400 hover:bg-ink-100 hover:text-ink-700"
-                  title="Add chapter"
-                >
-                  ＋
-                </button>
-                {renderNodeActions("act", act.id, act.title)}
-              </span>
-            </div>
+        {outline.acts.map((act) => {
+          const isActRenaming =
+            renaming !== null && renaming.kind === "act" && renaming.id === act.id;
 
-            {act.chapters.map((chapter) => (
-              <div key={chapter.id} className="group/node mb-0.5 pl-4">
+          return (
+            <div key={act.id} className="group/node mb-1">
+              {isActRenaming ? (
+                <div className="group/node flex items-center rounded px-2 py-1">
+                  {renderRenameInput()}
+                </div>
+              ) : (
                 <div className="flex items-center justify-between rounded px-2 py-1 hover:bg-ink-50">
-                  <span className="truncate text-sm font-medium text-ink-700">{chapter.title}</span>
+                  <span className="truncate text-sm font-semibold text-ink-900">{act.title}</span>
                   <span className="flex items-center gap-1">
                     <button
                       type="button"
                       disabled={busy}
-                      onClick={() => props.onCreateNode("scene", chapter.id)}
+                      onClick={() => props.onCreateNode("chapter", act.id)}
                       className="rounded px-1 text-xs text-ink-400 hover:bg-ink-100 hover:text-ink-700"
-                      title="Add scene"
+                      title="Add chapter"
                     >
                       ＋
                     </button>
-                    {renderNodeActions("chapter", chapter.id, chapter.title)}
+                    {renderNodeActions("act", act.id, act.title)}
                   </span>
                 </div>
+              )}
 
-                {chapter.scenes.length === 0 && (
-                  <p className="text-ink-400 px-2 py-0.5 pl-6 text-[11px] italic">Empty chapter</p>
-                )}
+              {act.chapters.map((chapter) => {
+                const isChapterRenaming =
+                  renaming !== null && renaming.kind === "chapter" && renaming.id === chapter.id;
 
-                {chapter.scenes.map((scene) => {
-                  const isSelected = scene.id === selectedSceneId;
-                  const isRenaming =
-                    renaming !== null && renaming.kind === "scene" && renaming.id === scene.id;
-
-                  if (isRenaming && renaming) {
-                    return (
-                      <div
-                        key={scene.id}
-                        className="group/node flex items-center rounded px-2 py-1 pl-6"
-                      >
-                        <input
-                          type="text"
-                          autoFocus
-                          value={renaming.value}
-                          onChange={(e) => setRenaming({ ...renaming, value: e.target.value })}
-                          onBlur={commitRenaming}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") commitRenaming();
-                            if (e.key === "Escape") setRenaming(null);
-                          }}
-                          className="w-full rounded border border-ink-300 px-1 py-0.5 text-xs text-ink-900 focus:outline-hidden"
-                        />
+                return (
+                  <div key={chapter.id} className="group/node mb-0.5 pl-4">
+                    {isChapterRenaming ? (
+                      <div className="group/node flex items-center rounded px-2 py-1">
+                        {renderRenameInput()}
                       </div>
-                    );
-                  }
+                    ) : (
+                      <div className="flex items-center justify-between rounded px-2 py-1 hover:bg-ink-50">
+                        <span className="truncate text-sm font-medium text-ink-700">
+                          {chapter.title}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() => props.onCreateNode("scene", chapter.id)}
+                            className="rounded px-1 text-xs text-ink-400 hover:bg-ink-100 hover:text-ink-700"
+                            title="Add scene"
+                          >
+                            ＋
+                          </button>
+                          {renderNodeActions("chapter", chapter.id, chapter.title)}
+                        </span>
+                      </div>
+                    )}
 
-                  return (
-                    <div
-                      key={scene.id}
-                      className={`group/node flex items-center justify-between rounded px-2 py-1 pl-6 ${
-                        isSelected ? "bg-ink-100" : "hover:bg-ink-50"
-                      }`}
-                    >
-                      <button
-                        type="button"
-                        disabled={busy}
-                        onClick={() => props.onSelectScene(scene.id)}
-                        className="flex min-w-0 flex-1 items-center gap-2 text-left"
-                        data-testid={`scene-link-${scene.id}`}
-                        data-selected={isSelected ? "true" : "false"}
-                      >
-                        <span
-                          className={`truncate text-sm ${
-                            isSelected ? "font-semibold text-ink-900" : "text-ink-600"
+                    {chapter.scenes.length === 0 && (
+                      <p className="text-ink-400 px-2 py-0.5 pl-6 text-[11px] italic">
+                        Empty chapter
+                      </p>
+                    )}
+
+                    {chapter.scenes.map((scene) => {
+                      const isSelected = scene.id === selectedSceneId;
+                      const isRenaming =
+                        renaming !== null && renaming.kind === "scene" && renaming.id === scene.id;
+
+                      if (isRenaming) {
+                        return (
+                          <div
+                            key={scene.id}
+                            className="group/node flex items-center rounded px-2 py-1 pl-6"
+                          >
+                            {renderRenameInput()}
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <div
+                          key={scene.id}
+                          className={`group/node flex items-center justify-between rounded px-2 py-1 pl-6 ${
+                            isSelected ? "bg-ink-100" : "hover:bg-ink-50"
                           }`}
                         >
-                          {scene.title}
-                        </span>
-                        <span className="text-ink-400 shrink-0 text-[11px] tabular-nums">
-                          {scene.wordCount > 0
-                            ? formatWordCount(scene.wordCount).split(" ")[0]
-                            : "—"}
-                        </span>
-                      </button>
-                      {renderNodeActions("scene", scene.id, scene.title)}
-                    </div>
-                  );
-                })}
-              </div>
-            ))}
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() => props.onSelectScene(scene.id)}
+                            className="flex min-w-0 flex-1 items-center gap-2 text-left"
+                            data-testid={`scene-link-${scene.id}`}
+                            data-selected={isSelected ? "true" : "false"}
+                          >
+                            <span
+                              className={`truncate text-sm ${
+                                isSelected ? "font-semibold text-ink-900" : "text-ink-600"
+                              }`}
+                            >
+                              {scene.title}
+                            </span>
+                            <span className="text-ink-400 shrink-0 text-[11px] tabular-nums">
+                              {scene.wordCount > 0
+                                ? formatWordCount(scene.wordCount).split(" ")[0]
+                                : "—"}
+                            </span>
+                          </button>
+                          {renderNodeActions("scene", scene.id, scene.title)}
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })}
 
-            {act.chapters.length === 0 && (
-              <p className="text-ink-400 px-2 py-0.5 pl-4 text-[11px] italic">No chapters</p>
-            )}
-          </div>
-        ))}
+              {act.chapters.length === 0 && (
+                <p className="text-ink-400 px-2 py-0.5 pl-4 text-[11px] italic">No chapters</p>
+              )}
+            </div>
+          );
+        })}
       </div>
 
       <div className="border-ink-200 border-t px-3 py-2">

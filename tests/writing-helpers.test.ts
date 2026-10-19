@@ -65,6 +65,16 @@ describe("scene draft fallback (localStorage)", () => {
       expect(loadDraft("scene-1")).toEqual(draft);
       clearDraft("scene-1");
       expect(loadDraft("scene-1")).toBeNull();
+
+      const draftWithMeta: SceneDraft = {
+        ...draft,
+        pov: "FIRST",
+        tense: "PRESENT",
+        excludeFromAi: true,
+      };
+      saveDraft(draftWithMeta);
+      expect(loadDraft("scene-1")).toEqual(draftWithMeta);
+      clearDraft("scene-1");
     } finally {
       unstub();
     }

@@ -68,10 +68,15 @@ export function SceneEditor(props: SceneEditorProps) {
     content: string;
     title: string;
     summary: string;
+    pov?: PovValue;
+    tense?: TenseValue;
+    excludeFromAi?: boolean;
   } | null>(null);
 
   const savedRef = useRef<SceneSnapshot>(snapshotOf(scene));
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isSavingRef = useRef(false);
+  const queuedSaveRef = useRef(false);
 
   // Local draft fallback check (per-scene mount; the workspace remounts the
   // editor with a key on scene switch).
@@ -83,6 +88,9 @@ export function SceneEditor(props: SceneEditorProps) {
         content: draft!.content,
         title: draft!.title,
         summary: draft!.summary,
+        pov: draft!.pov,
+        tense: draft!.tense,
+        excludeFromAi: draft!.excludeFromAi,
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -99,6 +107,20 @@ export function SceneEditor(props: SceneEditorProps) {
     [title, content, summary, pov, tense, excludeFromAi],
   );
 
+  const currentRef = useRef<SceneSnapshot>(current);
+  currentRef.current = current;
+
+  function isSnapshotDirty(a: SceneSnapshot, b: SceneSnapshot): boolean {
+    return (
+      a.title !== b.title ||
+      a.content !== b.content ||
+      a.summary !== b.summary ||
+      a.pov !== b.pov ||
+      a.tense !== b.tense ||
+      a.excludeFromAi !== b.excludeFromAi
+    );
+  }
+
   function scheduleSave() {
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => {
@@ -106,7 +128,7 @@ export function SceneEditor(props: SceneEditorProps) {
     }, AUTOSAVE_DEBOUNCE_MS);
   }
 
-  function diffAgainstSaved(): Partial<{
+  function diffAgainstSaved(target: SceneSnapshot): Partial<{
     title: string;
     content: string;
     summary: string;
@@ -116,12 +138,12 @@ export function SceneEditor(props: SceneEditorProps) {
   }> {
     const saved = savedRef.current;
     const patch: Record<string, unknown> = {};
-    if (current.title !== saved.title) patch.title = current.title;
-    if (current.content !== saved.content) patch.content = current.content;
-    if (current.summary !== saved.summary) patch.summary = current.summary || null;
-    if (current.pov !== saved.pov) patch.pov = current.pov;
-    if (current.tense !== saved.tense) patch.tense = current.tense;
-    if (current.excludeFromAi !== saved.excludeFromAi) patch.excludeFromAi = current.excludeFromAi;
+    if (target.title !== saved.title) patch.title = target.title;
+    if (target.content !== saved.content) patch.content = target.content;
+    if (target.summary !== saved.summary) patch.summary = target.summary || null;
+    if (target.pov !== saved.pov) patch.pov = target.pov;
+    if (target.tense !== saved.tense) patch.tense = target.tense;
+    if (target.excludeFromAi !== saved.excludeFromAi) patch.excludeFromAi = target.excludeFromAi;
     return patch;
   }
 
@@ -130,45 +152,69 @@ export function SceneEditor(props: SceneEditorProps) {
       clearTimeout(timerRef.current);
       timerRef.current = null;
     }
-    const patch = diffAgainstSaved();
+    if (isSavingRef.current) {
+      queuedSaveRef.current = true;
+      return;
+    }
+    const snapshotToPersist = currentRef.current;
+    const patch = diffAgainstSaved(snapshotToPersist);
     if (Object.keys(patch).length === 0) {
       setStatus("saved");
       return;
     }
 
+    isSavingRef.current = true;
     setStatus("saving");
     setError(null);
     try {
       const res = await apiPatch<{ scene: EditorScene }>(`/api/scenes/${scene.id}`, patch);
-      savedRef.current = { ...current };
-      clearDraft(scene.id);
-      setStatus("saved");
+      savedRef.current = { ...savedRef.current, ...snapshotToPersist };
+      const stillDirty = isSnapshotDirty(currentRef.current, savedRef.current);
+      if (!stillDirty) {
+        clearDraft(scene.id);
+        setStatus("saved");
+      } else {
+        saveDraft({
+          sceneId: scene.id,
+          title: currentRef.current.title,
+          content: currentRef.current.content,
+          summary: currentRef.current.summary,
+          pov: currentRef.current.pov,
+          tense: currentRef.current.tense,
+          excludeFromAi: currentRef.current.excludeFromAi,
+          savedAt: Date.now(),
+          unsaved: true,
+        });
+        setStatus("dirty");
+      }
       props.onSaved(res.scene);
     } catch (err) {
       setStatus("error");
       setError(err instanceof ApiRequestError ? err.message : "Save failed");
       saveDraft({
         sceneId: scene.id,
-        title: current.title,
-        content: current.content,
-        summary: current.summary,
+        title: currentRef.current.title,
+        content: currentRef.current.content,
+        summary: currentRef.current.summary,
+        pov: currentRef.current.pov,
+        tense: currentRef.current.tense,
+        excludeFromAi: currentRef.current.excludeFromAi,
         savedAt: Date.now(),
         unsaved: true,
       });
+    } finally {
+      isSavingRef.current = false;
+      if (queuedSaveRef.current) {
+        queuedSaveRef.current = false;
+        void persist();
+      }
     }
   }
 
   // Autosave loop: mark dirty and (re)schedule the debounced save whenever the
   // working snapshot drifts from the persisted one.
   useEffect(() => {
-    const saved = savedRef.current;
-    const dirty =
-      current.title !== saved.title ||
-      current.content !== saved.content ||
-      current.summary !== saved.summary ||
-      current.pov !== saved.pov ||
-      current.tense !== saved.tense ||
-      current.excludeFromAi !== saved.excludeFromAi;
+    const dirty = isSnapshotDirty(current, savedRef.current);
 
     props.onProseChange(content);
 
@@ -178,9 +224,12 @@ export function SceneEditor(props: SceneEditorProps) {
     setStatus("dirty");
     saveDraft({
       sceneId: scene.id,
-      title,
-      content,
-      summary,
+      title: current.title,
+      content: current.content,
+      summary: current.summary,
+      pov: current.pov,
+      tense: current.tense,
+      excludeFromAi: current.excludeFromAi,
       savedAt: Date.now(),
       unsaved: true,
     });
@@ -218,6 +267,9 @@ export function SceneEditor(props: SceneEditorProps) {
     setTitle(restoreOffer.title);
     setContent(restoreOffer.content);
     setSummary(restoreOffer.summary);
+    if (restoreOffer.pov !== undefined) setPov(restoreOffer.pov);
+    if (restoreOffer.tense !== undefined) setTense(restoreOffer.tense);
+    if (restoreOffer.excludeFromAi !== undefined) setExcludeFromAi(restoreOffer.excludeFromAi);
     setRestoreOffer(null);
   }
 
