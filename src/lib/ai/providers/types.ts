@@ -1,5 +1,5 @@
 /**
- * BYOK provider layer (STO-1175 / 4.2.1).
+ * BYOK provider layer (STO-1175 / 4.2.1, STO-1176 / 4.2.2, STO-1177 / 4.2.3).
  *
  * Every model provider (OpenRouter, OpenAI, Anthropic, local runtimes) is
  * exposed to the rest of the app through this one interface, so generation
@@ -8,7 +8,7 @@
  * errors, logs, or responses.
  */
 
-export type ProviderId = "openrouter";
+export type ProviderId = "openrouter" | "openai" | "anthropic" | "ollama" | "lmstudio";
 
 export type ChatRole = "system" | "user" | "assistant";
 

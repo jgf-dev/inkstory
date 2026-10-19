@@ -2,6 +2,43 @@
 
 All notable changes to InkStory are tracked here. This file follows [Keep a Changelog](https://keepachangelog.com/) and the project adheres to [Semantic Versioning](https://semver.org/).
 
+## [PR-101](https://github.com/jgf-dev/inkstory/pull/101) - 2026-10-18
+
+### Summary
+
+Added Ollama and LM Studio local BYOK provider adapters with optional API key handling ([STO-1177](https://linear.app/jgfdev/issue/STO-1177/423-local-providers-ollama-lm-studio)).
+
+### Added
+
+- `src/lib/ai/providers/ollama.ts`: Ollama adapter connecting to local Ollama instances (`http://127.0.0.1:11434/v1`) with optional API key authentication.
+- `src/lib/ai/providers/lmstudio.ts`: LM Studio adapter connecting to local LM Studio instances (`http://127.0.0.1:1234/v1`) with optional token authentication and bare-string error message handling.
+- `src/lib/ai/providers/index.ts`: added `LOCAL_PROVIDERS` and `isLocalProvider` helper for UI key requirement checks.
+- `tests/ai-providers.test.ts`: parameterized test suites for Ollama and LM Studio covering local server connection errors, catalog parsing, and auth proxy configurations.
+
+### Changed
+
+- `src/lib/ai/providers/types.ts`: added `ollama` and `lmstudio` to `ProviderId`.
+- `src/lib/ai/providers/index.ts`: registered `ollama` and `lmstudio` in `ProviderId`, `SUPPORTED_PROVIDERS`, `ProviderConfig`, and `createProvider`.
+
+## [PR-100](https://github.com/jgf-dev/inkstory/pull/100) - 2026-10-18
+
+### Summary
+
+Added OpenAI and Anthropic BYOK provider adapters and unified shared OpenAI-compatible and HTTP transport clients ([STO-1176](https://linear.app/jgfdev/issue/STO-1176/422-openai-anthropic-adapters)).
+
+### Added
+
+- `src/lib/ai/providers/openai-compatible.ts`: shared client implementing OpenAI Chat Completions and model catalog protocols, used across OpenRouter and OpenAI.
+- `src/lib/ai/providers/http.ts`: normalized transport error handling and JSON response parsing with automated API key redaction.
+- `src/lib/ai/providers/openai.ts`: OpenAI adapter supporting Chat Completions and `/v1/models` catalog lookups.
+- `src/lib/ai/providers/anthropic.ts`: Anthropic adapter mapping chat requests onto the Messages API, supporting top-level system prompts, consecutive-turn merging, and stop reason normalization.
+- `tests/ai-providers.test.ts`: test coverage expanded with 47 tests covering OpenAI and Anthropic success paths, message transformation, error mappings, abort handling, and catalog querying.
+
+### Changed
+
+- `src/lib/ai/providers/openrouter.ts`: refactored to delegate OpenAI wire protocol logic to `createOpenAICompatibleProvider`.
+- `src/lib/ai/providers/index.ts`: added `openai` and `anthropic` to `ProviderId`, `SUPPORTED_PROVIDERS`, `ProviderConfig`, and `createProvider`.
+
 ## [PR-95](https://github.com/jgf-dev/inkstory/pull/95) - 2026-10-18
 
 ### Summary
