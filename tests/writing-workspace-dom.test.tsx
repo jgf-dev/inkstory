@@ -216,6 +216,48 @@ describe("WritingWorkspace", () => {
     expect(await screen.findByText("No scene selected")).toBeTruthy();
   });
 
+  it("closes the open scene when its act is deleted", async () => {
+    const outline = makeOutline();
+    routeFetch((url, init) => {
+      if (url === "/api/scenes/scene-1") return { status: 200, body: { scene: makeScene() } };
+      if (url === "/api/novels/novel-1/outline" && init.method === "GET")
+        return { status: 200, body: { outline: { ...outline, acts: [] } } };
+      if (url.startsWith("/api/novels/novel-1/outline")) return { status: 200, body: { ok: true } };
+      return undefined;
+    });
+    render(React.createElement(WritingWorkspace, { outline, initialSceneId: "scene-1" }));
+    await screen.findByTestId("scene-editor");
+    fireEvent.click(screen.getByLabelText("Delete Act I"));
+    expect(await screen.findByText("No scene selected")).toBeTruthy();
+    expect(screen.queryByTestId("scene-editor")).toBeNull();
+  });
+
+  it("keeps the open scene when an unrelated chapter is deleted", async () => {
+    const outline = makeOutline();
+    outline.acts[0].chapters.push({
+      id: "chapter-2",
+      title: "Chapter Two",
+      position: 1,
+      scenes: [],
+    });
+    routeFetch((url, init) => {
+      if (url === "/api/scenes/scene-1") return { status: 200, body: { scene: makeScene() } };
+      if (url === "/api/novels/novel-1/outline" && init.method === "GET")
+        return { status: 200, body: { outline } };
+      if (url.startsWith("/api/novels/novel-1/outline")) return { status: 200, body: { ok: true } };
+      return undefined;
+    });
+    render(React.createElement(WritingWorkspace, { outline, initialSceneId: "scene-1" }));
+    await screen.findByTestId("scene-editor");
+    fireEvent.click(screen.getByLabelText("Delete Chapter Two"));
+    await waitFor(() =>
+      expect((screen.getByLabelText("Delete Chapter One") as HTMLButtonElement).disabled).toBe(
+        false,
+      ),
+    );
+    expect(screen.getByTestId("scene-editor")).toBeTruthy();
+  });
+
   it("reports failures for outline mutations", async () => {
     routeFetch((url, init) => {
       if (init.method === "GET") return { status: 200, body: { outline: makeOutline() } };
