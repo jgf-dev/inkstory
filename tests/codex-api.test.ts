@@ -470,3 +470,58 @@ describe("Codex REST Route Handlers", () => {
     });
   });
 });
+
+
+  describe("loadNovelSceneReadingOrder direct unit test", () => {
+    it("returns correct scene order map for acts, chapters, and scenes", async () => {
+      const mockActs = [
+        { id: "act-1", novelId: "novel-1", position: 0, deletedAt: null },
+        { id: "act-2", novelId: "novel-1", position: 1, deletedAt: null },
+      ] as any;
+      const mockChapters = [
+        { id: "chap-1", actId: "act-1", position: 0, deletedAt: null },
+        { id: "chap-2", actId: "act-2", position: 0, deletedAt: null },
+      ] as any;
+      const mockScenes = [
+        { id: "scene-1", chapterId: "chap-1", position: 0, deletedAt: null },
+        { id: "scene-2", chapterId: "chap-2", position: 1, deletedAt: null },
+      ] as any;
+
+      // We test loadNovelSceneReadingOrder directly with mocks on db.orm.public
+      const { db } = await import("../src/lib/prisma");
+      vi.spyOn(db.orm.public.Act, "where").mockReturnValue({
+        where: () => ({ all: async () => mockActs }),
+      } as any);
+      vi.spyOn(db.orm.public.Chapter, "where").mockReturnValue({
+        where: () => ({ all: async () => mockChapters }),
+      } as any);
+      vi.spyOn(db.orm.public.Scene, "where").mockReturnValue({
+        where: () => ({ all: async () => mockScenes }),
+      } as any);
+
+      const orderMap = await codexService.loadNovelSceneReadingOrder("novel-1");
+      expect(orderMap.size).toBe(2);
+      expect(orderMap.get("scene-1")).toEqual({
+        sceneId: "scene-1",
+        actPosition: 0,
+        chapterPosition: 0,
+        scenePosition: 0,
+      });
+      expect(orderMap.get("scene-2")).toEqual({
+        sceneId: "scene-2",
+        actPosition: 1,
+        chapterPosition: 0,
+        scenePosition: 1,
+      });
+    });
+
+    it("returns empty map when novel has no acts or chapters or scenes", async () => {
+      const { db } = await import("../src/lib/prisma");
+      vi.spyOn(db.orm.public.Act, "where").mockReturnValue({
+        where: () => ({ all: async () => [] }),
+      } as any);
+
+      const orderMap = await codexService.loadNovelSceneReadingOrder("novel-empty");
+      expect(orderMap.size).toBe(0);
+    });
+  });
