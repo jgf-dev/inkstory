@@ -404,6 +404,7 @@ describe("AiAssistantDrawer", () => {
       sceneId: "scene-1",
       mode: "beat_expansion",
       beatText: "beat",
+      content: "",
     });
     fireEvent.click(screen.getByText("Copy"));
     expect(await screen.findByText("Copied")).toBeTruthy();
