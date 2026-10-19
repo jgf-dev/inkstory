@@ -13,7 +13,7 @@ export type ExportContentMode = "prose" | "summary" | "both";
 export interface ExportOptions {
   format: ExportFormat;
   content: ExportContentMode;
-  /** Emit act headings ("# Act title"). */
+  /** Emit act headings ("## Act title"; the novel title is the only level-one heading). */
   includeActTitles: boolean;
   /** Emit chapter headings. */
   includeChapterTitles: boolean;
