@@ -5,8 +5,10 @@ import { getStripe, isWebhookConfigured } from "@/lib/stripe";
 import {
   applySubscriptionToUser,
   downgradeToFree,
-  isStripeEventProcessed,
-  recordStripeEventProcessed,
+  claimStripeEvent,
+  markStripeEventProcessed,
+  releaseStripeEvent,
+  type StripeEventClaim,
   type SubscriptionSnapshot,
 } from "@/lib/billing/subscription-sync";
 import { tierForPriceId } from "@/lib/billing/plans";
@@ -30,10 +32,18 @@ function epochSecondsToDateTime(seconds: number): Temporal.PlainDateTime {
     .toPlainDateTime();
 }
 
+/** Subscription statuses that mean the author no longer has a paid plan. */
+const LAPSED_STATUSES: ReadonlySet<string> = new Set(["canceled", "unpaid", "incomplete_expired"]);
+
 /** Maps a Stripe Subscription object onto our subscription snapshot. */
 function subscriptionToSnapshot(sub: Stripe.Subscription): SubscriptionSnapshot {
-  const priceId = sub.items.data[0]?.price?.id ?? null;
-  const periodEnd = (sub as unknown as { current_period_end?: number | null }).current_period_end;
+  const item = sub.items.data[0];
+  const priceId = item?.price?.id ?? null;
+  // Stripe API 2025-03-31+ (stripe v18+) moved `current_period_end` onto the
+  // subscription item; fall back to the legacy top-level field.
+  const periodEnd =
+    (item as unknown as { current_period_end?: number | null } | undefined)?.current_period_end ??
+    (sub as unknown as { current_period_end?: number | null }).current_period_end;
   return {
     stripeCustomerId: customerIdOf(sub.customer) ?? "",
     stripeSubscriptionId: sub.id,
@@ -46,16 +56,19 @@ function subscriptionToSnapshot(sub: Stripe.Subscription): SubscriptionSnapshot 
 /**
  * POST /api/billing/webhook
  *
- * Stripe webhook receiver (STO-1180). Verifies signatures against
+ * Stripe webhook receiver (STO-1210). Verifies signatures against
  * `STRIPE_WEBHOOK_SECRET`, deduplicates by event id (processed events are
  * logged in `stripe_webhook_events`), and syncs subscription state:
  *
  * - `checkout.session.completed` — resolves the subscription and applies it.
  * - `customer.subscription.updated` — applies tier/status/period end.
- * - `customer.subscription.deleted` (or `canceled` status) — downgrades to Free.
+ * - `customer.subscription.deleted` (or a lapsed status: `canceled`, `unpaid`,
+ *   `incomplete_expired`) — downgrades to Free.
  *
- * Always answers 200 for verified events (except signature failures: 400) so
- * Stripe does not retry healthy deliveries.
+ * Answers 200 for processed (or already-processed) events, 409 while another
+ * delivery of the same event is still in flight, 500 on processing failures
+ * (the claim is released so Stripe's retry replays it), and 400 for
+ * signature failures.
  */
 export async function POST(request: NextRequest) {
   if (!isWebhookConfigured()) {
@@ -82,8 +95,23 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: "Invalid webhook signature" }, { status: 400 });
   }
 
-  if (await isStripeEventProcessed(event.id)) {
+  // Idempotency: insert the StripeWebhookEvent row FIRST. Only events that
+  // finished processing are acked as duplicates; a claim still in flight gets
+  // a 409 so Stripe retries (the first delivery may yet fail and release it).
+  let claim: StripeEventClaim;
+  try {
+    claim = await claimStripeEvent(event.id, event.type);
+  } catch {
+    return Response.json({ error: "Internal server error" }, { status: 500 });
+  }
+  if (claim === "processed") {
     return Response.json({ received: true, duplicate: true });
+  }
+  if (claim === "in_flight") {
+    return Response.json(
+      { error: "Event is already being processed", code: "EVENT_IN_FLIGHT" },
+      { status: 409 },
+    );
   }
 
   try {
@@ -119,7 +147,8 @@ export async function POST(request: NextRequest) {
         const customerId = customerIdOf(subscription.customer);
         if (customerId) {
           const canceled =
-            event.type === "customer.subscription.deleted" || subscription.status === "canceled";
+            event.type === "customer.subscription.deleted" ||
+            LAPSED_STATUSES.has(subscription.status);
           const userIdHint = (subscription.metadata?.userId as string | undefined) ?? null;
           if (canceled) {
             await downgradeToFree(customerId);
@@ -139,9 +168,11 @@ export async function POST(request: NextRequest) {
         break;
     }
 
-    await recordStripeEventProcessed(event.id, event.type);
+    await markStripeEventProcessed(event.id);
     return Response.json({ received: true });
   } catch {
+    // Release the claim so Stripe's retry of this event is processed.
+    await releaseStripeEvent(event.id).catch(() => undefined);
     // Processing failed: do NOT record the event so Stripe's retry can replay it.
     return Response.json({ error: "Internal server error" }, { status: 500 });
   }

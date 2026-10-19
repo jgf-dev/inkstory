@@ -125,7 +125,7 @@ export async function createCodexEntry(userId: string, input: CreateCodexEntryIn
     throw new CodexError("Entry name cannot be empty", "VALIDATION_FAILED", 422);
   }
 
-  // Tier quota guard (STO-1180): 402 with an upgrade trigger on the Free plan.
+  // Tier quota guard (STO-1210): 402 with an upgrade trigger on the Free plan.
   await ensureCodexEntryQuota(userId);
 
   const isSeriesScoped = Boolean(input.seriesScoped);

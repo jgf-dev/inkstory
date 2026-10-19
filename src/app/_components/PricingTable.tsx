@@ -5,12 +5,14 @@ import Link from "next/link";
 import { PLANS, PLAN_PRICING, type PlanTier } from "@/lib/billing/plans";
 
 interface PricingTableProps {
-  /** Logged-in users get a dashboard CTA; anonymous users go to signup. */
+  /** Logged-in users get a "Manage plan" CTA (billing portal); anonymous users go to signup. */
   isAuthenticated: boolean;
 }
 
+type TierKey = Exclude<PlanTier, "FREE"> | "FREE";
+
 const TIERS: Array<{
-  tier: Exclude<PlanTier, "FREE"> | "FREE";
+  tier: TierKey;
   name: string;
   blurb: string;
   features: string[];
@@ -53,22 +55,115 @@ const TIERS: Array<{
   },
 ];
 
-function priceDisplay(tier: Exclude<PlanTier, "FREE"> | "FREE", annual: boolean): string {
+/** True when the tier can be billed annually (Studio is monthly-only). */
+export function supportsAnnual(tier: TierKey): boolean {
+  return tier !== "FREE" && PLAN_PRICING[tier].annual !== undefined;
+}
+
+/** Monthly-equivalent price label; PLAN_PRICING amounts are in cents. */
+export function priceDisplay(tier: TierKey, annual: boolean): string {
   if (tier === "FREE") {
     return "$0";
   }
-  const pricing = PLAN_PRICING[tier as Exclude<PlanTier, "FREE">];
+  const pricing = PLAN_PRICING[tier];
   if (annual && pricing.annual) {
-    return `$${Math.round(pricing.annual / 12)}`;
+    return `$${Math.round(pricing.annual / 12) / 100}`;
   }
   return `$${pricing.monthly / 100}`;
 }
 
-function periodDisplay(tier: Exclude<PlanTier, "FREE"> | "FREE", annual: boolean): string {
+export function periodDisplay(tier: TierKey, annual: boolean): string {
   if (tier === "FREE") {
     return "forever";
   }
+  if (!supportsAnnual(tier)) {
+    return annual ? "per month, monthly billing only" : "per month";
+  }
   return annual ? "per month, billed annually" : "per month";
+}
+
+const BILLING_ERROR = "Could not open billing. Please try again.";
+
+async function postJson(
+  fetchImpl: typeof fetch,
+  url: string,
+  body?: unknown,
+): Promise<{ ok: boolean; data: Record<string, unknown> | null }> {
+  const res = await fetchImpl(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+  });
+  const data = (await res.json().catch(() => null)) as Record<string, unknown> | null;
+  return { ok: res.ok, data };
+}
+
+/**
+ * "Manage plan" handler: opens the Stripe billing portal (POST
+ * /api/billing/portal). Authors without a Stripe customer yet are sent to
+ * checkout for the chosen paid tier instead (Free goes to the dashboard).
+ * Resolves to an error message to show, or null after navigating.
+ */
+export async function manageBilling(
+  tier: TierKey,
+  annual: boolean,
+  fetchImpl: typeof fetch = fetch,
+  navigate: (url: string) => void = (url) => window.location.assign(url),
+): Promise<string | null> {
+  try {
+    const portal = await postJson(fetchImpl, "/api/billing/portal");
+    if (portal.ok && typeof portal.data?.portalUrl === "string") {
+      navigate(portal.data.portalUrl);
+      return null;
+    }
+    if (portal.data?.code !== "NO_CUSTOMER") {
+      return typeof portal.data?.error === "string" ? portal.data.error : BILLING_ERROR;
+    }
+    if (tier === "FREE") {
+      navigate("/dashboard");
+      return null;
+    }
+    const checkout = await postJson(fetchImpl, "/api/billing/checkout", {
+      plan: tier,
+      interval: annual && supportsAnnual(tier) ? "annual" : "monthly",
+    });
+    if (checkout.ok && typeof checkout.data?.checkoutUrl === "string") {
+      navigate(checkout.data.checkoutUrl);
+      return null;
+    }
+    return typeof checkout.data?.error === "string" ? checkout.data.error : BILLING_ERROR;
+  } catch {
+    return BILLING_ERROR;
+  }
+}
+
+function ManagePlanButton({ tier, annual }: { tier: TierKey; annual: boolean }) {
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  return (
+    <>
+      <button
+        type="button"
+        disabled={pending}
+        onClick={async () => {
+          setPending(true);
+          setError(null);
+          const message = await manageBilling(tier, annual);
+          setError(message);
+          setPending(false);
+        }}
+        className="block w-full rounded-md bg-ink-800 px-4 py-2 text-center text-sm font-medium text-ink-50 hover:bg-ink-900 disabled:opacity-60"
+      >
+        {pending ? "Opening…" : "Manage plan →"}
+      </button>
+      {error && (
+        <p role="alert" className="mt-2 text-xs text-red-600">
+          {error}
+        </p>
+      )}
+    </>
+  );
 }
 
 /** Interactive pricing table with a monthly/annual billing toggle. */
@@ -109,12 +204,7 @@ export function PricingTable({ isAuthenticated }: PricingTableProps) {
       <div className="grid gap-5 md:grid-cols-3">
         {TIERS.map((t) => {
           const cta = isAuthenticated ? (
-            <Link
-              href="/dashboard"
-              className="block rounded-md bg-ink-800 px-4 py-2 text-center text-sm font-medium text-ink-50 hover:bg-ink-900"
-            >
-              Manage plan →
-            </Link>
+            <ManagePlanButton tier={t.tier} annual={annual} />
           ) : (
             <Link
               href="/signup"

@@ -1,5 +1,5 @@
 /**
- * Subscription state sync (STO-1180): the single write path that mirrors
+ * Subscription state sync (STO-1210): the single write path that mirrors
  * Stripe subscription state onto User rows, plus webhook event-id logging for
  * idempotent processing.
  *
@@ -87,4 +87,90 @@ export async function recordStripeEventProcessed(eventId: string, type: string):
     create: { id: crypto.randomUUID(), eventId, type },
     update: {},
   });
+}
+
+/** How long an unfinished claim blocks retries before it is considered abandoned. */
+export const STRIPE_EVENT_CLAIM_TTL_MS = 5 * 60 * 1000;
+
+/** Outcome of {@link claimStripeEvent}. */
+export type StripeEventClaim =
+  /** This request owns processing. */
+  | "claimed"
+  /** The event was already fully processed: acknowledge without re-processing. */
+  | "processed"
+  /** Another delivery is still processing it: answer non-2xx so Stripe retries. */
+  | "in_flight";
+
+interface ClaimPayload {
+  status?: unknown;
+  claimedAt?: unknown;
+}
+
+/**
+ * Claims a webhook event for processing by inserting its StripeWebhookEvent
+ * row first. The unique `eventId` makes the insert the idempotency gate.
+ *
+ * The row's `payload` tracks progress: `{ status: "processing", claimedAt }`
+ * while a delivery works on it, `{ status: "processed" }` once
+ * {@link markStripeEventProcessed} runs. Rows without a status (written by
+ * {@link recordStripeEventProcessed}) count as processed. Only processed rows
+ * are reported as duplicates; an in-flight claim stays retryable, and one
+ * older than {@link STRIPE_EVENT_CLAIM_TTL_MS} is treated as abandoned (the
+ * worker crashed before releasing it) and taken over.
+ */
+export async function claimStripeEvent(
+  eventId: string,
+  type: string,
+  now: number = Date.now(),
+): Promise<StripeEventClaim> {
+  const payload = { status: "processing", claimedAt: now };
+  try {
+    await db.orm.public.StripeWebhookEvent.create({
+      id: crypto.randomUUID(),
+      eventId,
+      type,
+      payload,
+    });
+    return "claimed";
+  } catch (err) {
+    // Unique-key conflict on eventId: another delivery already claimed it.
+    // Any other failure (no row present afterwards) is a real error.
+    const existing = await db.orm.public.StripeWebhookEvent.where({ eventId }).first();
+    if (!existing) {
+      throw err;
+    }
+    const state = (existing.payload ?? {}) as ClaimPayload;
+    if (state.status !== "processing") {
+      return "processed";
+    }
+    const claimedAt = typeof state.claimedAt === "number" ? state.claimedAt : 0;
+    if (now - claimedAt < STRIPE_EVENT_CLAIM_TTL_MS) {
+      return "in_flight";
+    }
+    // Abandoned claim: drop that exact row and race for a fresh one.
+    await db.orm.public.StripeWebhookEvent.where({ id: existing.id }).delete();
+    try {
+      await db.orm.public.StripeWebhookEvent.create({
+        id: crypto.randomUUID(),
+        eventId,
+        type,
+        payload,
+      });
+      return "claimed";
+    } catch {
+      return "in_flight";
+    }
+  }
+}
+
+/** Marks a claimed event as fully processed so later deliveries are duplicates. */
+export async function markStripeEventProcessed(eventId: string): Promise<void> {
+  await db.orm.public.StripeWebhookEvent.where({ eventId }).update({
+    payload: { status: "processed" },
+  });
+}
+
+/** Releases a claim after a processing failure so Stripe's retry is processed. */
+export async function releaseStripeEvent(eventId: string): Promise<void> {
+  await db.orm.public.StripeWebhookEvent.where({ eventId }).delete();
 }

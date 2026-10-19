@@ -1,5 +1,5 @@
 /**
- * Tier entitlements and quota guards (STO-1180).
+ * Tier entitlements and quota guards (STO-1210).
  *
  * Guards throw `CodexError` with code `QUOTA_EXCEEDED` (HTTP 402) so API
  * routes and UI share one upgrade-trigger contract. Entitlements are read

@@ -4,7 +4,12 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vite-
 import { POST as checkout } from "../src/app/api/billing/checkout/route";
 import { POST as portal } from "../src/app/api/billing/portal/route";
 import { POST as webhook } from "../src/app/api/billing/webhook/route";
-import { recordStripeEventProcessed } from "../src/lib/billing/subscription-sync";
+import * as subscriptionSync from "../src/lib/billing/subscription-sync";
+import {
+  STRIPE_EVENT_CLAIM_TTL_MS,
+  claimStripeEvent,
+  recordStripeEventProcessed,
+} from "../src/lib/billing/subscription-sync";
 import { db } from "../src/lib/prisma";
 
 const mockGetUser = vi.fn();
@@ -122,6 +127,20 @@ describe("billing routes", { timeout: 20_000 }, () => {
       expect((await res.json()).code).toBe("VALIDATION_FAILED");
     });
 
+    it("returns 400 when Studio is requested with annual billing", async () => {
+      const res = await checkout(
+        new NextRequest("http://localhost:3000/api/billing/checkout", {
+          method: "POST",
+          body: JSON.stringify({ plan: "STUDIO", interval: "annual" }),
+        }),
+      );
+      expect(res.status).toBe(400);
+      const body = await res.json();
+      expect(body.code).toBe("VALIDATION_FAILED");
+      expect(body.error).toMatch(/monthly/i);
+      expect(createCheckoutSession).not.toHaveBeenCalled();
+    });
+
     it("returns 503 when Stripe is not configured", async () => {
       mockStripeConfigured.mockReturnValueOnce(false);
       const res = await checkout(
@@ -163,8 +182,8 @@ describe("billing routes", { timeout: 20_000 }, () => {
           line_items: [{ price: "price_pro_annual", quantity: 1 }],
           customer_email: `billing-${runId}@inkstory.local`,
           client_reference_id: userId,
-          success_url: "http://localhost:3000/dashboard/billing?status=success",
-          cancel_url: "http://localhost:3000/dashboard/billing?status=cancelled",
+          success_url: "http://localhost:3000/dashboard?billing=success",
+          cancel_url: "http://localhost:3000/dashboard?billing=cancelled",
         }),
       );
     });
@@ -228,7 +247,7 @@ describe("billing routes", { timeout: 20_000 }, () => {
       expect(createPortalSession).toHaveBeenCalledWith(
         expect.objectContaining({
           customer: "cus_portal",
-          return_url: "http://localhost:3000/dashboard/billing",
+          return_url: "http://localhost:3000/dashboard",
         }),
       );
     });
@@ -325,6 +344,66 @@ describe("billing routes", { timeout: 20_000 }, () => {
       expect(user?.subscriptionStatus).toBeNull();
     });
 
+    function stubEventLog() {
+      return [
+        vi.spyOn(subscriptionSync, "claimStripeEvent").mockResolvedValue("claimed"),
+        vi.spyOn(subscriptionSync, "markStripeEventProcessed").mockResolvedValue(undefined),
+      ];
+    }
+
+    it("reads current_period_end from the subscription item (stripe v23)", async () => {
+      const stubs = stubEventLog();
+      const syncSpy = vi
+        .spyOn(subscriptionSync, "applySubscriptionToUser")
+        .mockResolvedValue(undefined as never);
+      constructEventAsync.mockResolvedValueOnce({
+        id: `evt_item_period_${runId}`,
+        type: "customer.subscription.updated",
+        data: {
+          object: subscriptionFixture({
+            current_period_end: undefined,
+            items: {
+              data: [{ price: { id: "price_pro_monthly" }, current_period_end: 1_900_000_000 }],
+            },
+            metadata: { userId },
+          }),
+        },
+      });
+
+      expect((await webhookRequest({})).status).toBe(200);
+      const snapshot = syncSpy.mock.calls[0]?.[1];
+      expect(snapshot?.currentPeriodEnd?.toString()).toBe(
+        Temporal.Instant.fromEpochMilliseconds(1_900_000_000_000)
+          .toZonedDateTimeISO("UTC")
+          .toPlainDateTime()
+          .toString(),
+      );
+      syncSpy.mockRestore();
+      for (const stub of stubs) stub.mockRestore();
+    });
+
+    for (const status of ["unpaid", "incomplete_expired", "canceled"]) {
+      it(`downgrades to Free on customer.subscription.updated with status ${status}`, async () => {
+        const stubs = stubEventLog();
+        const downgradeSpy = vi
+          .spyOn(subscriptionSync, "downgradeToFree")
+          .mockResolvedValue(undefined as never);
+        const syncSpy = vi.spyOn(subscriptionSync, "applySubscriptionToUser");
+        constructEventAsync.mockResolvedValueOnce({
+          id: `evt_lapsed_${status}_${runId}`,
+          type: "customer.subscription.updated",
+          data: { object: subscriptionFixture({ status, metadata: { userId } }) },
+        });
+
+        expect((await webhookRequest({})).status).toBe(200);
+        expect(downgradeSpy).toHaveBeenCalledWith("cus_123");
+        expect(syncSpy).not.toHaveBeenCalled();
+        downgradeSpy.mockRestore();
+        syncSpy.mockRestore();
+        for (const stub of stubs) stub.mockRestore();
+      });
+    }
+
     it("acks verified unhandled event types", async () => {
       constructEventAsync.mockResolvedValueOnce({
         id: `evt_other_${runId}`,
@@ -358,6 +437,108 @@ describe("billing routes", { timeout: 20_000 }, () => {
       retrieveSubscription.mockResolvedValueOnce(subscriptionFixture());
       const retry = await webhookRequest({});
       expect((await retry.json()).duplicate).toBeUndefined();
+    });
+
+    it("acks a duplicate delivery of the same event with 200 without re-processing", async () => {
+      const event = {
+        id: `evt_double_${runId}`,
+        type: "customer.subscription.updated",
+        data: {
+          object: subscriptionFixture({
+            items: { data: [{ price: { id: "price_pro_monthly" } }] },
+            metadata: { userId },
+          }),
+        },
+      };
+      constructEventAsync.mockResolvedValueOnce(event).mockResolvedValueOnce(event);
+      const syncSpy = vi.spyOn(subscriptionSync, "applySubscriptionToUser");
+
+      const first = await webhookRequest({});
+      expect(first.status).toBe(200);
+      expect((await first.json()).duplicate).toBeUndefined();
+      expect(syncSpy).toHaveBeenCalledTimes(1);
+
+      const second = await webhookRequest({});
+      expect(second.status).toBe(200);
+      expect((await second.json()).duplicate).toBe(true);
+      expect(syncSpy).toHaveBeenCalledTimes(1);
+
+      const rows = await db.orm.public.StripeWebhookEvent.where({ eventId: event.id }).all();
+      expect(rows).toHaveLength(1);
+      syncSpy.mockRestore();
+    });
+
+    it("answers 409 (retryable) while another delivery's claim is still in flight", async () => {
+      const eventId = `evt_inflight_${runId}`;
+      expect(await claimStripeEvent(eventId, "customer.subscription.updated")).toBe("claimed");
+
+      const event = {
+        id: eventId,
+        type: "customer.subscription.updated",
+        data: { object: subscriptionFixture({ metadata: { userId } }) },
+      };
+      constructEventAsync.mockResolvedValueOnce(event);
+      const syncSpy = vi.spyOn(subscriptionSync, "applySubscriptionToUser");
+      const res = await webhookRequest({});
+      expect(res.status).toBe(409);
+      expect((await res.json()).code).toBe("EVENT_IN_FLIGHT");
+      expect(syncSpy).not.toHaveBeenCalled();
+
+      // The first delivery fails and releases its claim: Stripe's retry is processed.
+      await subscriptionSync.releaseStripeEvent(eventId);
+      constructEventAsync.mockResolvedValueOnce(event);
+      const retry = await webhookRequest({});
+      expect(retry.status).toBe(200);
+      expect((await retry.json()).duplicate).toBeUndefined();
+      expect(syncSpy).toHaveBeenCalledTimes(1);
+      syncSpy.mockRestore();
+
+      const [row] = await db.orm.public.StripeWebhookEvent.where({ eventId }).all();
+      expect((row?.payload as { status?: string } | null)?.status).toBe("processed");
+    });
+
+    it("takes over an abandoned in-flight claim after the TTL", async () => {
+      const eventId = `evt_stale_${runId}`;
+      const longAgo = Date.now() - STRIPE_EVENT_CLAIM_TTL_MS - 1_000;
+      expect(await claimStripeEvent(eventId, "invoice.paid", longAgo)).toBe("claimed");
+      // A fresh claim inside the TTL is still in flight.
+      expect(await claimStripeEvent(eventId, "invoice.paid", longAgo + 1_000)).toBe("in_flight");
+
+      constructEventAsync.mockResolvedValueOnce({
+        id: eventId,
+        type: "invoice.paid",
+        data: { object: {} },
+      });
+      const res = await webhookRequest({});
+      expect(res.status).toBe(200);
+      expect((await res.json()).duplicate).toBeUndefined();
+
+      const rows = await db.orm.public.StripeWebhookEvent.where({ eventId }).all();
+      expect(rows).toHaveLength(1);
+      expect(await claimStripeEvent(eventId, "invoice.paid")).toBe("processed");
+    });
+
+    it("rethrows claim errors that are not unique conflicts", async () => {
+      const createSpy = vi
+        .spyOn(db.orm.public.StripeWebhookEvent, "create")
+        .mockRejectedValueOnce(new Error("db down"));
+      await expect(claimStripeEvent(`evt_db_down_${runId}`, "invoice.paid")).rejects.toThrow(
+        "db down",
+      );
+      createSpy.mockRestore();
+    });
+
+    it("returns 500 when the event cannot be claimed", async () => {
+      constructEventAsync.mockResolvedValueOnce({
+        id: `evt_claim_fail_${runId}`,
+        type: "invoice.paid",
+        data: { object: {} },
+      });
+      const claimSpy = vi
+        .spyOn(subscriptionSync, "claimStripeEvent")
+        .mockRejectedValueOnce(new Error("db down"));
+      expect((await webhookRequest({})).status).toBe(500);
+      claimSpy.mockRestore();
     });
 
     it("records processed events for idempotency", async () => {

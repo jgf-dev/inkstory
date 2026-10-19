@@ -1,5 +1,5 @@
 /**
- * Stripe client factory (STO-1180).
+ * Stripe client factory (STO-1210).
  *
  * The client is constructed lazily from `STRIPE_SECRET_KEY`. Billing routes
  * check `isStripeConfigured()` first and answer 503 when the deployment has
