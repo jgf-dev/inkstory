@@ -176,15 +176,25 @@ describe("Outliner interactions", () => {
     expect(p.onRenameNode).toHaveBeenCalledTimes(1);
   });
 
-  it("cancels rename on Escape and starts act rename without an input", () => {
+  it("cancels rename on Escape and supports act and chapter renames", () => {
     const p = setup();
     fireEvent.click(screen.getByLabelText("Rename Storm"));
     const input = screen.getByDisplayValue("Storm");
     fireEvent.keyDown(input, { key: "x" });
     fireEvent.keyDown(input, { key: "Escape" });
     expect(screen.queryByDisplayValue("Storm")).toBeNull();
+
     fireEvent.click(screen.getByLabelText("Rename Act I"));
-    expect(p.onRenameNode).not.toHaveBeenCalled();
+    const actInput = screen.getByDisplayValue("Act I");
+    fireEvent.change(actInput, { target: { value: "Act One" } });
+    fireEvent.keyDown(actInput, { key: "Enter" });
+    expect(p.onRenameNode).toHaveBeenCalledWith("act", "act-1", "Act One");
+
+    fireEvent.click(screen.getByLabelText("Rename Chapter One"));
+    const chInput = screen.getByDisplayValue("Chapter One");
+    fireEvent.change(chInput, { target: { value: "Chapter 1" } });
+    fireEvent.keyDown(chInput, { key: "Enter" });
+    expect(p.onRenameNode).toHaveBeenCalledWith("chapter", "chapter-1", "Chapter 1");
   });
 
   it("creates the first act from the empty state", () => {
@@ -308,6 +318,9 @@ describe("SceneEditor interactions", () => {
       title: "Draft title",
       content: "Draft prose",
       summary: "Draft summary",
+      pov: "FIRST",
+      tense: "PRESENT",
+      excludeFromAi: true,
       savedAt: Date.parse("2026-10-09T00:00:00.000Z"),
       unsaved: true,
     };
@@ -318,6 +331,12 @@ describe("SceneEditor interactions", () => {
     fireEvent.click(screen.getByText("Restore draft"));
     expect(screen.getByDisplayValue("Draft prose")).toBeTruthy();
     expect(screen.queryByTestId("draft-restore")).toBeNull();
+
+    fireEvent.click(screen.getByText("Details"));
+    const selects = screen.getAllByRole("combobox");
+    expect((selects[0] as HTMLSelectElement).value).toBe("FIRST");
+    expect((selects[1] as HTMLSelectElement).value).toBe("PRESENT");
+    expect((screen.getByRole("checkbox") as HTMLInputElement).checked).toBe(true);
     unmount();
 
     window.localStorage.setItem("inkstory.scene-draft.scene-1", JSON.stringify(draft));
@@ -344,5 +363,35 @@ describe("SceneEditor interactions", () => {
       React.createElement(SceneEditor, { ...props, insertRequest: { seq: 2, text: "Fresh" } }),
     );
     expect((screen.getByLabelText("Scene text") as HTMLTextAreaElement).value).toBe("Fresh");
+  });
+
+  it("serializes saves and keeps draft when edits occur during save", async () => {
+    let resolvePatch!: (value: any) => void;
+    const fetchMock = vi.fn().mockImplementation(() => {
+      return new Promise((resolve) => {
+        resolvePatch = resolve;
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    setup();
+
+    fireEvent.change(screen.getByLabelText("Scene text"), { target: { value: "First edit" } });
+    await flush();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    fireEvent.change(screen.getByLabelText("Scene text"), { target: { value: "Second edit" } });
+    fireEvent.keyDown(screen.getByLabelText("Scene text"), { key: "s", ctrlKey: true });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      resolvePatch(
+        jsonResponse(200, JSON.stringify({ scene: { ...scene, content: "First edit" } })),
+      );
+    });
+
+    expect(window.localStorage.getItem("inkstory.scene-draft.scene-1")).toContain("Second edit");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const [, secondInit] = fetchMock.mock.calls[1];
+    expect(JSON.parse(secondInit.body).content).toBe("Second edit");
   });
 });

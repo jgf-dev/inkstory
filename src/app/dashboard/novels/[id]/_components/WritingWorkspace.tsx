@@ -36,6 +36,7 @@ export function WritingWorkspace({
   const [busy, setBusy] = useState(false);
 
   const scanTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const activeSceneIdRef = useRef<string | null>(initialSceneId);
   const novelId = initialOutline.novel.id;
 
   const refreshOutline = useCallback(async () => {
@@ -44,17 +45,22 @@ export function WritingWorkspace({
   }, [novelId]);
 
   const loadScene = useCallback(async (sceneId: string) => {
+    activeSceneIdRef.current = sceneId;
     setSceneLoading(true);
     setSceneError(null);
     try {
       const res = await apiGet<{ scene: EditorScene }>(`/api/scenes/${sceneId}`);
+      if (activeSceneIdRef.current !== sceneId) return;
       setScene(res.scene);
       setProse(res.scene.content);
     } catch (err) {
+      if (activeSceneIdRef.current !== sceneId) return;
       setScene(null);
       setSceneError(err instanceof ApiRequestError ? err.message : "Failed to load scene");
     } finally {
-      setSceneLoading(false);
+      if (activeSceneIdRef.current === sceneId) {
+        setSceneLoading(false);
+      }
     }
   }, []);
 
@@ -158,6 +164,7 @@ export function WritingWorkspace({
         `/api/novels/${novelId}/outline?kind=${kind}&nodeId=${encodeURIComponent(id)}`,
       );
       if (kind === "scene" && scene?.id === id) {
+        activeSceneIdRef.current = null;
         setScene(null);
         setSelectedSceneId(null);
       }

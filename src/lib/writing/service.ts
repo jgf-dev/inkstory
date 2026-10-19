@@ -418,8 +418,17 @@ export async function moveOutlineNode(
   }
 
   const neighbor = siblings[targetIndex];
-  await updateOutlineNodeRow(input.kind, node.id, { position: neighbor.position });
-  await updateOutlineNodeRow(input.kind, neighbor.id, { position: node.position });
+  if (node.position !== neighbor.position) {
+    await updateOutlineNodeRow(input.kind, node.id, { position: neighbor.position });
+    await updateOutlineNodeRow(input.kind, neighbor.id, { position: node.position });
+  } else {
+    const temp = siblings[index];
+    siblings[index] = siblings[targetIndex];
+    siblings[targetIndex] = temp;
+    for (let i = 0; i < siblings.length; i++) {
+      await updateOutlineNodeRow(input.kind, siblings[i].id, { position: i });
+    }
+  }
   return { id: node.id, kind: input.kind, moved: true as const };
 }
 
