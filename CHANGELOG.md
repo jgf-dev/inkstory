@@ -2,7 +2,7 @@
 
 All notable changes to InkStory are tracked here. This file follows [Keep a Changelog](https://keepachangelog.com/) and the project adheres to [Semantic Versioning](https://semver.org/).
 
-## [PR-120](https://github.com/jgf-dev/inkstory/pull/120) - 2026-10-19
+## [PR-124](https://github.com/jgf-dev/inkstory/pull/124) - 2026-10-19
 
 ### Summary
 
@@ -15,6 +15,17 @@ Batched act, chapter, and scene queries during reading order loading to eliminat
 ### Fixed
 
 - `src/lib/codex/service.ts`: batched chapter and scene queries in `loadNovelSceneReadingOrder` using `in` filters and in-memory parent position mapping, reducing sequential queries from $O(A + C)$ to at most 3.
+
+## [PR-122](https://github.com/jgf-dev/inkstory/pull/122) - 2026-10-19
+
+### Summary
+
+Gated E2E mock authentication and session refresh bypass behind a `NODE_ENV !== "production"` check.
+
+### Fixed
+
+- `src/lib/supabase/server.ts`: disabled `e2e-user` cookie authentication stub in production environments.
+- `src/lib/supabase/middleware.ts`: prevented skipping Supabase session refresh in production when `e2e-user` cookie is present.
 
 ## [PR-107](https://github.com/jgf-dev/inkstory/pull/107) - 2026-10-19
 

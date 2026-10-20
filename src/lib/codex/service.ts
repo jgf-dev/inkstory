@@ -119,11 +119,91 @@ async function resolveSceneContext(
 
 // ─── Entry CRUD ──────────────────────────────────────────────────────────────
 
-export async function createCodexEntry(userId: string, input: CreateCodexEntryInput) {
-  const trimmedName = input.name?.trim();
+function validateEntryName(name?: string): string {
+  const trimmedName = name?.trim();
   if (!trimmedName) {
     throw new CodexError("Entry name cannot be empty", "VALIDATION_FAILED", 422);
   }
+  return trimmedName;
+}
+
+async function insertCodexEntry(
+  userId: string,
+  trimmedName: string,
+  input: CreateCodexEntryInput,
+  resolvedNovelId: string | null,
+  resolvedSeriesId: string | null,
+  now: Temporal.PlainDateTime,
+) {
+  const entryId = crypto.randomUUID();
+  return db.orm.public.CodexEntry.create({
+    id: entryId,
+    ownerId: userId,
+    name: trimmedName,
+    type: input.type ?? "CHARACTER",
+    description: input.description ?? "",
+    notes: input.notes ?? null,
+    trackingMode: input.trackingMode ?? "DETECTED",
+    seriesScoped: Boolean(input.seriesScoped),
+    novelId: resolvedNovelId,
+    seriesId: resolvedSeriesId,
+    customFields: (input.customFields as any) ?? null,
+    color: input.color ?? null,
+    thumbnailUrl: input.thumbnailUrl ?? null,
+    position: input.position ?? 0,
+    createdAt: now,
+    updatedAt: now,
+    deletedAt: null,
+  });
+}
+
+async function createInitialAliases(
+  entryId: string,
+  aliases: string[] | undefined,
+  now: Temporal.PlainDateTime,
+): Promise<void> {
+  if (!aliases || aliases.length === 0) return;
+
+  for (const aliasName of aliases) {
+    const trimmed = aliasName.trim();
+    if (trimmed) {
+      await db.orm.public.CodexAlias.create({
+        id: crypto.randomUUID(),
+        entryId,
+        name: trimmed,
+        createdAt: now,
+        updatedAt: now,
+        deletedAt: null,
+      });
+    }
+  }
+}
+
+async function createInitialTags(
+  entryId: string,
+  tags: Array<{ name: string; color?: string | null }> | undefined,
+  now: Temporal.PlainDateTime,
+): Promise<void> {
+  if (!tags || tags.length === 0) return;
+
+  for (const tag of tags) {
+    const trimmed = tag.name?.trim();
+    if (trimmed) {
+      await db.orm.public.CodexTag.create({
+        id: crypto.randomUUID(),
+        entryId,
+        name: trimmed,
+        color: tag.color ?? null,
+        createdAt: now,
+        updatedAt: now,
+        deletedAt: null,
+      });
+    }
+  }
+}
+
+export async function createCodexEntry(userId: string, input: CreateCodexEntryInput) {
+  const trimmedName = validateEntryName(input.name);
 
   // Tier quota guard (STO-1210): 402 with an upgrade trigger on the Free plan.
   await ensureCodexEntryQuota(userId);
@@ -137,62 +217,18 @@ export async function createCodexEntry(userId: string, input: CreateCodexEntryIn
   );
 
   const now = nowTimestamp();
-  const entryId = crypto.randomUUID();
 
-  const entry = await db.orm.public.CodexEntry.create({
-    id: entryId,
-    ownerId: userId,
-    name: trimmedName,
-    type: input.type ?? "CHARACTER",
-    description: input.description ?? "",
-    notes: input.notes ?? null,
-    trackingMode: input.trackingMode ?? "DETECTED",
-    seriesScoped: isSeriesScoped,
-    novelId: resolvedNovelId,
-    seriesId: resolvedSeriesId,
-    customFields: (input.customFields as any) ?? null,
-    color: input.color ?? null,
-    thumbnailUrl: input.thumbnailUrl ?? null,
-    position: input.position ?? 0,
-    createdAt: now,
-    updatedAt: now,
-    deletedAt: null,
-  });
+  const entry = await insertCodexEntry(
+    userId,
+    trimmedName,
+    input,
+    resolvedNovelId,
+    resolvedSeriesId,
+    now,
+  );
 
-  // Create optional initial aliases
-  if (input.aliases && input.aliases.length > 0) {
-    for (const aliasName of input.aliases) {
-      const trimmed = aliasName.trim();
-      if (trimmed) {
-        await db.orm.public.CodexAlias.create({
-          id: crypto.randomUUID(),
-          entryId: entry.id,
-          name: trimmed,
-          createdAt: now,
-          updatedAt: now,
-          deletedAt: null,
-        });
-      }
-    }
-  }
-
-  // Create optional initial tags
-  if (input.tags && input.tags.length > 0) {
-    for (const tag of input.tags) {
-      const trimmed = tag.name?.trim();
-      if (trimmed) {
-        await db.orm.public.CodexTag.create({
-          id: crypto.randomUUID(),
-          entryId: entry.id,
-          name: trimmed,
-          color: tag.color ?? null,
-          createdAt: now,
-          updatedAt: now,
-          deletedAt: null,
-        });
-      }
-    }
-  }
+  await createInitialAliases(entry.id, input.aliases, now);
+  await createInitialTags(entry.id, input.tags, now);
 
   return getCodexEntry(userId, entry.id);
 }
