@@ -3,7 +3,13 @@ import { byPositionThenCreated } from "@/lib/writing/service";
 import { renderDocx } from "./docx";
 import { renderMarkdown } from "./markdown";
 import { selectExportTree } from "./select";
-import { ExportError, type ExportNovel, type ExportOptions } from "./types";
+import {
+  ExportError,
+  type ExportChapter,
+  type ExportNovel,
+  type ExportOptions,
+  type ExportScene,
+} from "./types";
 
 /** Loads the non-deleted act → chapter → scene tree for a novel the user owns. */
 export async function loadNovelForExport(userId: string, novelId: string): Promise<ExportNovel> {
@@ -35,21 +41,17 @@ export async function loadNovelForExport(userId: string, novelId: string): Promi
     : [];
   scenes.sort(byPositionThenCreated);
 
-  type ExportAct = ExportNovel["acts"][number];
-  type ExportChapter = ExportAct["chapters"][number];
-  type ExportScene = ExportChapter["scenes"][number];
-
   const scenesByChapter = new Map<string, ExportScene[]>();
-  for (const s of scenes) {
-    const list = scenesByChapter.get(s.chapterId) ?? [];
+  for (const scene of scenes) {
+    const list = scenesByChapter.get(scene.chapterId) ?? [];
     list.push({
-      id: s.id,
-      title: s.title,
-      subtitle: s.subtitle,
-      content: s.content,
-      summary: s.summary,
+      id: scene.id,
+      title: scene.title,
+      subtitle: scene.subtitle,
+      content: scene.content,
+      summary: scene.summary,
     });
-    scenesByChapter.set(s.chapterId, list);
+    scenesByChapter.set(scene.chapterId, list);
   }
 
   const chaptersByAct = new Map<string, ExportChapter[]>();

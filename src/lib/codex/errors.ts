@@ -18,7 +18,7 @@ export class CodexError extends Error {
       | "VALIDATION_FAILED"
       | "SCOPING_ERROR"
       | "CONFLICT"
-      // Billing tier quota exceeded (STO-1180); HTTP 402 signals an upgrade trigger.
+      // Billing tier quota exceeded (STO-1210); HTTP 402 signals an upgrade trigger.
       | "QUOTA_EXCEEDED",
     public readonly status: number = 400,
   ) {
