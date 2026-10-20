@@ -24,6 +24,7 @@ import type {
   UpdateCodexRelationInput,
 } from "./types";
 
+import { ensureCodexEntryQuota } from "@/lib/billing/entitlements";
 import { CodexError, handleCodexApiError } from "./errors";
 
 export { CodexError, handleCodexApiError };
@@ -203,6 +204,9 @@ async function createInitialTags(
 
 export async function createCodexEntry(userId: string, input: CreateCodexEntryInput) {
   const trimmedName = validateEntryName(input.name);
+
+  // Tier quota guard (STO-1210): 402 with an upgrade trigger on the Free plan.
+  await ensureCodexEntryQuota(userId);
 
   const isSeriesScoped = Boolean(input.seriesScoped);
   const { resolvedNovelId, resolvedSeriesId } = await resolveAndValidateScope(
