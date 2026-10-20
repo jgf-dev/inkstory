@@ -12,6 +12,8 @@ import {
   generateText,
   handleAiApiError,
   isGenerationMode,
+  MAX_BEAT_TEXT_CHARS,
+  MAX_CONTENT_CHARS,
   MAX_OUTPUT_TOKENS,
 } from "@/lib/ai/generate";
 
@@ -54,17 +56,39 @@ export async function POST(request: NextRequest) {
         { status: 400 },
       );
     }
-    if (body.beatText !== undefined && typeof body.beatText !== "string") {
-      return Response.json(
-        { error: "beatText must be a string", code: "VALIDATION_FAILED" },
-        { status: 400 },
-      );
+    if (body.beatText !== undefined) {
+      if (typeof body.beatText !== "string") {
+        return Response.json(
+          { error: "beatText must be a string", code: "VALIDATION_FAILED" },
+          { status: 400 },
+        );
+      }
+      if (body.beatText.length > MAX_BEAT_TEXT_CHARS) {
+        return Response.json(
+          {
+            error: `beatText must not exceed ${MAX_BEAT_TEXT_CHARS} characters`,
+            code: "VALIDATION_FAILED",
+          },
+          { status: 400 },
+        );
+      }
     }
-    if (body.content !== undefined && typeof body.content !== "string") {
-      return Response.json(
-        { error: "content must be a string", code: "VALIDATION_FAILED" },
-        { status: 400 },
-      );
+    if (body.content !== undefined) {
+      if (typeof body.content !== "string") {
+        return Response.json(
+          { error: "content must be a string", code: "VALIDATION_FAILED" },
+          { status: 400 },
+        );
+      }
+      if (body.content.length > MAX_CONTENT_CHARS) {
+        return Response.json(
+          {
+            error: `content must not exceed ${MAX_CONTENT_CHARS} characters`,
+            code: "VALIDATION_FAILED",
+          },
+          { status: 400 },
+        );
+      }
     }
     if (
       body.maxTokens !== undefined &&

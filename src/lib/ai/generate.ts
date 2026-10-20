@@ -18,6 +18,12 @@ export const DEFAULT_MAX_OUTPUT_TOKENS = 1024;
 /** Hard upper bound on completion tokens per request (model output limit). */
 export const MAX_OUTPUT_TOKENS = 4096;
 
+/** Hard upper bound on beat text characters to prevent prompt bloat / DoS. */
+export const MAX_BEAT_TEXT_CHARS = 1000;
+
+/** Hard upper bound on client-supplied scene prose characters to prevent DoS. */
+export const MAX_CONTENT_CHARS = 20000;
+
 export type GenerationMode = "continuation" | "beat_expansion";
 
 export const GENERATION_MODES: readonly GenerationMode[] = ["continuation", "beat_expansion"];

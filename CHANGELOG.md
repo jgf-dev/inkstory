@@ -11,7 +11,7 @@ Added scene AI prose generation endpoint powered by Codex context assembly and t
 ### Added
 
 - `src/app/api/ai/generate/route.ts`: `POST /api/ai/generate` endpoint assembling scene context from Codex, formatting prompt blocks with token budgeting, and invoking the AI gateway or returning assembled prompts when unconfigured.
-- `src/lib/ai/generate.ts`: Vercel AI Gateway chat completion client, prompt builder (`buildSceneMessages`), generation mode guards, error mappings, and token limits (`MAX_OUTPUT_TOKENS = 4096`).
+- `src/lib/ai/generate.ts`: Vercel AI Gateway chat completion client, prompt builder (`buildSceneMessages`), generation mode guards, error mappings, token limits (`MAX_OUTPUT_TOKENS = 4096`), and input length caps (`MAX_BEAT_TEXT_CHARS = 1000`, `MAX_CONTENT_CHARS = 20000`).
 - `src/lib/codex/prompt-formatter.ts`: XML prompt formatter wrapping assembled story bible entities into `<codex_context><story_bible>`.
 - `src/lib/codex/token-budgeter.ts`: token budgeter truncating context entries to fit within prompt token budgets.
 - `src/lib/codex/tokens.ts`: approximate token estimation based on character and whitespace counts.

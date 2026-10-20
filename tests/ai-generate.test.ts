@@ -2,6 +2,8 @@ import { NextRequest } from "next/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import {
   DEFAULT_AI_MODEL,
+  MAX_BEAT_TEXT_CHARS,
+  MAX_CONTENT_CHARS,
   MAX_OUTPUT_TOKENS,
   buildSceneMessages,
   generateText,
@@ -214,6 +216,24 @@ describe("AI generation (scene continuation / beat expansion)", () => {
       for (const invalid of [0, -1, 1.5, "100", MAX_OUTPUT_TOKENS + 1]) {
         const res = await generateRoute(
           makeRequest({ sceneId, mode: "continuation", maxTokens: invalid }),
+        );
+        expect(res.status).toBe(400);
+        const json = await res.json();
+        expect(json.code).toBe("VALIDATION_FAILED");
+      }
+
+      for (const invalid of [123, true, "x".repeat(MAX_BEAT_TEXT_CHARS + 1)]) {
+        const res = await generateRoute(
+          makeRequest({ sceneId, mode: "continuation", beatText: invalid }),
+        );
+        expect(res.status).toBe(400);
+        const json = await res.json();
+        expect(json.code).toBe("VALIDATION_FAILED");
+      }
+
+      for (const invalid of [123, true, "x".repeat(MAX_CONTENT_CHARS + 1)]) {
+        const res = await generateRoute(
+          makeRequest({ sceneId, mode: "continuation", content: invalid }),
         );
         expect(res.status).toBe(400);
         const json = await res.json();
