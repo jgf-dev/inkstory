@@ -66,6 +66,12 @@
       "sourceType": "github",
       "skillPath": "plugins/stitch-utilities/skills/taste-design/SKILL.md",
       "computedHash": "1891625787d6f0f3bc45d4a9437c187277af66c219e3ec799b1b4e67822b6146"
+    },
+    "vitest": {
+      "source": "supabase/supabase",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/vitest/SKILL.md",
+      "computedHash": "a0128a724b3a927263a879c982781b7c67c42685c388560f9722d0d1c81488e7"
     }
   }
 }

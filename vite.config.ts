@@ -22,11 +22,11 @@ export default defineConfig({
     },
   },
   staged: {
-    "**/agents/**": "",
+    "**/.agents/**": "",
     "**/*.{ts,tsx}": "vp check --fix",
   },
   fmt: {
-    ignorePatterns: [".agents/claude/homunculus/**"],
+    ignorePatterns: ["dist/*", ".agents/*", "node_modules/*", ".agents/claude/homunculus/**"],
   },
   lint: {
     jsPlugins: [{ name: "vite-plus", specifier: "vite-plus/oxlint-plugin" }],
