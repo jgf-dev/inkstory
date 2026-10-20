@@ -19,6 +19,7 @@ export async function loadNovelForExport(userId: string, novelId: string): Promi
     throw new ExportError("Novel not found", "NOT_FOUND", 404);
   }
 
+  // Same ordering and batched loading as the outline, so export and outline agree.
   const acts = await db.orm.public.Act.where((a) => a.novelId.eq(novelId))
     .where((a) => a.deletedAt.isNull())
     .all();

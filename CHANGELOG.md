@@ -18,6 +18,25 @@ Added manuscript export in Markdown and DOCX formats with reading order resoluti
 
 - `src/lib/export/service.ts`: batched chapter and scene queries to eliminate N+1 round trips and aligned sibling ordering with `byPositionThenCreated`.
 
+## [PR-102](https://github.com/jgf-dev/inkstory/pull/102) - 2026-10-19
+
+### Summary
+
+Added interactive relation and progression editor modals, custom fields editor, and reading-order scene selector to the Codex manager and editor UI.
+
+### Added
+
+- `src/app/dashboard/codex/_components/Modal.tsx`: accessible dialog modal with focus trapping and backdrop dismissal.
+- `src/app/dashboard/codex/_components/RelationEditorModal.tsx`: modal to create and edit directed Codex entry relationships.
+- `src/app/dashboard/codex/_components/ProgressionEditorModal.tsx`: modal to create and edit scene-specific Codex entry progressions with reading-order resolution.
+- `tests/codex-ui-dom.test.tsx`: DOM test suite covering modal interactions, relation and progression creation, custom field validation, and manager filters.
+
+### Changed
+
+- `src/app/dashboard/codex/_components/CodexEditor.tsx`: integrated custom fields dynamic editor, relation and progression modal triggers, and inline deletion.
+- `src/app/dashboard/codex/_components/CodexManager.tsx`: wired entry selection and update callbacks with the refreshed editor.
+- `tests/codex-ui.test.ts`: added test coverage for custom fields and sub-modal component rendering.
+
 ## [PR-104](https://github.com/jgf-dev/inkstory/pull/104) - 2026-10-19
 
 ### Summary
