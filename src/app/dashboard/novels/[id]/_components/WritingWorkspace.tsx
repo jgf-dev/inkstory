@@ -9,11 +9,21 @@ import { apiDelete, apiGet, apiPatch, apiPost, ApiRequestError } from "./api";
 import { Outliner } from "./Outliner";
 import { SceneEditor } from "./SceneEditor";
 import { MentionsPanel } from "./MentionsPanel";
+import { AiAssistantDrawer } from "./AiAssistantDrawer";
 
 export interface WritingWorkspaceProps {
   outline: NovelOutline;
   initialSceneId: string | null;
 }
+
+export interface InsertRequest {
+  seq: number;
+  text: string;
+  /** Scene the text was meant for; the editor ignores requests for other scenes. */
+  sceneId: string;
+}
+
+type RightDrawer = "ai" | null;
 
 const MENTION_SCAN_DEBOUNCE_MS = 1200;
 
@@ -31,10 +41,12 @@ export function WritingWorkspace({
   const [scene, setScene] = useState<EditorScene | null>(null);
   const [sceneLoading, setSceneLoading] = useState(false);
   const [sceneError, setSceneError] = useState<string | null>(null);
+  const [rightDrawer, setRightDrawer] = useState<RightDrawer>(null);
   const [prose, setProse] = useState("");
   const [detection, setDetection] = useState<MentionDetectionResult | null>(null);
   const [scanning, setScanning] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [insertRequest, setInsertRequest] = useState<InsertRequest | null>(null);
 
   const scanTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const activeSceneIdRef = useRef<string | null>(initialSceneId);
@@ -49,6 +61,8 @@ export function WritingWorkspace({
     activeSceneIdRef.current = sceneId;
     setSceneLoading(true);
     setSceneError(null);
+    // A pending AI insert belongs to the scene it was made for.
+    setInsertRequest(null);
     try {
       const res = await apiGet<{ scene: EditorScene }>(`/api/scenes/${sceneId}`);
       if (activeSceneIdRef.current !== sceneId) return;
@@ -115,6 +129,7 @@ export function WritingWorkspace({
       if (kind === "scene") {
         setSelectedSceneId(res.node.id);
         await loadScene(res.node.id);
+        setRightDrawer(null);
       }
     } catch (err) {
       setSceneError(err instanceof ApiRequestError ? err.message : "Failed to create node");
@@ -212,6 +227,12 @@ export function WritingWorkspace({
     });
   }
 
+  function handleInsertIntoScene(text: string) {
+    if (!text.trim() || !scene) return;
+    const sceneId = scene.id;
+    setInsertRequest((prev) => ({ seq: (prev?.seq ?? 0) + 1, text, sceneId }));
+  }
+
   return (
     <div
       className="bg-ink-50 flex h-screen flex-col overflow-hidden"
@@ -227,6 +248,20 @@ export function WritingWorkspace({
             <span className="truncate font-medium text-ink-700">{outline.novel.title}</span>
           </div>
           <h1 className="truncate text-sm font-semibold text-ink-900">{outline.novel.title}</h1>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => setRightDrawer((v) => (v === "ai" ? null : "ai"))}
+            aria-pressed={rightDrawer === "ai"}
+            className={`rounded-md px-2.5 py-1.5 text-xs font-medium ${
+              rightDrawer === "ai"
+                ? "bg-ink-800 text-ink-50"
+                : "border border-ink-200 text-ink-700 hover:bg-ink-50"
+            }`}
+          >
+            AI Assistant
+          </button>
         </div>
       </header>
 
@@ -281,9 +316,25 @@ export function WritingWorkspace({
               scene={scene}
               onSaved={handleSceneSaved}
               onProseChange={setProse}
+              insertRequest={insertRequest}
             />
           )}
         </main>
+
+        {/* Right rail: drawers */}
+        {rightDrawer && scene && (
+          <aside className="border-ink-200 w-80 shrink-0 overflow-hidden border-l bg-white">
+            {rightDrawer === "ai" && (
+              <AiAssistantDrawer
+                key={scene.id}
+                sceneId={scene.id}
+                content={prose}
+                onClose={() => setRightDrawer(null)}
+                onInsertText={handleInsertIntoScene}
+              />
+            )}
+          </aside>
+        )}
       </div>
     </div>
   );
