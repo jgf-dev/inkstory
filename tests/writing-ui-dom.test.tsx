@@ -348,21 +348,37 @@ describe("SceneEditor interactions", () => {
 
   it("appends AI insert requests once per sequence number", () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse(200, JSON.stringify({ scene }))));
-    const { rerender, props } = setup({ insertRequest: { seq: 1, text: "Inserted." } });
+    const { rerender, props } = setup({
+      insertRequest: { seq: 1, text: "Inserted.", sceneId: "scene-1" },
+    });
     expect((screen.getByLabelText("Scene text") as HTMLTextAreaElement).value).toBe(
       "Mara reached the quay at dawn.\n\nInserted.",
     );
     rerender(
-      React.createElement(SceneEditor, { ...props, insertRequest: { seq: 1, text: "Inserted." } }),
+      React.createElement(SceneEditor, {
+        ...props,
+        insertRequest: { seq: 1, text: "Inserted.", sceneId: "scene-1" },
+      }),
     );
     expect((screen.getByLabelText("Scene text") as HTMLTextAreaElement).value).toBe(
       "Mara reached the quay at dawn.\n\nInserted.",
     );
     fireEvent.change(screen.getByLabelText("Scene text"), { target: { value: "" } });
     rerender(
-      React.createElement(SceneEditor, { ...props, insertRequest: { seq: 2, text: "Fresh" } }),
+      React.createElement(SceneEditor, {
+        ...props,
+        insertRequest: { seq: 2, text: "Fresh", sceneId: "scene-1" },
+      }),
     );
     expect((screen.getByLabelText("Scene text") as HTMLTextAreaElement).value).toBe("Fresh");
+  });
+
+  it("ignores an AI insert request made for another scene", () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse(200, JSON.stringify({ scene }))));
+    setup({ insertRequest: { seq: 1, text: "Stale.", sceneId: "scene-other" } });
+    expect((screen.getByLabelText("Scene text") as HTMLTextAreaElement).value).toBe(
+      "Mara reached the quay at dawn.",
+    );
   });
 
   it("serializes saves and keeps draft when edits occur during save", async () => {
