@@ -175,6 +175,8 @@ export function CodexManager({ initialEntries, novels, series }: CodexManagerPro
             <CodexEditor
               key={selectedEntryId}
               entryId={selectedEntryId}
+              entries={entries.map((e) => ({ id: e.id, name: e.name, type: e.type }))}
+              novels={novels}
               onEntryUpdated={handleEntryUpdated}
               onEntryDeleted={handleEntryDeleted}
             />
