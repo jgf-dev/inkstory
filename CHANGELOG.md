@@ -18,6 +18,20 @@ Refactored nested JSX lists in `CodexEditor` into modular subcomponents and hard
 - `src/app/dashboard/codex/_components/CodexEditor.tsx`: replaced nested JSX structures with extracted subcomponents while preserving reactive title updates, scope badges, tracking mode indicator, and test attributes.
 - `tests/codex-ui.test.ts`: asserted `data-testid="codex-editor"`, title reactivity, and metadata badges in editor tests.
 
+## [PR-124](https://github.com/jgf-dev/inkstory/pull/124) - 2026-10-19
+
+### Summary
+
+Batched act, chapter, and scene queries during reading order loading to eliminate an N+1 database roundtrip waterfall in Codex context assembly and temporal progression resolution.
+
+### Added
+
+- `tests/codex-api.test.ts`: added unit tests verifying batched scene order mapping and empty entity edge cases.
+
+### Fixed
+
+- `src/lib/codex/service.ts`: batched chapter and scene queries in `loadNovelSceneReadingOrder` using `in` filters and in-memory parent position mapping, reducing sequential queries from $O(A + C)$ to at most 3.
+
 ## [PR-122](https://github.com/jgf-dev/inkstory/pull/122) - 2026-10-19
 
 ### Summary
