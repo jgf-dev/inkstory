@@ -18,6 +18,41 @@ Refactored nested JSX lists in `CodexEditor` into modular subcomponents and hard
 - `src/app/dashboard/codex/_components/CodexEditor.tsx`: replaced nested JSX structures with extracted subcomponents while preserving reactive title updates, scope badges, tracking mode indicator, and test attributes.
 - `tests/codex-ui.test.ts`: asserted `data-testid="codex-editor"`, title reactivity, and metadata badges in editor tests.
 
+## [PR-107](https://github.com/jgf-dev/inkstory/pull/107) - 2026-10-19
+
+### Summary
+
+Added manuscript export in Markdown and DOCX formats with reading order resolution and selection filtering ([STO-1163](https://linear.app/jgfdev/issue/STO-1163)).
+
+### Added
+
+- `src/lib/export/`: manuscript export pipeline supporting Markdown and DOCX generation with act, chapter, and scene selection and configurable heading levels.
+- `src/app/api/books/[id]/export/route.ts`: ownership-checked export endpoint returning formatted manuscript downloads.
+- `tests/export.test.ts`: test suite covering Markdown rendering, DOCX packaging, query batching, and sibling order resolution.
+
+### Fixed
+
+- `src/lib/export/service.ts`: batched chapter and scene queries to eliminate N+1 round trips and aligned sibling ordering with `byPositionThenCreated`.
+
+## [PR-102](https://github.com/jgf-dev/inkstory/pull/102) - 2026-10-19
+
+### Summary
+
+Added interactive relation and progression editor modals, custom fields editor, and reading-order scene selector to the Codex manager and editor UI.
+
+### Added
+
+- `src/app/dashboard/codex/_components/Modal.tsx`: accessible dialog modal with focus trapping and backdrop dismissal.
+- `src/app/dashboard/codex/_components/RelationEditorModal.tsx`: modal to create and edit directed Codex entry relationships.
+- `src/app/dashboard/codex/_components/ProgressionEditorModal.tsx`: modal to create and edit scene-specific Codex entry progressions with reading-order resolution.
+- `tests/codex-ui-dom.test.tsx`: DOM test suite covering modal interactions, relation and progression creation, custom field validation, and manager filters.
+
+### Changed
+
+- `src/app/dashboard/codex/_components/CodexEditor.tsx`: integrated custom fields dynamic editor, relation and progression modal triggers, and inline deletion.
+- `src/app/dashboard/codex/_components/CodexManager.tsx`: wired entry selection and update callbacks with the refreshed editor.
+- `tests/codex-ui.test.ts`: added test coverage for custom fields and sub-modal component rendering.
+
 ## [PR-104](https://github.com/jgf-dev/inkstory/pull/104) - 2026-10-19
 
 ### Summary
