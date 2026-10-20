@@ -6,6 +6,7 @@ import { GET as exportRoute } from "../src/app/api/books/[id]/export/route";
 import {
   exportFilename,
   exportNovel,
+  loadNovelForExport,
   ExportError,
   parseExportedMarkdown,
   parseExportOptions,
@@ -17,6 +18,7 @@ import {
   type ExportNovel,
   type ExportOptions,
 } from "../src/lib/export";
+import { byPositionThenCreated } from "../src/lib/writing/service";
 import { db } from "../src/lib/prisma";
 
 const mockGetUser = vi.fn();
@@ -336,6 +338,139 @@ describe("renderExport / exportFilename", () => {
     const docx = await renderExport(novel, { ...base, format: "docx" });
     expect(docx.contentType).toMatch(/wordprocessingml/);
     expect(Buffer.isBuffer(docx.body)).toBe(true);
+  });
+});
+
+describe("loadNovelForExport batching and ordering", () => {
+  it("batches queries using .in(ids) and sorts by position then createdAt", async () => {
+    const novelSpy = vi.spyOn(db.orm.public.Novel, "where").mockReturnValue({
+      first: vi.fn().mockResolvedValue({
+        id: "nov-1",
+        title: "Test Novel",
+        subtitle: "Sub",
+        deletedAt: null,
+        ownerId: "user-1",
+      }),
+    } as any);
+
+    const actWhereSpy = vi.spyOn(db.orm.public.Act, "where").mockReturnValue({
+      where: vi.fn().mockReturnValue({
+        all: vi.fn().mockResolvedValue([
+          { id: "act-2", title: "Act 2", position: 1, createdAt: "2026-01-01T00:00:00Z" },
+          { id: "act-1", title: "Act 1", position: 0, createdAt: "2026-01-01T00:00:00Z" },
+        ]),
+      }),
+    } as any);
+
+    let chapterQueryInArgs: unknown;
+    const chapterWhereSpy = vi
+      .spyOn(db.orm.public.Chapter, "where")
+      .mockImplementation((fn: any) => {
+        const predicateMock = {
+          actId: {
+            in: (ids: string[]) => {
+              chapterQueryInArgs = ids;
+              return predicateMock;
+            },
+          },
+        };
+        if (typeof fn === "function") fn(predicateMock);
+        return {
+          where: vi.fn().mockReturnValue({
+            all: vi.fn().mockResolvedValue([
+              {
+                id: "ch-2",
+                actId: "act-1",
+                title: "Ch 2",
+                position: 0,
+                createdAt: "2026-01-02T00:00:00Z",
+              },
+              {
+                id: "ch-1",
+                actId: "act-1",
+                title: "Ch 1",
+                position: 0,
+                createdAt: "2026-01-01T00:00:00Z",
+              },
+            ]),
+          }),
+        } as any;
+      });
+
+    let sceneQueryInArgs: unknown;
+    const sceneWhereSpy = vi.spyOn(db.orm.public.Scene, "where").mockImplementation((fn: any) => {
+      const predicateMock = {
+        chapterId: {
+          in: (ids: string[]) => {
+            sceneQueryInArgs = ids;
+            return predicateMock;
+          },
+        },
+      };
+      if (typeof fn === "function") fn(predicateMock);
+      return {
+        where: vi.fn().mockReturnValue({
+          all: vi.fn().mockResolvedValue([
+            {
+              id: "sc-2",
+              chapterId: "ch-1",
+              title: "Scene 2",
+              subtitle: null,
+              content: "Prose 2",
+              summary: null,
+              position: 0,
+              createdAt: "2026-01-02T00:00:00Z",
+            },
+            {
+              id: "sc-1",
+              chapterId: "ch-1",
+              title: "Scene 1",
+              subtitle: null,
+              content: "Prose 1",
+              summary: null,
+              position: 0,
+              createdAt: "2026-01-01T00:00:00Z",
+            },
+          ]),
+        }),
+      } as any;
+    });
+
+    try {
+      const result = await loadNovelForExport("user-1", "nov-1");
+
+      expect(novelSpy).toHaveBeenCalledTimes(1);
+      expect(actWhereSpy).toHaveBeenCalledTimes(1);
+      // Batch queries: called once for all chapters, once for all scenes
+      expect(chapterWhereSpy).toHaveBeenCalledTimes(1);
+      expect(sceneWhereSpy).toHaveBeenCalledTimes(1);
+
+      expect(chapterQueryInArgs).toEqual(["act-1", "act-2"]);
+      expect(sceneQueryInArgs).toEqual(["ch-1", "ch-2"]);
+
+      expect(result.acts[0].id).toBe("act-1");
+      expect(result.acts[1].id).toBe("act-2");
+      // ch-1 was created before ch-2, so tie-break puts ch-1 first
+      expect(result.acts[0].chapters[0].id).toBe("ch-1");
+      expect(result.acts[0].chapters[1].id).toBe("ch-2");
+      // sc-1 was created before sc-2, so tie-break puts sc-1 first
+      expect(result.acts[0].chapters[0].scenes[0].id).toBe("sc-1");
+      expect(result.acts[0].chapters[0].scenes[1].id).toBe("sc-2");
+    } finally {
+      novelSpy.mockRestore();
+      actWhereSpy.mockRestore();
+      chapterWhereSpy.mockRestore();
+      sceneWhereSpy.mockRestore();
+    }
+  });
+
+  it("byPositionThenCreated tie-breaks identical positions by createdAt and id", () => {
+    const older = { id: "b", position: 1, createdAt: "2026-01-01T00:00:00Z" };
+    const newer = { id: "a", position: 1, createdAt: "2026-01-02T00:00:00Z" };
+    const sameTimeA = { id: "a", position: 1, createdAt: "2026-01-01T00:00:00Z" };
+
+    expect([newer, older].sort(byPositionThenCreated)).toEqual([older, newer]);
+    expect([older, sameTimeA].sort(byPositionThenCreated)).toEqual([sameTimeA, older]);
   });
 });
 
