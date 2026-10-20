@@ -15,6 +15,9 @@ export const DEFAULT_AI_GATEWAY_BASE_URL = "https://ai-gateway.vercel.sh/v1";
 /** Default completion cap for a single generation request. */
 export const DEFAULT_MAX_OUTPUT_TOKENS = 1024;
 
+/** Hard upper bound on completion tokens per request (model output limit). */
+export const MAX_OUTPUT_TOKENS = 4096;
+
 export type GenerationMode = "continuation" | "beat_expansion";
 
 export const GENERATION_MODES: readonly GenerationMode[] = ["continuation", "beat_expansion"];
@@ -160,6 +163,15 @@ export async function generateText(
       "AI_NOT_CONFIGURED",
       503,
     );
+  }
+
+  if (
+    options.maxTokens !== undefined &&
+    (!Number.isInteger(options.maxTokens) ||
+      options.maxTokens <= 0 ||
+      options.maxTokens > MAX_OUTPUT_TOKENS)
+  ) {
+    throw new TypeError(`maxTokens must be a positive integer up to ${MAX_OUTPUT_TOKENS}`);
   }
 
   const baseUrl = (process.env.AI_GATEWAY_BASE_URL || DEFAULT_AI_GATEWAY_BASE_URL).replace(

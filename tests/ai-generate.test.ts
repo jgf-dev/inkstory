@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import {
   DEFAULT_AI_MODEL,
+  MAX_OUTPUT_TOKENS,
   buildSceneMessages,
   generateText,
   isAiConfigured,
@@ -145,6 +146,25 @@ describe("AI generation (scene continuation / beat expansion)", () => {
         code: "AI_INVALID_RESPONSE",
       });
     });
+
+    it("validates maxTokens options if provided", async () => {
+      vi.stubEnv("AI_GATEWAY_API_KEY", "test-key");
+      await expect(
+        generateText({ messages: [{ role: "user", content: "hi" }], maxTokens: 0 }),
+      ).rejects.toThrow(TypeError);
+      await expect(
+        generateText({ messages: [{ role: "user", content: "hi" }], maxTokens: -1 }),
+      ).rejects.toThrow(TypeError);
+      await expect(
+        generateText({ messages: [{ role: "user", content: "hi" }], maxTokens: 1.5 }),
+      ).rejects.toThrow(TypeError);
+      await expect(
+        generateText({
+          messages: [{ role: "user", content: "hi" }],
+          maxTokens: MAX_OUTPUT_TOKENS + 1,
+        }),
+      ).rejects.toThrow(TypeError);
+    });
   });
 
   describe("POST /api/ai/generate route", () => {
@@ -190,6 +210,15 @@ describe("AI generation (scene continuation / beat expansion)", () => {
       expect(res1.status).toBe(400);
       const res2 = await generateRoute(makeRequest({ sceneId, mode: "haiku" }));
       expect(res2.status).toBe(400);
+
+      for (const invalid of [0, -1, 1.5, "100", MAX_OUTPUT_TOKENS + 1]) {
+        const res = await generateRoute(
+          makeRequest({ sceneId, mode: "continuation", maxTokens: invalid }),
+        );
+        expect(res.status).toBe(400);
+        const json = await res.json();
+        expect(json.code).toBe("VALIDATION_FAILED");
+      }
     });
 
     it("returns 404 when the scene is missing", async () => {
@@ -254,6 +283,26 @@ describe("AI generation (scene continuation / beat expansion)", () => {
       );
       const gatewayBody = JSON.parse(fetchMock.mock.calls[0][1].body);
       expect(gatewayBody.messages[1].content).toContain("Unsaved fresh prose.");
+    });
+
+    it("forwards a valid custom maxTokens to the gateway", async () => {
+      vi.stubEnv("AI_GATEWAY_API_KEY", "test-key");
+      vi.spyOn(writingService, "getSceneForEditor").mockResolvedValueOnce(editorScene);
+      vi.spyOn(codexService, "assembleCodexContextForScene").mockResolvedValueOnce({
+        entries: [],
+        meta: {},
+      } as any);
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValue(fetchPayload({ choices: [{ message: { content: "New prose." } }] }));
+      vi.stubGlobal("fetch", fetchMock);
+
+      const res = await generateRoute(
+        makeRequest({ sceneId, mode: "continuation", maxTokens: 500 }),
+      );
+      expect(res.status).toBe(200);
+      const gatewayBody = JSON.parse(fetchMock.mock.calls[0][1].body);
+      expect(gatewayBody.max_tokens).toBe(500);
     });
   });
 });

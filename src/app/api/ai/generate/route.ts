@@ -12,6 +12,7 @@ import {
   generateText,
   handleAiApiError,
   isGenerationMode,
+  MAX_OUTPUT_TOKENS,
 } from "@/lib/ai/generate";
 
 export const dynamic = "force-dynamic";
@@ -65,6 +66,21 @@ export async function POST(request: NextRequest) {
         { status: 400 },
       );
     }
+    if (
+      body.maxTokens !== undefined &&
+      (typeof body.maxTokens !== "number" ||
+        !Number.isInteger(body.maxTokens) ||
+        body.maxTokens <= 0 ||
+        body.maxTokens > MAX_OUTPUT_TOKENS)
+    ) {
+      return Response.json(
+        {
+          error: `maxTokens must be a positive integer up to ${MAX_OUTPUT_TOKENS}`,
+          code: "VALIDATION_FAILED",
+        },
+        { status: 400 },
+      );
+    }
 
     const scene = await getSceneForEditor(user.id, body.sceneId);
     if (scene.excludeFromAi) {
@@ -113,7 +129,7 @@ export async function POST(request: NextRequest) {
 
     const result = await generateText({
       messages,
-      maxTokens: typeof body.maxTokens === "number" ? body.maxTokens : undefined,
+      maxTokens: body.maxTokens,
     });
 
     return Response.json({ text: result.text, model: result.model });
