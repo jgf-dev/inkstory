@@ -4,6 +4,8 @@ import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { CodexCreateModal } from "../src/app/dashboard/codex/_components/CodexCreateModal";
 import { CodexEditor } from "../src/app/dashboard/codex/_components/CodexEditor";
 import { CodexManager } from "../src/app/dashboard/codex/_components/CodexManager";
+import { RelationEditorModal } from "../src/app/dashboard/codex/_components/RelationEditorModal";
+import { ProgressionEditorModal } from "../src/app/dashboard/codex/_components/ProgressionEditorModal";
 
 const mockRedirect = vi.fn();
 vi.mock("next/navigation", () => ({
@@ -45,6 +47,12 @@ vi.mock("../src/lib/codex/actions", () => ({
   deleteCodexAliasAction: vi.fn().mockResolvedValue({ success: true }),
   createCodexTagAction: vi.fn().mockResolvedValue({ success: true }),
   deleteCodexTagAction: vi.fn().mockResolvedValue({ success: true }),
+  createCodexRelationAction: vi.fn().mockResolvedValue({ success: true }),
+  updateCodexRelationAction: vi.fn().mockResolvedValue({ success: true }),
+  deleteCodexRelationAction: vi.fn().mockResolvedValue({ success: true }),
+  createCodexProgressionAction: vi.fn().mockResolvedValue({ success: true }),
+  updateCodexProgressionAction: vi.fn().mockResolvedValue({ success: true }),
+  deleteCodexProgressionAction: vi.fn().mockResolvedValue({ success: true }),
 }));
 
 // Analysis suite runs under shared CI load with coverage; page dynamic import
@@ -208,6 +216,81 @@ describe("Codex UI Components", { timeout: 20_000 }, () => {
       expect(html).toContain("Kaelen");
       expect(html).toContain("Theron");
       expect(html).toContain("Taught arcane weaving");
+      expect(html).toContain("Add Relation");
+      expect(html).toContain("Edit");
+    });
+
+    it("renders progressions with add affordance and scene fallback labels", () => {
+      const entryData = {
+        id: "entry-1",
+        name: "Mara Vance",
+        type: "CHARACTER" as const,
+        trackingMode: "DETECTED" as const,
+        seriesScoped: false,
+        description: "Glass weaver",
+        sourceRelations: [],
+        targetRelations: [],
+        progressions: [
+          {
+            id: "prog-1",
+            sceneId: "scene-9",
+            mode: "REPLACEMENT",
+            description: "Mara has lost her sight.",
+            notes: null,
+          },
+        ],
+        aliases: [],
+        tags: [],
+        novelId: "nov-1",
+      };
+
+      const html = renderToStaticMarkup(
+        React.createElement(CodexEditor, {
+          entryId: "entry-1",
+          initialEntry: entryData,
+          novels: [{ id: "nov-1", title: "Storm Tide", seriesId: null }],
+          onEntryUpdated: vi.fn(),
+          onEntryDeleted: vi.fn(),
+        }),
+      );
+
+      expect(html).toContain("Add Progression");
+      expect(html).toContain("REPLACEMENT");
+      expect(html).toContain("Mara has lost her sight.");
+      expect(html).toContain("scene-9");
+    });
+
+    it("renders the custom fields editor with existing fields", () => {
+      const entryData = {
+        id: "entry-1",
+        name: "Mara Vance",
+        type: "CHARACTER" as const,
+        trackingMode: "DETECTED" as const,
+        seriesScoped: false,
+        description: "Glass weaver",
+        sourceRelations: [],
+        targetRelations: [],
+        progressions: [],
+        aliases: [],
+        tags: [],
+        customFields: { Age: 34, "Ship Name": "Rook's Wake", Exiled: true },
+      };
+
+      const html = renderToStaticMarkup(
+        React.createElement(CodexEditor, {
+          entryId: "entry-1",
+          initialEntry: entryData,
+          onEntryUpdated: vi.fn(),
+          onEntryDeleted: vi.fn(),
+        }),
+      );
+
+      expect(html).toContain("Custom Fields");
+      expect(html).toContain("Add Field");
+      expect(html).toContain("Age");
+      expect(html).toContain("34");
+      expect(html).toContain("Rook&#x27;s Wake");
+      expect(html).toContain("true");
     });
   });
 
@@ -243,6 +326,139 @@ describe("Codex UI Components", { timeout: 20_000 }, () => {
       expect(html).toContain("Target Novel *");
       expect(html).toContain("Color Theme");
       expect(html).toContain("Create Entry");
+    });
+  });
+
+  describe("RelationEditorModal", () => {
+    const baseProps = {
+      entryId: "entry-1",
+      entryName: "Mara Vance",
+      entries: [
+        { id: "entry-1", name: "Mara Vance", type: "CHARACTER" },
+        { id: "entry-2", name: "Kaelen", type: "CHARACTER" },
+        { id: "entry-3", name: "Sunken Archives", type: "LOCATION" },
+      ],
+      onClose: vi.fn(),
+      onSaved: vi.fn(),
+    };
+
+    it("renders nothing when closed", () => {
+      const html = renderToStaticMarkup(
+        React.createElement(RelationEditorModal, { ...baseProps, isOpen: false, relation: null }),
+      );
+      expect(html).toBe("");
+    });
+
+    it("renders create mode with entry candidates excluding self", () => {
+      const html = renderToStaticMarkup(
+        React.createElement(RelationEditorModal, { ...baseProps, isOpen: true, relation: null }),
+      );
+
+      expect(html).toContain("Add Relation");
+      expect(html).toContain("Related Entry *");
+      expect(html).toContain("Kaelen (CHARACTER)");
+      expect(html).toContain("Sunken Archives (LOCATION)");
+      expect(html).not.toContain("Mara Vance (CHARACTER)");
+      expect(html).toContain("relation-type-presets");
+    });
+
+    it("renders edit mode with fixed direction and delete affordance", () => {
+      const html = renderToStaticMarkup(
+        React.createElement(RelationEditorModal, {
+          ...baseProps,
+          isOpen: true,
+          relation: {
+            id: "rel-1",
+            relationType: "MENTOR_TO",
+            reverseType: "MENTORED_BY",
+            description: "Taught weaving",
+            direction: "source" as const,
+            otherName: "Kaelen",
+          },
+        }),
+      );
+
+      expect(html).toContain("Edit Relation");
+      expect(html).toContain("Delete Relation");
+      expect(html).toContain("MENTORED_BY");
+      expect(html).not.toContain("Related Entry *");
+    });
+  });
+
+  describe("ProgressionEditorModal", () => {
+    const sceneOptions = [
+      { id: "scene-1", label: "Storm Tide · Act I → Chapter One → The Quay" },
+      { id: "scene-2", label: "Storm Tide · Act I → Chapter One → Storm" },
+    ];
+
+    const baseProps = {
+      entryId: "entry-1",
+      onClose: vi.fn(),
+      onSaved: vi.fn(),
+    };
+
+    it("renders nothing when closed", () => {
+      expect(
+        renderToStaticMarkup(
+          React.createElement(ProgressionEditorModal, {
+            ...baseProps,
+            isOpen: false,
+            progression: null,
+            sceneOptions,
+          }),
+        ),
+      ).toBe("");
+    });
+
+    it("renders create mode with reading-order scene options", () => {
+      const html = renderToStaticMarkup(
+        React.createElement(ProgressionEditorModal, {
+          ...baseProps,
+          isOpen: true,
+          progression: null,
+          sceneOptions,
+        }),
+      );
+
+      expect(html).toContain("Add Progression");
+      expect(html).toContain("Storm Tide · Act I → Chapter One → The Quay");
+      expect(html).toContain("ADDITION");
+      expect(html).toContain("REPLACEMENT");
+    });
+
+    it("renders edit mode with fixed scene and delete affordance", () => {
+      const html = renderToStaticMarkup(
+        React.createElement(ProgressionEditorModal, {
+          ...baseProps,
+          isOpen: true,
+          progression: {
+            id: "prog-1",
+            sceneId: "scene-2",
+            mode: "REPLACEMENT",
+            description: "Mara has lost her sight.",
+            notes: null,
+          },
+          sceneOptions,
+        }),
+      );
+
+      expect(html).toContain("Edit Progression");
+      expect(html).toContain("Scene (fixed)");
+      expect(html).toContain("Delete Progression");
+      expect(html).toContain("Mara has lost her sight.");
+    });
+
+    it("shows the empty-scene hint when no scenes exist", () => {
+      const html = renderToStaticMarkup(
+        React.createElement(ProgressionEditorModal, {
+          ...baseProps,
+          isOpen: true,
+          progression: null,
+          sceneOptions: [],
+        }),
+      );
+
+      expect(html).toContain("No scenes found");
     });
   });
 });
