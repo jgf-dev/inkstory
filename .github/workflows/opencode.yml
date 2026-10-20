@@ -2,10 +2,26 @@ name: opencode
 
 on:
   issue_comment:
-    types: [created]
+    types: 
+     - created
+     - edited
   pull_request_review_comment:
-    types: [created]
+    types: 
+     - created
+     - edited
+  pull_request_review: 
+    types:
+      - submitted
+      - edited
 
+  pull_request:
+    types: 
+      - edited
+      - opened
+      - ready_for_review
+      - synchronize
+      - reopened
+      - review_requested
 jobs:
   opencode:
     if: |
@@ -17,8 +33,10 @@ jobs:
     permissions:
       id-token: write
       contents: read
-      pull-requests: read
-      issues: read
+      pull-requests: write
+      issues: write
+      checks: read
+      actions: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6

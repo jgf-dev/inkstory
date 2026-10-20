@@ -1,7 +1,9 @@
 import { afterAll, describe, expect, it } from "vite-plus/test";
 import { db } from "../src/lib/prisma";
 
-describe("Prisma 8 Database Integration", () => {
+// Analysis uses a shared CI Postgres; aggregate counts can exceed the default
+// 5s under concurrent suite load (same class of flake as Codex service tests).
+describe("Prisma 8 Database Integration", { timeout: 20_000 }, () => {
   afterAll(async () => {
     await db.close();
   });

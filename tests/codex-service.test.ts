@@ -1,6 +1,7 @@
 import { Temporal } from "temporal-polyfill";
 import { afterAll, beforeAll, describe, expect, it } from "vite-plus/test";
 import {
+  assembleCodexContextForScene,
   CodexError,
   createCodexAlias,
   createCodexEntry,
@@ -15,6 +16,8 @@ import {
   getCodexEntry,
   listCodexEntriesForNovel,
   listCodexEntriesForSeries,
+  loadNovelSceneReadingOrder,
+  resolveCodexEntryAtScene,
   scanMentionsInNovel,
   scanMentionsInScene,
   updateCodexEntry,
@@ -23,22 +26,27 @@ import {
 } from "../src/lib/codex/service";
 import { db } from "../src/lib/prisma";
 
-describe("Codex Service & Scoping Engine", () => {
-  const userId = "11111111-1111-1111-1111-111111111111";
-  const otherUserId = "22222222-2222-2222-2222-222222222222";
+describe("Codex Service & Scoping Engine", { timeout: 20_000 }, () => {
+  // Unique IDs per suite run. Analysis uses a shared CI Postgres; fixed IDs let
+  // overlapping runs' afterAll delete each other's users/series mid-suite
+  // (FK / "Novel not found" flakes on aliases/relations/progressions/mentions).
+  const runId = crypto.randomUUID();
+  const userId = crypto.randomUUID();
+  const otherUserId = crypto.randomUUID();
 
-  const seriesId = "test-codex-series-1";
-  const novelAId = "test-codex-novel-a";
-  const novelBId = "test-codex-novel-b"; // In same series as novel A
-  const novelStandaloneId = "test-codex-novel-standalone"; // No series
+  const seriesId = `test-codex-series-${runId}`;
+  const novelAId = `test-codex-novel-a-${runId}`;
+  const novelBId = `test-codex-novel-b-${runId}`; // In same series as novel A
+  const novelStandaloneId = `test-codex-novel-standalone-${runId}`; // No series
 
-  const actAId = "test-codex-act-a";
-  const chapterAId = "test-codex-chapter-a";
-  const sceneA1Id = "test-codex-scene-a1";
+  const actAId = `test-codex-act-a-${runId}`;
+  const chapterAId = `test-codex-chapter-a-${runId}`;
+  const sceneA1Id = `test-codex-scene-a1-${runId}`;
+  const sceneA2Id = `test-codex-scene-a2-${runId}`;
 
-  const actBId = "test-codex-act-b";
-  const chapterBId = "test-codex-chapter-b";
-  const sceneB1Id = "test-codex-scene-b1";
+  const actBId = `test-codex-act-b-${runId}`;
+  const chapterBId = `test-codex-chapter-b-${runId}`;
+  const sceneB1Id = `test-codex-scene-b1-${runId}`;
 
   beforeAll(async () => {
     const now = Temporal.Now.plainDateTimeISO();
@@ -47,7 +55,7 @@ describe("Codex Service & Scoping Engine", () => {
     await db.orm.public.User.upsert({
       create: {
         id: userId,
-        email: "codex-test@inkstory.local",
+        email: `codex-test-${runId}@inkstory.local`,
         name: "Codex Test User",
         updatedAt: now,
       },
@@ -58,7 +66,7 @@ describe("Codex Service & Scoping Engine", () => {
     await db.orm.public.User.upsert({
       create: {
         id: otherUserId,
-        email: "codex-other@inkstory.local",
+        email: `codex-other-${runId}@inkstory.local`,
         name: "Other User",
         updatedAt: now,
       },
@@ -135,6 +143,16 @@ describe("Codex Service & Scoping Engine", () => {
       },
       update: { updatedAt: now },
     });
+    await db.orm.public.Scene.upsert({
+      create: {
+        id: sceneA2Id,
+        chapterId: chapterAId,
+        title: "Scene 2",
+        position: 1,
+        updatedAt: now,
+      },
+      update: { updatedAt: now },
+    });
 
     // 8. Hierarchy for Novel B -> Scene B1
     await db.orm.public.Act.upsert({
@@ -158,14 +176,17 @@ describe("Codex Service & Scoping Engine", () => {
   });
 
   afterAll(async () => {
+    // Best-effort cleanup of THIS run's fixtures only (unique IDs above).
+    // Deleting the owner cascades series/novels/codex rows for this run.
     try {
-      // Clean up test data cascade
-      await db.orm.public.Series.where({ id: seriesId }).delete();
-      await db.orm.public.Novel.where({ id: novelStandaloneId }).delete();
       await db.orm.public.User.where({ id: userId }).delete();
+    } catch {
+      // ignore
+    }
+    try {
       await db.orm.public.User.where({ id: otherUserId }).delete();
     } catch {
-      // Cleanup best effort
+      // ignore
     }
   });
 
@@ -604,6 +625,132 @@ describe("Codex Service & Scoping Engine", () => {
     });
   });
 
+  describe("Progression resolution at scene (STO-1153)", () => {
+    it("loads novel scene reading order for non-deleted scenes", async () => {
+      const order = await loadNovelSceneReadingOrder(novelAId);
+      expect(order.get(sceneA1Id)).toMatchObject({
+        sceneId: sceneA1Id,
+        actPosition: 0,
+        chapterPosition: 0,
+        scenePosition: 0,
+      });
+      expect(order.get(sceneA2Id)).toMatchObject({
+        sceneId: sceneA2Id,
+        scenePosition: 1,
+      });
+      expect(order.has(sceneB1Id)).toBe(false);
+    });
+
+    it("applies ADDITION then REPLACEMENT progressions in reading order", async () => {
+      const hero = await createCodexEntry(userId, {
+        name: "Resolve Hero",
+        description: "Base hero.",
+        novelId: novelAId,
+      });
+
+      const early = await createCodexProgression(userId, {
+        entryId: hero.id,
+        sceneId: sceneA1Id,
+        mode: "ADDITION",
+        description: "Learned a spell.",
+        position: 0,
+      });
+      const late = await createCodexProgression(userId, {
+        entryId: hero.id,
+        sceneId: sceneA2Id,
+        mode: "REPLACEMENT",
+        description: "Became the Archmage.",
+        position: 0,
+      });
+
+      const atScene1 = await resolveCodexEntryAtScene(userId, hero.id, sceneA1Id);
+      expect(atScene1.baseDescription).toBe("Base hero.");
+      expect(atScene1.description).toBe("Base hero.\nLearned a spell.");
+      expect(atScene1.appliedProgressionIds).toEqual([early.id]);
+
+      const atScene2 = await resolveCodexEntryAtScene(userId, hero.id, sceneA2Id);
+      expect(atScene2.description).toBe("Became the Archmage.");
+      expect(atScene2.appliedProgressionIds).toEqual([early.id, late.id]);
+    });
+
+    it("resolves series-scoped entries against scenes in the same series", async () => {
+      const lore = await createCodexEntry(userId, {
+        name: "Resolve Lore",
+        type: "LORE",
+        description: "Old myth.",
+        seriesScoped: true,
+        seriesId,
+      });
+      const prog = await createCodexProgression(userId, {
+        entryId: lore.id,
+        sceneId: sceneA1Id,
+        mode: "ADDITION",
+        description: "Myth expands.",
+      });
+
+      const resolved = await resolveCodexEntryAtScene(userId, lore.id, sceneA1Id);
+      expect(resolved.description).toBe("Old myth.\nMyth expands.");
+      expect(resolved.appliedProgressionIds).toEqual([prog.id]);
+    });
+
+    it("rejects unauthorized or missing entry/scene contexts", async () => {
+      const hero = await createCodexEntry(userId, {
+        name: "Auth Resolve Hero",
+        novelId: novelAId,
+      });
+
+      await expect(resolveCodexEntryAtScene(otherUserId, hero.id, sceneA1Id)).rejects.toThrow(
+        /Unauthorized/,
+      );
+      await expect(resolveCodexEntryAtScene(userId, "missing-entry", sceneA1Id)).rejects.toThrow(
+        /Codex entry not found/,
+      );
+      await expect(resolveCodexEntryAtScene(userId, hero.id, "missing-scene")).rejects.toThrow(
+        CodexError,
+      );
+    });
+
+    it("rejects book-scoped resolution against a different novel scene", async () => {
+      const standalone = await createCodexEntry(userId, {
+        name: "Standalone Resolve",
+        novelId: novelStandaloneId,
+      });
+      await expect(resolveCodexEntryAtScene(userId, standalone.id, sceneA1Id)).rejects.toThrow(
+        /Book-scoped entry cannot be resolved against a scene in a different novel/,
+      );
+    });
+
+    it("rejects series-scoped resolution when scene series does not match", async () => {
+      const lore = await createCodexEntry(userId, {
+        name: "Wrong Series Lore",
+        type: "LORE",
+        seriesScoped: true,
+        seriesId,
+      });
+      // standalone novel has no series — resolveSceneContext seriesId is null
+      const actS = `test-codex-act-standalone-${runId}`;
+      const chapterS = `test-codex-chapter-standalone-${runId}`;
+      const sceneS = `test-codex-scene-standalone-${runId}`;
+      const now = Temporal.Now.plainDateTimeISO();
+      await db.orm.public.Act.upsert({
+        create: { id: actS, novelId: novelStandaloneId, title: "Act", position: 0, updatedAt: now },
+        update: { updatedAt: now },
+      });
+      await db.orm.public.Chapter.upsert({
+        create: { id: chapterS, actId: actS, title: "Ch", position: 0, updatedAt: now },
+        update: { updatedAt: now },
+      });
+      await db.orm.public.Scene.upsert({
+        create: { id: sceneS, chapterId: chapterS, title: "Sc", position: 0, updatedAt: now },
+        update: { updatedAt: now },
+      });
+
+      await expect(resolveCodexEntryAtScene(userId, lore.id, sceneS)).rejects.toThrow(
+        /Series-scoped entry does not belong to the scene's series/,
+      );
+    });
+  });
+
   describe("Mention Scanning Service Integration", () => {
     it("scans mentions in novel context identifying both book and series entries", async () => {
       // Eldrin the Mage (alias: The Gray Sage) and The First Sundering exist in Novel A context
@@ -633,6 +780,137 @@ describe("Codex Service & Scoping Engine", () => {
       expect(explicitText.substring(firstMatch.startIndex, firstMatch.endIndex)).toBe(
         firstMatch.matchedText,
       );
+    });
+  });
+  describe("Scene context assembly (STO-1171)", () => {
+    it("loads entries, aliases, relations, and progressions into the assembled context", async () => {
+      const captain = await createCodexEntry(userId, {
+        name: "Zephyrine Vauclair",
+        description: "Ship captain.",
+        aliases: ["The Gull"],
+        novelId: novelAId,
+      });
+      const ship = await createCodexEntry(userId, {
+        name: "Quillon Wake",
+        type: "ITEM",
+        description: "A sloop.",
+        novelId: novelAId,
+      });
+      const harbor = await createCodexEntry(userId, {
+        name: "Ostrava Reach",
+        type: "LOCATION",
+        description: "A harbor.",
+        novelId: novelAId,
+      });
+      const sealed = await createCodexEntry(userId, {
+        name: "Brannoch Sealed",
+        description: "Never auto-included.",
+        trackingMode: "NEVER",
+        novelId: novelAId,
+      });
+      const banner = await createCodexEntry(userId, {
+        name: "Tidewatch Banner",
+        type: "LORE",
+        description: "Series-wide sigil.",
+        trackingMode: "ALWAYS",
+        seriesScoped: true,
+        seriesId,
+      });
+
+      await createCodexRelation(userId, {
+        sourceEntryId: captain.id,
+        targetEntryId: ship.id,
+        relationType: "captains",
+      });
+      await createCodexRelation(userId, {
+        sourceEntryId: ship.id,
+        targetEntryId: harbor.id,
+        relationType: "moored at",
+      });
+      const early = await createCodexProgression(userId, {
+        entryId: captain.id,
+        sceneId: sceneA1Id,
+        mode: "ADDITION",
+        description: "Lost an eye.",
+      });
+      await createCodexProgression(userId, {
+        entryId: captain.id,
+        sceneId: sceneA2Id,
+        mode: "ADDITION",
+        description: "Took the admiralty.",
+      });
+
+      const context = await assembleCodexContextForScene(userId, {
+        sceneId: sceneA1Id,
+        novelId: novelAId,
+        beatText: "The Gull scans the horizon.",
+        manualAttachmentIds: [sealed.id],
+        options: { maxEntries: 500 },
+      });
+
+      const byId = new Map(context.entries.map((entry) => [entry.id, entry]));
+      expect(context.meta.sceneId).toBe(sceneA1Id);
+      expect(byId.get(sealed.id)?.source).toBe("manual");
+      expect(byId.get(banner.id)?.source).toBe("always");
+      expect(byId.get(captain.id)).toMatchObject({
+        source: "mention",
+        aliases: ["The Gull"],
+        description: "Ship captain.\nLost an eye.",
+        appliedProgressionIds: [early.id],
+      });
+      expect(byId.get(ship.id)).toMatchObject({ source: "relation", relationDepth: 1 });
+      expect(byId.get(harbor.id)).toMatchObject({ source: "relation", relationDepth: 2 });
+
+      const withoutSeries = await assembleCodexContextForScene(userId, {
+        sceneId: sceneA1Id,
+        options: { includeSeriesCodex: false, maxEntries: 500 },
+      });
+      expect(withoutSeries.entries.some((entry) => entry.id === banner.id)).toBe(false);
+    });
+
+    it("returns an empty context for a scene whose novel has no Codex entries", async () => {
+      const now = Temporal.Now.plainDateTimeISO();
+      const novelId = `test-codex-novel-empty-${runId}`;
+      const actId = `test-codex-act-empty-${runId}`;
+      const chapterId = `test-codex-chapter-empty-${runId}`;
+      const sceneId = `test-codex-scene-empty-${runId}`;
+      await db.orm.public.Novel.upsert({
+        create: { id: novelId, ownerId: userId, title: "Empty", position: 9, updatedAt: now },
+        update: { updatedAt: now },
+      });
+      await db.orm.public.Act.upsert({
+        create: { id: actId, novelId, title: "Act", position: 0, updatedAt: now },
+        update: { updatedAt: now },
+      });
+      await db.orm.public.Chapter.upsert({
+        create: { id: chapterId, actId, title: "Ch", position: 0, updatedAt: now },
+        update: { updatedAt: now },
+      });
+      await db.orm.public.Scene.upsert({
+        create: { id: sceneId, chapterId, title: "Sc", position: 0, updatedAt: now },
+        update: { updatedAt: now },
+      });
+
+      const context = await assembleCodexContextForScene(userId, {
+        sceneId,
+        beatText: "Nobody here.",
+      });
+      expect(context).toEqual({
+        entries: [],
+        meta: { totalCandidates: 0, finalCount: 0, truncated: false, sceneId },
+      });
+    });
+
+    it("rejects other users, mismatched novels, and missing scenes", async () => {
+      await expect(
+        assembleCodexContextForScene(otherUserId, { sceneId: sceneA1Id }),
+      ).rejects.toMatchObject({ code: "FORBIDDEN", status: 403 });
+      await expect(
+        assembleCodexContextForScene(userId, { sceneId: sceneA1Id, novelId: novelBId }),
+      ).rejects.toMatchObject({ code: "SCOPING_ERROR", status: 422 });
+      await expect(
+        assembleCodexContextForScene(userId, { sceneId: "missing-scene" }),
+      ).rejects.toMatchObject({ code: "NOT_FOUND", status: 404 });
     });
   });
 });

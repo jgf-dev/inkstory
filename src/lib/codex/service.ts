@@ -1,6 +1,17 @@
 import { Temporal } from "temporal-polyfill";
 import { db } from "@/lib/prisma";
+import {
+  assembleContext,
+  type AssembledContext,
+  type ContextAssemblyOptions,
+} from "./context-assembler";
 import { detectMentionsInText, type MentionDetectionResult } from "./mention-detection";
+import {
+  ProgressionEngine,
+  type ApplyProgressionsResult,
+  type ProgressionCandidate,
+  type SceneReadingOrderKey,
+} from "./progression-engine";
 import type {
   CodexEntryFilter,
   CreateCodexAliasInput,
@@ -13,41 +24,10 @@ import type {
   UpdateCodexRelationInput,
 } from "./types";
 
-/**
- * Custom error class for Codex domain validation and authorization failures.
- */
-export class CodexError extends Error {
-  constructor(
-    message: string,
-    public readonly code:
-      | "NOT_FOUND"
-      | "FORBIDDEN"
-      | "VALIDATION_FAILED"
-      | "SCOPING_ERROR"
-      | "CONFLICT",
-    public readonly status: number = 400,
-  ) {
-    super(message);
-    this.name = "CodexError";
-  }
-}
+import { ensureCodexEntryQuota } from "@/lib/billing/entitlements";
+import { CodexError, handleCodexApiError } from "./errors";
 
-/**
- * Standardized API error handler for Codex REST routes.
- * Ensures malformed JSON (SyntaxError) returns 400 instead of 500.
- */
-export function handleCodexApiError(err: unknown): Response {
-  if (err instanceof SyntaxError) {
-    return Response.json(
-      { error: "Malformed or invalid JSON body", code: "INVALID_JSON" },
-      { status: 400 },
-    );
-  }
-  if (err instanceof CodexError) {
-    return Response.json({ error: err.message, code: err.code }, { status: err.status });
-  }
-  return Response.json({ error: "Internal server error" }, { status: 500 });
-}
+export { CodexError, handleCodexApiError };
 
 function nowTimestamp(): Temporal.PlainDateTime {
   return Temporal.Now.plainDateTimeISO();
@@ -139,24 +119,24 @@ async function resolveSceneContext(
 
 // ─── Entry CRUD ──────────────────────────────────────────────────────────────
 
-export async function createCodexEntry(userId: string, input: CreateCodexEntryInput) {
-  const trimmedName = input.name?.trim();
+function validateEntryName(name?: string): string {
+  const trimmedName = name?.trim();
   if (!trimmedName) {
     throw new CodexError("Entry name cannot be empty", "VALIDATION_FAILED", 422);
   }
+  return trimmedName;
+}
 
-  const isSeriesScoped = Boolean(input.seriesScoped);
-  const { resolvedNovelId, resolvedSeriesId } = await resolveAndValidateScope(
-    userId,
-    isSeriesScoped,
-    input.novelId,
-    input.seriesId,
-  );
-
-  const now = nowTimestamp();
+async function insertCodexEntry(
+  userId: string,
+  trimmedName: string,
+  input: CreateCodexEntryInput,
+  resolvedNovelId: string | null,
+  resolvedSeriesId: string | null,
+  now: Temporal.PlainDateTime,
+) {
   const entryId = crypto.randomUUID();
-
-  const entry = await db.orm.public.CodexEntry.create({
+  return db.orm.public.CodexEntry.create({
     id: entryId,
     ownerId: userId,
     name: trimmedName,
@@ -164,7 +144,7 @@ export async function createCodexEntry(userId: string, input: CreateCodexEntryIn
     description: input.description ?? "",
     notes: input.notes ?? null,
     trackingMode: input.trackingMode ?? "DETECTED",
-    seriesScoped: isSeriesScoped,
+    seriesScoped: Boolean(input.seriesScoped),
     novelId: resolvedNovelId,
     seriesId: resolvedSeriesId,
     customFields: (input.customFields as any) ?? null,
@@ -175,41 +155,80 @@ export async function createCodexEntry(userId: string, input: CreateCodexEntryIn
     updatedAt: now,
     deletedAt: null,
   });
+}
 
-  // Create optional initial aliases
-  if (input.aliases && input.aliases.length > 0) {
-    for (const aliasName of input.aliases) {
-      const trimmed = aliasName.trim();
-      if (trimmed) {
-        await db.orm.public.CodexAlias.create({
-          id: crypto.randomUUID(),
-          entryId: entry.id,
-          name: trimmed,
-          createdAt: now,
-          updatedAt: now,
-          deletedAt: null,
-        });
-      }
+async function createInitialAliases(
+  entryId: string,
+  aliases: string[] | undefined,
+  now: Temporal.PlainDateTime,
+): Promise<void> {
+  if (!aliases || aliases.length === 0) return;
+
+  for (const aliasName of aliases) {
+    const trimmed = aliasName.trim();
+    if (trimmed) {
+      await db.orm.public.CodexAlias.create({
+        id: crypto.randomUUID(),
+        entryId,
+        name: trimmed,
+        createdAt: now,
+        updatedAt: now,
+        deletedAt: null,
+      });
     }
   }
+}
 
-  // Create optional initial tags
-  if (input.tags && input.tags.length > 0) {
-    for (const tag of input.tags) {
-      const trimmed = tag.name?.trim();
-      if (trimmed) {
-        await db.orm.public.CodexTag.create({
-          id: crypto.randomUUID(),
-          entryId: entry.id,
-          name: trimmed,
-          color: tag.color ?? null,
-          createdAt: now,
-          updatedAt: now,
-          deletedAt: null,
-        });
-      }
+async function createInitialTags(
+  entryId: string,
+  tags: Array<{ name: string; color?: string | null }> | undefined,
+  now: Temporal.PlainDateTime,
+): Promise<void> {
+  if (!tags || tags.length === 0) return;
+
+  for (const tag of tags) {
+    const trimmed = tag.name?.trim();
+    if (trimmed) {
+      await db.orm.public.CodexTag.create({
+        id: crypto.randomUUID(),
+        entryId,
+        name: trimmed,
+        color: tag.color ?? null,
+        createdAt: now,
+        updatedAt: now,
+        deletedAt: null,
+      });
     }
   }
+}
+
+export async function createCodexEntry(userId: string, input: CreateCodexEntryInput) {
+  const trimmedName = validateEntryName(input.name);
+
+  // Tier quota guard (STO-1210): 402 with an upgrade trigger on the Free plan.
+  await ensureCodexEntryQuota(userId);
+
+  const isSeriesScoped = Boolean(input.seriesScoped);
+  const { resolvedNovelId, resolvedSeriesId } = await resolveAndValidateScope(
+    userId,
+    isSeriesScoped,
+    input.novelId,
+    input.seriesId,
+  );
+
+  const now = nowTimestamp();
+
+  const entry = await insertCodexEntry(
+    userId,
+    trimmedName,
+    input,
+    resolvedNovelId,
+    resolvedSeriesId,
+    now,
+  );
+
+  await createInitialAliases(entry.id, input.aliases, now);
+  await createInitialTags(entry.id, input.tags, now);
 
   return getCodexEntry(userId, entry.id);
 }
@@ -847,6 +866,149 @@ export async function deleteCodexProgression(userId: string, progressionId: stri
   return { success: true, id: progressionId };
 }
 
+/**
+ * Load Act -> Chapter -> Scene reading-order keys for every non-deleted scene
+ * in a novel. Used for temporal progression filtering.
+ */
+export async function loadNovelSceneReadingOrder(
+  novelId: string,
+): Promise<Map<string, SceneReadingOrderKey>> {
+  const acts = await db.orm.public.Act.where((a) => a.novelId.eq(novelId))
+    .where((a) => a.deletedAt.isNull())
+    .all();
+
+  if (acts.length === 0) {
+    return new Map();
+  }
+
+  const actMap = new Map<string, number>();
+  for (const act of acts) {
+    actMap.set(act.id, act.position);
+  }
+  const actIds = Array.from(actMap.keys());
+
+  const chapters = await db.orm.public.Chapter.where((c) => c.actId.in(actIds))
+    .where((c) => c.deletedAt.isNull())
+    .all();
+
+  if (chapters.length === 0) {
+    return new Map();
+  }
+
+  const chapterMap = new Map<string, { chapterPosition: number; actPosition: number }>();
+  for (const chapter of chapters) {
+    const actPosition = actMap.get(chapter.actId);
+    if (actPosition !== undefined) {
+      chapterMap.set(chapter.id, {
+        chapterPosition: chapter.position,
+        actPosition,
+      });
+    }
+  }
+  const chapterIds = Array.from(chapterMap.keys());
+
+  if (chapterIds.length === 0) {
+    return new Map();
+  }
+
+  const scenes = await db.orm.public.Scene.where((s) => s.chapterId.in(chapterIds))
+    .where((s) => s.deletedAt.isNull())
+    .all();
+
+  const rows: SceneReadingOrderKey[] = [];
+
+  for (const scene of scenes) {
+    const parentMeta = chapterMap.get(scene.chapterId);
+    if (parentMeta) {
+      rows.push({
+        sceneId: scene.id,
+        actPosition: parentMeta.actPosition,
+        chapterPosition: parentMeta.chapterPosition,
+        scenePosition: scene.position,
+      });
+    }
+  }
+
+  return ProgressionEngine.buildSceneOrderMap(rows);
+}
+
+/**
+ * Resolve a Codex entry's effective description at a given scene by applying
+ * scene-linked progressions with temporal filtering (STO-1153).
+ */
+export async function resolveCodexEntryAtScene(
+  userId: string,
+  entryId: string,
+  sceneId: string,
+): Promise<
+  ApplyProgressionsResult & {
+    entryId: string;
+    sceneId: string;
+    baseDescription: string;
+  }
+> {
+  const entry = await db.orm.public.CodexEntry.where({ id: entryId }).first();
+  if (!entry || entry.deletedAt !== null) {
+    throw new CodexError("Codex entry not found", "NOT_FOUND", 404);
+  }
+  if (entry.ownerId !== userId) {
+    throw new CodexError("Unauthorized to access this codex entry", "FORBIDDEN", 403);
+  }
+
+  const sceneContext = await resolveSceneContext(sceneId);
+  if (sceneContext.ownerId !== userId) {
+    throw new CodexError("Unauthorized to access this scene", "FORBIDDEN", 403);
+  }
+
+  if (entry.seriesScoped) {
+    if (!sceneContext.seriesId || entry.seriesId !== sceneContext.seriesId) {
+      throw new CodexError(
+        "Series-scoped entry does not belong to the scene's series",
+        "SCOPING_ERROR",
+        422,
+      );
+    }
+  } else if (entry.novelId !== sceneContext.novelId) {
+    throw new CodexError(
+      "Book-scoped entry cannot be resolved against a scene in a different novel",
+      "SCOPING_ERROR",
+      422,
+    );
+  }
+
+  const sceneOrderById = await loadNovelSceneReadingOrder(sceneContext.novelId);
+  const currentScene = sceneOrderById.get(sceneId);
+  if (!currentScene) {
+    throw new CodexError("Scene not found in novel reading order", "NOT_FOUND", 404);
+  }
+
+  const rawProgressions = await db.orm.public.CodexProgression.where((p) => p.entryId.eq(entryId))
+    .where((p) => p.deletedAt.isNull())
+    .all();
+
+  const progressions: ProgressionCandidate[] = rawProgressions.map((p) => ({
+    id: p.id,
+    sceneId: p.sceneId,
+    mode: p.mode,
+    description: p.description,
+    position: p.position,
+  }));
+
+  const resolved = ProgressionEngine.resolveAtScene({
+    baseDescription: entry.description ?? "",
+    currentScene,
+    sceneOrderById,
+    progressions,
+  });
+
+  return {
+    entryId,
+    sceneId,
+    baseDescription: entry.description ?? "",
+    ...resolved,
+  };
+}
+
 // ─── Mention Detection Scanner ───────────────────────────────────────────────
 
 export async function scanMentionsInNovel(
@@ -882,4 +1044,98 @@ export async function scanMentionsInScene(
 
   const entries = await listCodexEntriesForNovel(userId, sceneContext.novelId);
   return detectMentionsInText(textToScan, entries);
+}
+
+// ─── Context Assembly (STO-1171) ─────────────────────────────────────────────
+
+export interface AssembleSceneContextInput {
+  sceneId: string;
+  /** Optional guard: when set, it must match the scene's novel. */
+  novelId?: string;
+  beatText?: string;
+  recentProse?: string;
+  manualAttachmentIds?: string[];
+  options?: ContextAssemblyOptions;
+}
+
+/**
+ * Load the Codex for a scene's novel (book + series entries, aliases,
+ * relations, progressions, scene reading order) and run the pure
+ * `assembleContext` over it. This is the single entry point generation flows
+ * and the inspection API use, so Prompt Preview shows exactly what a
+ * generation call would receive.
+ */
+export async function assembleCodexContextForScene(
+  userId: string,
+  input: AssembleSceneContextInput,
+): Promise<AssembledContext> {
+  const sceneContext = await resolveSceneContext(input.sceneId);
+  if (sceneContext.ownerId !== userId) {
+    throw new CodexError("Unauthorized to access this scene", "FORBIDDEN", 403);
+  }
+  if (input.novelId && input.novelId !== sceneContext.novelId) {
+    throw new CodexError("Scene does not belong to the requested novel", "SCOPING_ERROR", 422);
+  }
+
+  const novelId = sceneContext.novelId;
+  const [entries, sceneOrderById] = await Promise.all([
+    listCodexEntriesForNovel(userId, novelId),
+    loadNovelSceneReadingOrder(novelId),
+  ]);
+
+  const entryIds = entries.map((entry) => entry.id);
+  const [relations, progressions] =
+    entryIds.length > 0
+      ? await Promise.all([
+          db.orm.public.CodexRelation.where((r) => r.sourceEntryId.in(entryIds))
+            .where((r) => r.deletedAt.isNull())
+            .all(),
+          db.orm.public.CodexProgression.where((p) => p.entryId.in(entryIds))
+            .where((p) => p.deletedAt.isNull())
+            .all(),
+        ])
+      : [[], []];
+
+  return assembleContext(
+    {
+      novelId,
+      sceneId: input.sceneId,
+      beatText: input.beatText,
+      recentProse: input.recentProse,
+      manualAttachmentIds: input.manualAttachmentIds,
+      options: input.options,
+    },
+    {
+      entries: entries.map((entry) => ({
+        id: entry.id,
+        type: entry.type,
+        name: entry.name,
+        aliases: entry.aliases.map((alias) => alias.name),
+        description: entry.description ?? "",
+        trackingMode: entry.trackingMode,
+        seriesScoped: entry.seriesScoped,
+        novelId: entry.novelId,
+        seriesId: entry.seriesId,
+        position: entry.position,
+      })),
+      relations: relations.map((relation) => ({
+        id: relation.id,
+        sourceEntryId: relation.sourceEntryId,
+        targetEntryId: relation.targetEntryId,
+        relationType: relation.relationType,
+        reverseType: relation.reverseType,
+        description: relation.description,
+      })),
+      progressions: progressions.map((progression) => ({
+        id: progression.id,
+        entryId: progression.entryId,
+        sceneId: progression.sceneId,
+        mode: progression.mode,
+        description: progression.description,
+        position: progression.position,
+      })),
+      sceneOrderById,
+      seriesId: sceneContext.seriesId,
+    },
+  );
 }

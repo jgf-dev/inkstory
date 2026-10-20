@@ -239,4 +239,23 @@ describe("Codex Server Actions", () => {
     const invalidResult = await detectMentionsAction({ text: "Missing target" });
     expect(invalidResult.success).toBe(false);
   });
+
+  it("serializes non-plain data via toPlainObject on success payloads", async () => {
+    const createdAt = new Date("2026-01-15T12:00:00.000Z");
+    vi.spyOn(codexService, "createCodexEntry").mockResolvedValueOnce({
+      id: "entry-plain",
+      name: "Plainified",
+      createdAt,
+    } as any);
+
+    const result = await createCodexEntryAction({ name: "Plainified" });
+    expect(result.success).toBe(true);
+    expect(result.data).toEqual({
+      id: "entry-plain",
+      name: "Plainified",
+      createdAt: createdAt.toISOString(),
+    });
+    // Ensure we did not leak a Date instance through the action boundary
+    expect(result.data?.createdAt instanceof Date).toBe(false);
+  });
 });

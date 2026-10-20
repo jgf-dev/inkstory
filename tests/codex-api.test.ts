@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { DELETE as deleteAlias } from "../src/app/api/codex/aliases/[id]/route";
 import { GET as getEntries, POST as createEntry } from "../src/app/api/codex/entries/route";
 import {
@@ -21,6 +21,8 @@ import {
 } from "../src/app/api/codex/relations/[id]/route";
 import { POST as createRelation } from "../src/app/api/codex/relations/route";
 import { DELETE as deleteTag } from "../src/app/api/codex/tags/[id]/route";
+import { POST as assembleContextRoute } from "../src/app/api/context/assemble/route";
+import { ContextAssemblyError } from "../src/lib/codex/context-assembler";
 import * as codexService from "../src/lib/codex/service";
 import { CodexError } from "../src/lib/codex/service";
 
@@ -357,6 +359,16 @@ describe("Codex REST Route Handlers", () => {
       });
       const invalidRes = await scanMentions(invalidReq);
       expect(invalidRes.status).toBe(400);
+
+      const missingScopeReq = new NextRequest("http://localhost:3000/api/codex/mentions", {
+        method: "POST",
+        body: JSON.stringify({ text: "Mara appeared" }),
+      });
+      const missingScopeRes = await scanMentions(missingScopeReq);
+      expect(missingScopeRes.status).toBe(400);
+      const missingScopeJson = await missingScopeRes.json();
+      expect(missingScopeJson.code).toBe("VALIDATION_FAILED");
+      expect(missingScopeJson.error).toMatch(/Must specify novelId or sceneId/);
     });
 
     it("returns 400 with INVALID_JSON when request body contains malformed JSON", async () => {
@@ -371,5 +383,175 @@ describe("Codex REST Route Handlers", () => {
       expect(json.code).toBe("INVALID_JSON");
       expect(json.error).toMatch(/Malformed or invalid JSON body/);
     });
+  });
+  describe("POST /api/context/assemble (STO-1171)", () => {
+    const post = (body: unknown) =>
+      assembleContextRoute(
+        new NextRequest("http://localhost:3000/api/context/assemble", {
+          method: "POST",
+          body: typeof body === "string" ? body : JSON.stringify(body),
+        }),
+      );
+
+    it("returns 401 when unauthenticated", async () => {
+      mockGetUser.mockResolvedValueOnce({ data: { user: null } });
+      const res = await post({ sceneId: "scene-1" });
+      expect(res.status).toBe(401);
+    });
+
+    it("returns 400 for invalid bodies", async () => {
+      const res = await post({ beatText: "no scene" });
+      expect(res.status).toBe(400);
+      const json = await res.json();
+      expect(json.code).toBe("VALIDATION_FAILED");
+      expect(json.error).toMatch(/sceneId/);
+    });
+
+    it("returns 400 for malformed JSON", async () => {
+      const res = await post("{not json");
+      expect(res.status).toBe(400);
+      expect((await res.json()).code).toBe("INVALID_JSON");
+    });
+
+    it("returns the assembled context for the authenticated user", async () => {
+      const context = {
+        entries: [
+          {
+            id: "entry-1",
+            type: "CHARACTER",
+            name: "Mara",
+            aliases: [],
+            description: "Hero.",
+            trackingMode: "detected" as const,
+            source: "mention" as const,
+            appliedProgressionIds: [],
+          },
+        ],
+        meta: { totalCandidates: 1, finalCount: 1, truncated: false, sceneId: "scene-1" },
+      };
+      const spy = vi
+        .spyOn(codexService, "assembleCodexContextForScene")
+        .mockResolvedValueOnce(context);
+
+      const res = await post({
+        sceneId: "scene-1",
+        beatText: "Mara arrives.",
+        manualAttachmentIds: ["entry-2"],
+        options: { maxEntries: 10 },
+      });
+
+      expect(res.status).toBe(200);
+      expect(await res.json()).toEqual(context);
+      expect(spy).toHaveBeenCalledWith(userId, {
+        sceneId: "scene-1",
+        novelId: undefined,
+        beatText: "Mara arrives.",
+        recentProse: undefined,
+        manualAttachmentIds: ["entry-2"],
+        options: { maxEntries: 10 },
+      });
+    });
+
+    it("maps Codex and assembly errors to HTTP statuses", async () => {
+      vi.spyOn(codexService, "assembleCodexContextForScene")
+        .mockRejectedValueOnce(new CodexError("Scene not found", "NOT_FOUND", 404))
+        .mockRejectedValueOnce(new ContextAssemblyError("Scene missing from reading order"))
+        .mockRejectedValueOnce(new Error("boom"));
+
+      const notFound = await post({ sceneId: "missing" });
+      expect(notFound.status).toBe(404);
+
+      const assembly = await post({ sceneId: "scene-1" });
+      expect(assembly.status).toBe(422);
+      expect((await assembly.json()).code).toBe("CONTEXT_ASSEMBLY_FAILED");
+
+      const internal = await post({ sceneId: "scene-1" });
+      expect(internal.status).toBe(500);
+    });
+  });
+});
+
+describe("loadNovelSceneReadingOrder direct unit test", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("returns correct scene order map for acts, chapters, and scenes", async () => {
+    const mockActs = [
+      { id: "act-1", novelId: "novel-1", position: 0, deletedAt: null },
+      { id: "act-2", novelId: "novel-1", position: 1, deletedAt: null },
+    ] as any;
+    const mockChapters = [
+      { id: "chap-1", actId: "act-1", position: 0, deletedAt: null },
+      { id: "chap-2", actId: "act-2", position: 0, deletedAt: null },
+      { id: "chap-orphan", actId: "act-unknown", position: 0, deletedAt: null },
+    ] as any;
+    const mockScenes = [
+      { id: "scene-1", chapterId: "chap-1", position: 0, deletedAt: null },
+      { id: "scene-2", chapterId: "chap-2", position: 1, deletedAt: null },
+      { id: "scene-orphan", chapterId: "chap-missing", position: 2, deletedAt: null },
+    ] as any;
+
+    const { db } = await import("../src/lib/prisma");
+    vi.spyOn(db.orm.public.Act, "where").mockReturnValue({
+      where: () => ({ all: async () => mockActs }),
+    } as any);
+    vi.spyOn(db.orm.public.Chapter, "where").mockReturnValue({
+      where: () => ({ all: async () => mockChapters }),
+    } as any);
+    vi.spyOn(db.orm.public.Scene, "where").mockReturnValue({
+      where: () => ({ all: async () => mockScenes }),
+    } as any);
+
+    const orderMap = await codexService.loadNovelSceneReadingOrder("novel-1");
+    expect(orderMap.size).toBe(2);
+    expect(orderMap.get("scene-1")).toEqual({
+      sceneId: "scene-1",
+      actPosition: 0,
+      chapterPosition: 0,
+      scenePosition: 0,
+    });
+    expect(orderMap.get("scene-2")).toEqual({
+      sceneId: "scene-2",
+      actPosition: 1,
+      chapterPosition: 0,
+      scenePosition: 1,
+    });
+  });
+
+  it("returns empty map when novel has no acts", async () => {
+    const { db } = await import("../src/lib/prisma");
+    vi.spyOn(db.orm.public.Act, "where").mockReturnValue({
+      where: () => ({ all: async () => [] }),
+    } as any);
+
+    const orderMap = await codexService.loadNovelSceneReadingOrder("novel-empty");
+    expect(orderMap.size).toBe(0);
+  });
+
+  it("returns empty map when acts exist but chapters query returns empty array", async () => {
+    const { db } = await import("../src/lib/prisma");
+    vi.spyOn(db.orm.public.Act, "where").mockReturnValue({
+      where: () => ({ all: async () => [{ id: "act-1", position: 0 }] }),
+    } as any);
+    vi.spyOn(db.orm.public.Chapter, "where").mockReturnValue({
+      where: () => ({ all: async () => [] }),
+    } as any);
+
+    const orderMap = await codexService.loadNovelSceneReadingOrder("novel-no-chapters");
+    expect(orderMap.size).toBe(0);
+  });
+
+  it("returns empty map when chapters exist but none match valid act IDs", async () => {
+    const { db } = await import("../src/lib/prisma");
+    vi.spyOn(db.orm.public.Act, "where").mockReturnValue({
+      where: () => ({ all: async () => [{ id: "act-1", position: 0 }] }),
+    } as any);
+    vi.spyOn(db.orm.public.Chapter, "where").mockReturnValue({
+      where: () => ({ all: async () => [{ id: "chap-1", actId: "act-other", position: 0 }] }),
+    } as any);
+
+    const orderMap = await codexService.loadNovelSceneReadingOrder("novel-no-valid-chapters");
+    expect(orderMap.size).toBe(0);
   });
 });
