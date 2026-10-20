@@ -548,8 +548,8 @@ export function CodexEditor({
               Custom Fields
             </h3>
             <p className="mt-0.5 text-[11px] text-ink-400">
-              Key-value attributes injected into AI context. Values may be plain text, numbers, or
-              booleans.
+              Key-value attributes stored with this entry for reference. Values may be plain text,
+              numbers, or booleans.
             </p>
             <div className="mt-2 space-y-2" data-testid="custom-fields-editor">
               {customFields.map((row, index) => (
