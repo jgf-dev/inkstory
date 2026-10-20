@@ -220,6 +220,7 @@ describe("Library Service (novel & series creation)", { timeout: 30_000 }, () =>
 
       expect(second.created).toBe(false);
       expect(second.seriesId).toBe(first.seriesId);
+      expect(second.novelId).toBe(first.novelId);
 
       const novels = await db.orm.public.Novel.where((n) => n.seriesId.eq(second.seriesId!)).all();
       expect(novels).toHaveLength(1);
@@ -281,6 +282,45 @@ describe("Library Service (novel & series creation)", { timeout: 30_000 }, () =>
         code: "QUOTA_EXCEEDED",
         status: 402,
       });
+    });
+
+    it("respects the Free-tier codex entry quota", async () => {
+      const quotaUserId = crypto.randomUUID();
+      const ts = await now();
+      await db.orm.public.User.upsert({
+        create: {
+          id: quotaUserId,
+          email: `lib-codex-quota-${runId}@inkstory.local`,
+          planTier: "FREE",
+          updatedAt: ts,
+        },
+        update: { updatedAt: ts },
+      });
+
+      try {
+        for (let i = 0; i < 30; i += 1) {
+          await db.orm.public.CodexEntry.create({
+            id: `lib-quota-entry-${runId}-${i}`,
+            ownerId: quotaUserId,
+            name: `Entry ${i}`,
+            type: "CHARACTER",
+            description: "",
+            trackingMode: "DETECTED",
+            seriesScoped: true,
+            position: i,
+            createdAt: ts,
+            updatedAt: ts,
+            deletedAt: null,
+          });
+        }
+
+        await expect(seedStarterBible(quotaUserId)).rejects.toMatchObject({
+          code: "QUOTA_EXCEEDED",
+          status: 402,
+        });
+      } finally {
+        await db.orm.public.User.where({ id: quotaUserId }).delete();
+      }
     });
   });
 });

@@ -2,7 +2,7 @@ import { Temporal } from "temporal-polyfill";
 import { db } from "@/lib/prisma";
 import { CodexError } from "@/lib/codex/errors";
 import type { CodexTrackingMode, CodexType, JsonValue } from "@/lib/codex/types";
-import { ensureNovelQuota } from "@/lib/billing/entitlements";
+import { ensureCodexEntryQuota, ensureNovelQuota } from "@/lib/billing/entitlements";
 import { countWords } from "@/lib/writing/word-count";
 
 /**
@@ -73,22 +73,25 @@ async function resolveOwnedSeries(
  */
 export async function createNovel(userId: string, input: CreateNovelInput) {
   const title = assertTitle(input.title, "Novel");
-  await ensureNovelQuota(userId);
-
   const seriesId = await resolveOwnedSeries(userId, input.seriesId);
   const now = nowTimestamp();
 
-  return db.orm.public.Novel.create({
-    id: crypto.randomUUID(),
-    title,
-    subtitle: input.subtitle?.trim() || null,
-    description: input.description?.trim() || null,
-    position: 0,
-    ownerId: userId,
-    seriesId,
-    createdAt: now,
-    updatedAt: now,
-    deletedAt: null,
+  return db.transaction(async (tx) => {
+    await tx.orm.public.User.where({ id: userId }).forNoKeyUpdate().first();
+    await ensureNovelQuota(userId, tx);
+
+    return tx.orm.public.Novel.create({
+      id: crypto.randomUUID(),
+      title,
+      subtitle: input.subtitle?.trim() || null,
+      description: input.description?.trim() || null,
+      position: 0,
+      ownerId: userId,
+      seriesId,
+      createdAt: now,
+      updatedAt: now,
+      deletedAt: null,
+    });
   });
 }
 
@@ -139,12 +142,13 @@ export async function seedStarterBible(userId: string) {
       .where((n) => n.deletedAt.isNull())
       .first();
     if (sampleNovel) {
-      return { seriesId: candidate.id, created: false as const };
+      return { seriesId: candidate.id, novelId: sampleNovel.id, created: false as const };
     }
   }
 
-  // The sample bible includes a novel, so it must respect the tier's quota.
+  // The sample bible includes a novel and codex entries, so it must respect the tier's quotas.
   await ensureNovelQuota(userId);
+  await ensureCodexEntryQuota(userId);
 
   // All writes run in one transaction so a mid-sequence failure leaves no
   // orphaned sample series (which would short-circuit retries above).

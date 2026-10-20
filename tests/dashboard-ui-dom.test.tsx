@@ -171,4 +171,16 @@ describe("OnboardingWizard", () => {
     expect(await screen.findByText("Meet your writing desk")).toBeTruthy();
     expect(screen.queryByText("Open the writing desk →")).toBeNull();
   });
+
+  it("links to the writing desk when the sample bible already exists", async () => {
+    render(React.createElement(OnboardingWizard, { hasNovels: false, series: [] }));
+    fireEvent.click(screen.getByText("Next →"));
+    actions.seedStarterBibleAction.mockResolvedValueOnce({
+      success: true,
+      data: { seriesId: "s-sample", novelId: "novel-sample-1", created: false },
+    });
+    fireEvent.click(screen.getByText(/Seed a sample fantasy bible/));
+    const link = await screen.findByText("Open the writing desk →");
+    expect(link.getAttribute("href")).toBe("/dashboard/novels/novel-sample-1");
+  });
 });
