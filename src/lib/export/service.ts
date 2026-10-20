@@ -1,10 +1,9 @@
 import { db } from "@/lib/prisma";
+import { byPositionThenCreated } from "@/lib/writing/service";
 import { renderDocx } from "./docx";
 import { renderMarkdown } from "./markdown";
 import { selectExportTree } from "./select";
 import { ExportError, type ExportNovel, type ExportOptions } from "./types";
-
-const byPosition = <T extends { position: number }>(a: T, b: T) => a.position - b.position;
 
 /** Loads the non-deleted act → chapter → scene tree for a novel the user owns. */
 export async function loadNovelForExport(userId: string, novelId: string): Promise<ExportNovel> {
@@ -14,41 +13,66 @@ export async function loadNovelForExport(userId: string, novelId: string): Promi
     throw new ExportError("Novel not found", "NOT_FOUND", 404);
   }
 
+  // Same ordering and batched loading as the outline, so export and outline agree.
   const acts = await db.orm.public.Act.where((a) => a.novelId.eq(novelId))
     .where((a) => a.deletedAt.isNull())
     .all();
+  acts.sort(byPositionThenCreated);
+  const actIds = acts.map((a) => a.id);
 
-  const result: ExportNovel = {
+  const chapters = actIds.length
+    ? await db.orm.public.Chapter.where((c) => c.actId.in(actIds))
+        .where((c) => c.deletedAt.isNull())
+        .all()
+    : [];
+  chapters.sort(byPositionThenCreated);
+  const chapterIds = chapters.map((c) => c.id);
+
+  const scenes = chapterIds.length
+    ? await db.orm.public.Scene.where((s) => s.chapterId.in(chapterIds))
+        .where((s) => s.deletedAt.isNull())
+        .all()
+    : [];
+  scenes.sort(byPositionThenCreated);
+
+  type ExportAct = ExportNovel["acts"][number];
+  type ExportChapter = ExportAct["chapters"][number];
+  type ExportScene = ExportChapter["scenes"][number];
+
+  const scenesByChapter = new Map<string, ExportScene[]>();
+  for (const s of scenes) {
+    const list = scenesByChapter.get(s.chapterId) ?? [];
+    list.push({
+      id: s.id,
+      title: s.title,
+      subtitle: s.subtitle,
+      content: s.content,
+      summary: s.summary,
+    });
+    scenesByChapter.set(s.chapterId, list);
+  }
+
+  const chaptersByAct = new Map<string, ExportChapter[]>();
+  for (const chapter of chapters) {
+    const list = chaptersByAct.get(chapter.actId) ?? [];
+    list.push({
+      id: chapter.id,
+      title: chapter.title,
+      scenes: scenesByChapter.get(chapter.id) ?? [],
+    });
+    chaptersByAct.set(chapter.actId, list);
+  }
+
+  return {
     id: novel.id,
     title: novel.title,
     subtitle: novel.subtitle,
-    acts: [],
+    acts: acts.map((act) => ({
+      id: act.id,
+      title: act.title,
+      chapters: chaptersByAct.get(act.id) ?? [],
+    })),
   };
-
-  for (const act of [...acts].sort(byPosition)) {
-    const chapters = await db.orm.public.Chapter.where((c) => c.actId.eq(act.id))
-      .where((c) => c.deletedAt.isNull())
-      .all();
-    const exportAct: ExportNovel["acts"][number] = { id: act.id, title: act.title, chapters: [] };
-    for (const chapter of [...chapters].sort(byPosition)) {
-      const scenes = await db.orm.public.Scene.where((s) => s.chapterId.eq(chapter.id))
-        .where((s) => s.deletedAt.isNull())
-        .all();
-      exportAct.chapters.push({
-        id: chapter.id,
-        title: chapter.title,
-        scenes: [...scenes].sort(byPosition).map((s) => ({
-          id: s.id,
-          title: s.title,
-          subtitle: s.subtitle,
-          content: s.content,
-          summary: s.summary,
-        })),
-      });
-    }
-    result.acts.push(exportAct);
-  }
-  return result;
 }
 
 export interface ExportFile {
