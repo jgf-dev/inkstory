@@ -2,6 +2,27 @@
 
 All notable changes to InkStory are tracked here. This file follows [Keep a Changelog](https://keepachangelog.com/) and the project adheres to [Semantic Versioning](https://semver.org/).
 
+## [PR-104](https://github.com/jgf-dev/inkstory/pull/104) - 2026-10-19
+
+### Summary
+
+Added scene AI prose generation endpoint powered by Codex context assembly and token budgeting, along with an AI assistant drawer in the novel writing workspace ([STO-1172](https://linear.app/jgfdev/issue/STO-1172/launch-phase-3-scene-ai-generation-and-assistant-drawer)).
+
+### Added
+
+- `src/app/api/ai/generate/route.ts`: `POST /api/ai/generate` endpoint assembling scene context from Codex, formatting prompt blocks with token budgeting, and invoking the AI gateway or returning assembled prompts when unconfigured.
+- `src/lib/ai/generate.ts`: Vercel AI Gateway chat completion client, prompt builder (`buildSceneMessages`), generation mode guards, error mappings, and token limits (`MAX_OUTPUT_TOKENS = 4096`).
+- `src/lib/codex/prompt-formatter.ts`: XML prompt formatter wrapping assembled story bible entities into `<codex_context><story_bible>`.
+- `src/lib/codex/token-budgeter.ts`: token budgeter truncating context entries to fit within prompt token budgets.
+- `src/lib/codex/tokens.ts`: approximate token estimation based on character and whitespace counts.
+- `src/app/dashboard/novels/[id]/_components/AiAssistantDrawer.tsx`: slide-out AI assistant drawer supporting scene continuation and beat expansion with copy and direct-insert actions.
+- `tests/ai-generate.test.ts`, `tests/prompt-formatter.test.ts`, `tests/token-budgeter.test.ts`, `tests/tokens.test.ts`: test suites covering prompt assembly, token budgeting, gateway interactions, error states, and route validation.
+
+### Changed
+
+- `src/app/dashboard/novels/[id]/_components/WritingWorkspace.tsx`: integrated `AiAssistantDrawer` with hotkey toggling and scene insert dispatching.
+- `src/app/dashboard/novels/[id]/_components/SceneEditor.tsx`: hooked editor into pending AI prose insertion events.
+
 ## [PR-101](https://github.com/jgf-dev/inkstory/pull/101) - 2026-10-18
 
 ### Summary
