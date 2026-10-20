@@ -2,6 +2,22 @@
 
 All notable changes to InkStory are tracked here. This file follows [Keep a Changelog](https://keepachangelog.com/) and the project adheres to [Semantic Versioning](https://semver.org/).
 
+## [PR-107](https://github.com/jgf-dev/inkstory/pull/107) - 2026-10-19
+
+### Summary
+
+Added manuscript export in Markdown and DOCX formats with reading order resolution and selection filtering ([STO-1163](https://linear.app/jgfdev/issue/STO-1163)).
+
+### Added
+
+- `src/lib/export/`: manuscript export pipeline supporting Markdown and DOCX generation with act, chapter, and scene selection and configurable heading levels.
+- `src/app/api/books/[id]/export/route.ts`: ownership-checked export endpoint returning formatted manuscript downloads.
+- `tests/export.test.ts`: test suite covering Markdown rendering, DOCX packaging, query batching, and sibling order resolution.
+
+### Fixed
+
+- `src/lib/export/service.ts`: batched chapter and scene queries to eliminate N+1 round trips and aligned sibling ordering with `byPositionThenCreated`.
+
 ## [PR-102](https://github.com/jgf-dev/inkstory/pull/102) - 2026-10-19
 
 ### Summary
