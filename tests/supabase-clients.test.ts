@@ -95,9 +95,34 @@ describe("Supabase Client Factories", () => {
   });
 
   describe("createSupabaseServerClient E2E auth bypass", () => {
+    const originalNodeEnv = process.env.NODE_ENV;
+
     afterEach(() => {
       delete process.env.NEXT_PUBLIC_E2E;
+      (process.env as any).NODE_ENV = originalNodeEnv;
       vi.resetModules();
+    });
+
+    it("falls back to Supabase client when NEXT_PUBLIC_E2E is true and e2e-user cookie is valid but NODE_ENV is production", async () => {
+      process.env.NEXT_PUBLIC_E2E = "true";
+      (process.env as any).NODE_ENV = "production";
+      const { cookies } = await import("next/headers");
+      const user = { id: "e2e-user-1", email: "seed@inkstory.local" };
+      vi.mocked(cookies).mockResolvedValue({
+        get: vi.fn().mockReturnValue({
+          name: "e2e-user",
+          value: encodeURIComponent(JSON.stringify(user)),
+        }),
+        getAll: vi.fn().mockReturnValue([]),
+        set: vi.fn(),
+      } as any);
+
+      mockCreateServerClient.mockReturnValue({ auth: { getUser: vi.fn() } });
+      vi.resetModules();
+      const { createSupabaseServerClient } = await import("../src/lib/supabase/server");
+      await createSupabaseServerClient();
+
+      expect(mockCreateServerClient).toHaveBeenCalled();
     });
 
     it("returns a stub client when NEXT_PUBLIC_E2E is true and e2e-user cookie is valid", async () => {
