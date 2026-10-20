@@ -2,7 +2,6 @@ import { Temporal } from "temporal-polyfill";
 import { db } from "@/lib/prisma";
 import {
   assembleContext,
-  ContextAssemblyError,
   type AssembledContext,
   type ContextAssemblyOptions,
 } from "./context-assembler";
@@ -25,44 +24,10 @@ import type {
   UpdateCodexRelationInput,
 } from "./types";
 
-/**
- * Custom error class for Codex domain validation and authorization failures.
- */
-export class CodexError extends Error {
-  constructor(
-    message: string,
-    public readonly code:
-      | "NOT_FOUND"
-      | "FORBIDDEN"
-      | "VALIDATION_FAILED"
-      | "SCOPING_ERROR"
-      | "CONFLICT",
-    public readonly status: number = 400,
-  ) {
-    super(message);
-    this.name = "CodexError";
-  }
-}
+import { ensureCodexEntryQuota } from "@/lib/billing/entitlements";
+import { CodexError, handleCodexApiError } from "./errors";
 
-/**
- * Standardized API error handler for Codex REST routes.
- * Ensures malformed JSON (SyntaxError) returns 400 instead of 500.
- */
-export function handleCodexApiError(err: unknown): Response {
-  if (err instanceof SyntaxError) {
-    return Response.json(
-      { error: "Malformed or invalid JSON body", code: "INVALID_JSON" },
-      { status: 400 },
-    );
-  }
-  if (err instanceof CodexError) {
-    return Response.json({ error: err.message, code: err.code }, { status: err.status });
-  }
-  if (err instanceof ContextAssemblyError) {
-    return Response.json({ error: err.message, code: "CONTEXT_ASSEMBLY_FAILED" }, { status: 422 });
-  }
-  return Response.json({ error: "Internal server error" }, { status: 500 });
-}
+export { CodexError, handleCodexApiError };
 
 function nowTimestamp(): Temporal.PlainDateTime {
   return Temporal.Now.plainDateTimeISO();
@@ -154,24 +119,24 @@ async function resolveSceneContext(
 
 // ─── Entry CRUD ──────────────────────────────────────────────────────────────
 
-export async function createCodexEntry(userId: string, input: CreateCodexEntryInput) {
-  const trimmedName = input.name?.trim();
+function validateEntryName(name?: string): string {
+  const trimmedName = name?.trim();
   if (!trimmedName) {
     throw new CodexError("Entry name cannot be empty", "VALIDATION_FAILED", 422);
   }
+  return trimmedName;
+}
 
-  const isSeriesScoped = Boolean(input.seriesScoped);
-  const { resolvedNovelId, resolvedSeriesId } = await resolveAndValidateScope(
-    userId,
-    isSeriesScoped,
-    input.novelId,
-    input.seriesId,
-  );
-
-  const now = nowTimestamp();
+async function insertCodexEntry(
+  userId: string,
+  trimmedName: string,
+  input: CreateCodexEntryInput,
+  resolvedNovelId: string | null,
+  resolvedSeriesId: string | null,
+  now: Temporal.PlainDateTime,
+) {
   const entryId = crypto.randomUUID();
-
-  const entry = await db.orm.public.CodexEntry.create({
+  return db.orm.public.CodexEntry.create({
     id: entryId,
     ownerId: userId,
     name: trimmedName,
@@ -179,7 +144,7 @@ export async function createCodexEntry(userId: string, input: CreateCodexEntryIn
     description: input.description ?? "",
     notes: input.notes ?? null,
     trackingMode: input.trackingMode ?? "DETECTED",
-    seriesScoped: isSeriesScoped,
+    seriesScoped: Boolean(input.seriesScoped),
     novelId: resolvedNovelId,
     seriesId: resolvedSeriesId,
     customFields: (input.customFields as any) ?? null,
@@ -190,41 +155,80 @@ export async function createCodexEntry(userId: string, input: CreateCodexEntryIn
     updatedAt: now,
     deletedAt: null,
   });
+}
 
-  // Create optional initial aliases
-  if (input.aliases && input.aliases.length > 0) {
-    for (const aliasName of input.aliases) {
-      const trimmed = aliasName.trim();
-      if (trimmed) {
-        await db.orm.public.CodexAlias.create({
-          id: crypto.randomUUID(),
-          entryId: entry.id,
-          name: trimmed,
-          createdAt: now,
-          updatedAt: now,
-          deletedAt: null,
-        });
-      }
+async function createInitialAliases(
+  entryId: string,
+  aliases: string[] | undefined,
+  now: Temporal.PlainDateTime,
+): Promise<void> {
+  if (!aliases || aliases.length === 0) return;
+
+  for (const aliasName of aliases) {
+    const trimmed = aliasName.trim();
+    if (trimmed) {
+      await db.orm.public.CodexAlias.create({
+        id: crypto.randomUUID(),
+        entryId,
+        name: trimmed,
+        createdAt: now,
+        updatedAt: now,
+        deletedAt: null,
+      });
     }
   }
+}
 
-  // Create optional initial tags
-  if (input.tags && input.tags.length > 0) {
-    for (const tag of input.tags) {
-      const trimmed = tag.name?.trim();
-      if (trimmed) {
-        await db.orm.public.CodexTag.create({
-          id: crypto.randomUUID(),
-          entryId: entry.id,
-          name: trimmed,
-          color: tag.color ?? null,
-          createdAt: now,
-          updatedAt: now,
-          deletedAt: null,
-        });
-      }
+async function createInitialTags(
+  entryId: string,
+  tags: Array<{ name: string; color?: string | null }> | undefined,
+  now: Temporal.PlainDateTime,
+): Promise<void> {
+  if (!tags || tags.length === 0) return;
+
+  for (const tag of tags) {
+    const trimmed = tag.name?.trim();
+    if (trimmed) {
+      await db.orm.public.CodexTag.create({
+        id: crypto.randomUUID(),
+        entryId,
+        name: trimmed,
+        color: tag.color ?? null,
+        createdAt: now,
+        updatedAt: now,
+        deletedAt: null,
+      });
     }
   }
+}
+
+export async function createCodexEntry(userId: string, input: CreateCodexEntryInput) {
+  const trimmedName = validateEntryName(input.name);
+
+  // Tier quota guard (STO-1210): 402 with an upgrade trigger on the Free plan.
+  await ensureCodexEntryQuota(userId);
+
+  const isSeriesScoped = Boolean(input.seriesScoped);
+  const { resolvedNovelId, resolvedSeriesId } = await resolveAndValidateScope(
+    userId,
+    isSeriesScoped,
+    input.novelId,
+    input.seriesId,
+  );
+
+  const now = nowTimestamp();
+
+  const entry = await insertCodexEntry(
+    userId,
+    trimmedName,
+    input,
+    resolvedNovelId,
+    resolvedSeriesId,
+    now,
+  );
+
+  await createInitialAliases(entry.id, input.aliases, now);
+  await createInitialTags(entry.id, input.tags, now);
 
   return getCodexEntry(userId, entry.id);
 }
@@ -873,26 +877,55 @@ export async function loadNovelSceneReadingOrder(
     .where((a) => a.deletedAt.isNull())
     .all();
 
+  if (acts.length === 0) {
+    return new Map();
+  }
+
+  const actMap = new Map<string, number>();
+  for (const act of acts) {
+    actMap.set(act.id, act.position);
+  }
+  const actIds = Array.from(actMap.keys());
+
+  const chapters = await db.orm.public.Chapter.where((c) => c.actId.in(actIds))
+    .where((c) => c.deletedAt.isNull())
+    .all();
+
+  if (chapters.length === 0) {
+    return new Map();
+  }
+
+  const chapterMap = new Map<string, { chapterPosition: number; actPosition: number }>();
+  for (const chapter of chapters) {
+    const actPosition = actMap.get(chapter.actId);
+    if (actPosition !== undefined) {
+      chapterMap.set(chapter.id, {
+        chapterPosition: chapter.position,
+        actPosition,
+      });
+    }
+  }
+  const chapterIds = Array.from(chapterMap.keys());
+
+  if (chapterIds.length === 0) {
+    return new Map();
+  }
+
+  const scenes = await db.orm.public.Scene.where((s) => s.chapterId.in(chapterIds))
+    .where((s) => s.deletedAt.isNull())
+    .all();
+
   const rows: SceneReadingOrderKey[] = [];
 
-  for (const act of acts) {
-    const chapters = await db.orm.public.Chapter.where((c) => c.actId.eq(act.id))
-      .where((c) => c.deletedAt.isNull())
-      .all();
-
-    for (const chapter of chapters) {
-      const scenes = await db.orm.public.Scene.where((s) => s.chapterId.eq(chapter.id))
-        .where((s) => s.deletedAt.isNull())
-        .all();
-
-      for (const scene of scenes) {
-        rows.push({
-          sceneId: scene.id,
-          actPosition: act.position,
-          chapterPosition: chapter.position,
-          scenePosition: scene.position,
-        });
-      }
+  for (const scene of scenes) {
+    const parentMeta = chapterMap.get(scene.chapterId);
+    if (parentMeta) {
+      rows.push({
+        sceneId: scene.id,
+        actPosition: parentMeta.actPosition,
+        chapterPosition: parentMeta.chapterPosition,
+        scenePosition: scene.position,
+      });
     }
   }
 
@@ -1114,9 +1147,7 @@ export async function assembleCodexContextForScene(
 
 // ─── Scene Codex Pins (STO-1208) ─────────────────────────────────────────────
 
-type CodexEntryRow = NonNullable<
-  Awaited<ReturnType<ReturnType<typeof db.orm.public.CodexEntry.where>["first"]>>
->;
+type CodexEntryRow = Awaited<ReturnType<typeof db.orm.public.CodexEntry.all>>[number];
 
 /**
  * True when a Codex entry is visible from a scene's novel: a book-scoped entry

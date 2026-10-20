@@ -60,6 +60,9 @@ describe("Codex Service & Scoping Engine", { timeout: 20_000 }, () => {
         id: userId,
         email: `codex-test-${runId}@inkstory.local`,
         name: "Codex Test User",
+        // PRO lifts the FREE 30-entry Codex quota; this suite creates more
+        // than 30 entries for one user (the scene-pin cases push it over).
+        planTier: "PRO",
         updatedAt: now,
       },
       update: { updatedAt: now },
