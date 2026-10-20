@@ -152,6 +152,67 @@ describe("Writing Service (outline, scenes, attachments)", { timeout: 30_000 }, 
     await moveOutlineNode(userId, novelId, { kind: "act", id: secondActId, direction: "down" });
   });
 
+  it("computes act positions per novel, not across novels", async () => {
+    const ts = await now();
+    const novelA = `ws-pos-a-${runId}`;
+    const novelB = `ws-pos-b-${runId}`;
+    for (const id of [novelA, novelB]) {
+      await db.orm.public.Novel.create({
+        id,
+        ownerId: userId,
+        title: id,
+        position: 0,
+        createdAt: ts,
+        updatedAt: ts,
+        deletedAt: null,
+      });
+    }
+    const a0 = await createOutlineNode(userId, novelA, { kind: "act" });
+    const a1 = await createOutlineNode(userId, novelA, { kind: "act" });
+    const a2 = await createOutlineNode(userId, novelA, { kind: "act" });
+    const b0 = await createOutlineNode(userId, novelB, { kind: "act" });
+    expect([a0, a1, a2].map((r) => (r.node as { position: number }).position)).toEqual([0, 1, 2]);
+    expect((b0.node as { position: number }).position).toBe(0);
+  });
+
+  it("orders equal-position siblings by createdAt then id in reads and moves", async () => {
+    const tieNovel = `ws-tie-${runId}`;
+    const base = await now();
+    await db.orm.public.Novel.create({
+      id: tieNovel,
+      ownerId: userId,
+      title: "Tie",
+      position: 0,
+      createdAt: base,
+      updatedAt: base,
+      deletedAt: null,
+    });
+    // ids sort opposite to creation time, so an id-only tie-break would differ.
+    const rows = [
+      { id: `z-${runId}`, title: "First", createdAt: base.subtract({ minutes: 2 }) },
+      { id: `m-${runId}`, title: "Second", createdAt: base.subtract({ minutes: 1 }) },
+      { id: `a-${runId}`, title: "Third", createdAt: base.subtract({ minutes: 1 }) },
+    ];
+    for (const r of rows) {
+      await db.orm.public.Act.create({
+        id: r.id,
+        novelId: tieNovel,
+        title: r.title,
+        position: 0,
+        createdAt: r.createdAt,
+        updatedAt: base,
+        deletedAt: null,
+      });
+    }
+    let outline = await getNovelOutline(userId, tieNovel);
+    expect(outline.acts.map((a) => a.title)).toEqual(["First", "Third", "Second"]);
+
+    await moveOutlineNode(userId, tieNovel, { kind: "act", id: `z-${runId}`, direction: "down" });
+    outline = await getNovelOutline(userId, tieNovel);
+    expect(outline.acts.map((a) => a.title)).toEqual(["Third", "First", "Second"]);
+    expect(outline.acts.map((a) => a.position)).toEqual([0, 1, 2]);
+  });
+
   it("rename/move rejects nodes outside the novel", async () => {
     await expect(
       renameOutlineNode(userId, novelId, { kind: "act", id: "nope", title: "X" }),

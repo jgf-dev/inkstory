@@ -17,6 +17,17 @@ export function toEpochMs(value: unknown): number {
   if (value instanceof Temporal.PlainDateTime) {
     return value.toZonedDateTime("UTC").epochMilliseconds;
   }
+  // The ORM codec may hand back a PlainDateTime from a different Temporal
+  // implementation than ours, so `instanceof` misses it; go through its ISO form.
+  if (
+    value !== null &&
+    typeof value === "object" &&
+    Object.prototype.toString.call(value) === "[object Temporal.PlainDateTime]"
+  ) {
+    return Temporal.PlainDateTime.from(
+      (value as { toString(): string }).toString(),
+    ).toZonedDateTime("UTC").epochMilliseconds;
+  }
   if (typeof value === "number" && Number.isFinite(value)) {
     return value;
   }

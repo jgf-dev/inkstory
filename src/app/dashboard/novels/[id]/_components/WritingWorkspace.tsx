@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import type { EditorScene, NovelOutline, OutlineKind } from "@/lib/writing/service";
+import { isSceneUnderNode } from "@/lib/writing/outline-tree";
 import type { MentionDetectionResult } from "@/lib/codex/mention-detection";
 import { apiDelete, apiGet, apiPatch, apiPost, ApiRequestError } from "./api";
 import { Outliner } from "./Outliner";
@@ -173,12 +174,16 @@ export function WritingWorkspace({
           );
     if (!confirmed) return;
 
+    const openSceneId = scene?.id ?? selectedSceneId;
+    const clearsOpenScene =
+      openSceneId !== null && isSceneUnderNode(outline, kind, id, openSceneId);
+
     setBusy(true);
     try {
       await apiDelete(
         `/api/novels/${novelId}/outline?kind=${kind}&nodeId=${encodeURIComponent(id)}`,
       );
-      if (kind === "scene" && scene?.id === id) {
+      if (clearsOpenScene) {
         activeSceneIdRef.current = null;
         setScene(null);
         setSelectedSceneId(null);

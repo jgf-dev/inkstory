@@ -120,6 +120,14 @@ describe("timestamp helpers", () => {
     expect(toIsoString(pdt)).toBe("2026-10-08T20:17:12.546Z");
   });
 
+  it("coerces PlainDateTime values from another Temporal implementation", () => {
+    const foreign = {
+      [Symbol.toStringTag]: "Temporal.PlainDateTime",
+      toString: () => "2026-10-08T20:17:12.546",
+    };
+    expect(toEpochMs(foreign)).toBe(Date.parse("2026-10-08T20:17:12.546Z"));
+  });
+
   it("passes through Date, ISO strings, and numbers", () => {
     const date = new Date("2026-01-01T00:00:00.000Z");
     expect(toEpochMs(date)).toBe(date.getTime());

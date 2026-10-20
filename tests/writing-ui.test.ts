@@ -248,7 +248,6 @@ describe("Writing Surface UI (launch phase 3)", { timeout: 20_000 }, () => {
       expect(html).toContain('data-testid="writing-workspace"');
       expect(html).toContain("Storm Tide");
       expect(html).toContain("AI Assistant");
-      expect(html).toContain("AI Assistant");
       expect(mockGetNovelOutline).toHaveBeenCalledWith("user-1", "novel-1");
     });
 
