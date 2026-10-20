@@ -2,6 +2,17 @@
 
 All notable changes to InkStory are tracked here. This file follows [Keep a Changelog](https://keepachangelog.com/) and the project adheres to [Semantic Versioning](https://semver.org/).
 
+## [PR-122](https://github.com/jgf-dev/inkstory/pull/122) - 2026-10-19
+
+### Summary
+
+Gated E2E mock authentication and session refresh bypass behind a `NODE_ENV !== "production"` check.
+
+### Fixed
+
+- `src/lib/supabase/server.ts`: disabled `e2e-user` cookie authentication stub in production environments.
+- `src/lib/supabase/middleware.ts`: prevented skipping Supabase session refresh in production when `e2e-user` cookie is present.
+
 ## [PR-107](https://github.com/jgf-dev/inkstory/pull/107) - 2026-10-19
 
 ### Summary
