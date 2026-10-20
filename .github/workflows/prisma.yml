@@ -1,12 +1,9 @@
 name: Deploy
+# Manual only: the production schema has drifted from prisma/contract.prisma
+# (dashboard changes after the 20260920020352 Supabase migration). Do not
+# restore the push trigger until the contract and prod schema are reconciled.
 on:
-  push:
-    paths:
-      - migrations/**
-      - prisma/migrations/**
-      - prisma/contract.prisma
-    branches:
-      - main
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -14,6 +11,7 @@ permissions:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    environment: Production
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4

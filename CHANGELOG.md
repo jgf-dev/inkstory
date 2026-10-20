@@ -2,6 +2,265 @@
 
 All notable changes to InkStory are tracked here. This file follows [Keep a Changelog](https://keepachangelog.com/) and the project adheres to [Semantic Versioning](https://semver.org/).
 
+## [PR-119](https://github.com/jgf-dev/inkstory/pull/119) - 2026-10-19
+
+### Summary
+
+Refactored nested JSX lists in `CodexEditor` into modular subcomponents and hardened accessibility and title reactivity.
+
+### Added
+
+- `src/app/dashboard/codex/_components/CodexEditorSections.tsx`: modular subcomponents (`CodexAliasesSection`, `CodexTagsSection`, `CodexRelationsSection`, `CodexProgressionsSection`, and child items) with accessible labels and strict typing.
+- `tests/codex-editor-sections.test.ts`: component tests verifying rendering, empty states, and accessibility attributes for all section subcomponents.
+
+### Changed
+
+- `src/app/dashboard/codex/_components/CodexEditor.tsx`: replaced nested JSX structures with extracted subcomponents while preserving reactive title updates, scope badges, tracking mode indicator, and test attributes.
+- `tests/codex-ui.test.ts`: asserted `data-testid="codex-editor"`, title reactivity, and metadata badges in editor tests.
+
+## [PR-124](https://github.com/jgf-dev/inkstory/pull/124) - 2026-10-19
+
+### Summary
+
+Batched act, chapter, and scene queries during reading order loading to eliminate an N+1 database roundtrip waterfall in Codex context assembly and temporal progression resolution.
+
+### Added
+
+- `tests/codex-api.test.ts`: added unit tests verifying batched scene order mapping and empty entity edge cases.
+
+### Fixed
+
+- `src/lib/codex/service.ts`: batched chapter and scene queries in `loadNovelSceneReadingOrder` using `in` filters and in-memory parent position mapping, reducing sequential queries from $O(A + C)$ to at most 3.
+
+## [PR-122](https://github.com/jgf-dev/inkstory/pull/122) - 2026-10-19
+
+### Summary
+
+Gated E2E mock authentication and session refresh bypass behind a `NODE_ENV !== "production"` check.
+
+### Fixed
+
+- `src/lib/supabase/server.ts`: disabled `e2e-user` cookie authentication stub in production environments.
+- `src/lib/supabase/middleware.ts`: prevented skipping Supabase session refresh in production when `e2e-user` cookie is present.
+
+## [PR-107](https://github.com/jgf-dev/inkstory/pull/107) - 2026-10-19
+
+### Summary
+
+Added manuscript export in Markdown and DOCX formats with reading order resolution and selection filtering ([STO-1163](https://linear.app/jgfdev/issue/STO-1163)).
+
+### Added
+
+- `src/lib/export/`: manuscript export pipeline supporting Markdown and DOCX generation with act, chapter, and scene selection and configurable heading levels.
+- `src/app/api/books/[id]/export/route.ts`: ownership-checked export endpoint returning formatted manuscript downloads.
+- `tests/export.test.ts`: test suite covering Markdown rendering, DOCX packaging, query batching, and sibling order resolution.
+
+### Fixed
+
+- `src/lib/export/service.ts`: batched chapter and scene queries to eliminate N+1 round trips and aligned sibling ordering with `byPositionThenCreated`.
+
+## [PR-102](https://github.com/jgf-dev/inkstory/pull/102) - 2026-10-19
+
+### Summary
+
+Added interactive relation and progression editor modals, custom fields editor, and reading-order scene selector to the Codex manager and editor UI.
+
+### Added
+
+- `src/app/dashboard/codex/_components/Modal.tsx`: accessible dialog modal with focus trapping and backdrop dismissal.
+- `src/app/dashboard/codex/_components/RelationEditorModal.tsx`: modal to create and edit directed Codex entry relationships.
+- `src/app/dashboard/codex/_components/ProgressionEditorModal.tsx`: modal to create and edit scene-specific Codex entry progressions with reading-order resolution.
+- `tests/codex-ui-dom.test.tsx`: DOM test suite covering modal interactions, relation and progression creation, custom field validation, and manager filters.
+
+### Changed
+
+- `src/app/dashboard/codex/_components/CodexEditor.tsx`: integrated custom fields dynamic editor, relation and progression modal triggers, and inline deletion.
+- `src/app/dashboard/codex/_components/CodexManager.tsx`: wired entry selection and update callbacks with the refreshed editor.
+- `tests/codex-ui.test.ts`: added test coverage for custom fields and sub-modal component rendering.
+
+## [PR-104](https://github.com/jgf-dev/inkstory/pull/104) - 2026-10-19
+
+### Summary
+
+Added scene AI prose generation endpoint powered by Codex context assembly and token budgeting, along with an AI assistant drawer in the novel writing workspace ([STO-1172](https://linear.app/jgfdev/issue/STO-1172/launch-phase-3-scene-ai-generation-and-assistant-drawer)).
+
+### Added
+
+- `src/app/api/ai/generate/route.ts`: `POST /api/ai/generate` endpoint assembling scene context from Codex, formatting prompt blocks with token budgeting, and invoking the AI gateway or returning assembled prompts when unconfigured.
+- `src/lib/ai/generate.ts`: Vercel AI Gateway chat completion client, prompt builder (`buildSceneMessages`), generation mode guards, error mappings, and token limits (`MAX_OUTPUT_TOKENS = 4096`).
+- `src/lib/codex/prompt-formatter.ts`: XML prompt formatter wrapping assembled story bible entities into `<codex_context><story_bible>`.
+- `src/lib/codex/token-budgeter.ts`: token budgeter truncating context entries to fit within prompt token budgets.
+- `src/lib/codex/tokens.ts`: approximate token estimation based on character and whitespace counts.
+- `src/app/dashboard/novels/[id]/_components/AiAssistantDrawer.tsx`: slide-out AI assistant drawer supporting scene continuation and beat expansion with copy and direct-insert actions.
+- `tests/ai-generate.test.ts`, `tests/prompt-formatter.test.ts`, `tests/token-budgeter.test.ts`, `tests/tokens.test.ts`: test suites covering prompt assembly, token budgeting, gateway interactions, error states, and route validation.
+
+### Changed
+
+- `src/app/dashboard/novels/[id]/_components/WritingWorkspace.tsx`: integrated `AiAssistantDrawer` with hotkey toggling and scene insert dispatching.
+- `src/app/dashboard/novels/[id]/_components/SceneEditor.tsx`: hooked editor into pending AI prose insertion events.
+
+## [PR-101](https://github.com/jgf-dev/inkstory/pull/101) - 2026-10-18
+
+### Summary
+
+Added Ollama and LM Studio local BYOK provider adapters with optional API key handling ([STO-1177](https://linear.app/jgfdev/issue/STO-1177/423-local-providers-ollama-lm-studio)).
+
+### Added
+
+- `src/lib/ai/providers/ollama.ts`: Ollama adapter connecting to local Ollama instances (`http://127.0.0.1:11434/v1`) with optional API key authentication.
+- `src/lib/ai/providers/lmstudio.ts`: LM Studio adapter connecting to local LM Studio instances (`http://127.0.0.1:1234/v1`) with optional token authentication and bare-string error message handling.
+- `src/lib/ai/providers/index.ts`: added `LOCAL_PROVIDERS` and `isLocalProvider` helper for UI key requirement checks.
+- `tests/ai-providers.test.ts`: parameterized test suites for Ollama and LM Studio covering local server connection errors, catalog parsing, and auth proxy configurations.
+
+### Changed
+
+- `src/lib/ai/providers/types.ts`: added `ollama` and `lmstudio` to `ProviderId`.
+- `src/lib/ai/providers/index.ts`: registered `ollama` and `lmstudio` in `ProviderId`, `SUPPORTED_PROVIDERS`, `ProviderConfig`, and `createProvider`.
+
+## [PR-100](https://github.com/jgf-dev/inkstory/pull/100) - 2026-10-18
+
+### Summary
+
+Added OpenAI and Anthropic BYOK provider adapters and unified shared OpenAI-compatible and HTTP transport clients ([STO-1176](https://linear.app/jgfdev/issue/STO-1176/422-openai-anthropic-adapters)).
+
+### Added
+
+- `src/lib/ai/providers/openai-compatible.ts`: shared client implementing OpenAI Chat Completions and model catalog protocols, used across OpenRouter and OpenAI.
+- `src/lib/ai/providers/http.ts`: normalized transport error handling and JSON response parsing with automated API key redaction.
+- `src/lib/ai/providers/openai.ts`: OpenAI adapter supporting Chat Completions and `/v1/models` catalog lookups.
+- `src/lib/ai/providers/anthropic.ts`: Anthropic adapter mapping chat requests onto the Messages API, supporting top-level system prompts, consecutive-turn merging, and stop reason normalization.
+- `tests/ai-providers.test.ts`: test coverage expanded with 47 tests covering OpenAI and Anthropic success paths, message transformation, error mappings, abort handling, and catalog querying.
+
+### Changed
+
+- `src/lib/ai/providers/openrouter.ts`: refactored to delegate OpenAI wire protocol logic to `createOpenAICompatibleProvider`.
+- `src/lib/ai/providers/index.ts`: added `openai` and `anthropic` to `ProviderId`, `SUPPORTED_PROVIDERS`, `ProviderConfig`, and `createProvider`.
+
+## [PR-95](https://github.com/jgf-dev/inkstory/pull/95) - 2026-10-18
+
+### Summary
+
+Implemented the BYOK provider layer with a vendor-neutral LLM interface, normalized error model, and OpenRouter adapter ([STO-1175](https://linear.app/jgfdev/issue/STO-1175/421-provider-interface-openrouter-adapter)).
+
+### Added
+
+- `src/lib/ai/providers/types.ts`: vendor-neutral `LlmProvider` interface, chat completion request/result types, token usage normalization, retryable `ProviderError` classification, and `redactSecret` helper to prevent API key leakage.
+- `src/lib/ai/providers/openrouter.ts`: OpenRouter adapter supporting OpenAI-compatible chat completions and model catalog querying, attribution headers (`HTTP-Referer`, `X-Title`), handling for 200-with-error bodies, and normalized abort/timeout error handling.
+- `src/lib/ai/providers/index.ts`: `createProvider` factory and provider registry supporting configuration-driven provider initialization.
+- `tests/ai-providers.test.ts`: test suite covering request serialization, response normalization, catalog parsing, timeout/abort propagation, HTTP status mappings, and API key redaction.
+
+## [Unreleased] - 2026-09-21
+
+### Summary
+
+Brought operator docs in line with the Codex-on-main codebase: Prisma 8 scripts, Next.js 16 session proxy, Codex REST/progressions, and bun/`vp` tooling.
+
+### Changed
+
+- `README.md`: stack, setup, layout, scripts, Epic 1 checkboxes, Codex API table, and troubleshooting now match `package.json`, `prisma.config.ts`, `src/proxy.ts`, and `src/lib/codex/*`.
+- `AGENTS.md`: canonical Supabase + Prisma 8 section so agents do not follow the InsForge boilerplate for app code.
+
+## [Unreleased]
+
+### Summary
+
+Implemented Relations expansion engine ([STO-1154](https://linear.app/jgfdev/issue/STO-1154)), Progressions engine ([STO-1153](https://linear.app/jgfdev/issue/STO-1153)), Mention Detection Service ([STO-1152](https://linear.app/jgfdev/issue/STO-1152)), full CRUD API and Server Actions ([STO-1168](https://linear.app/jgfdev/issue/STO-1168)), interactive Codex UI ([STO-1169](https://linear.app/jgfdev/issue/STO-1169)), and Codex database schema & migrations ([STO-1167](https://linear.app/jgfdev/issue/STO-1167)).
+
+### Added
+
+- **Regression tests for Codex mention parsing and progressions**: cover regex-metacharacter names, blank aliases, empty ADDITION/REPLACEMENT fragments, equal-position sceneId tie-breaks, duplicate scene map rows, and mention API requests missing `novelId`/`sceneId`.
+- **STO-1154 Relations engine**: pure `RelationEngine` (`src/lib/codex/relation-engine.ts`) expands a Codex relation graph from a seed entry with BFS discovery, cycle detection (no infinite loops), depth limiting (default max depth 2), and deduplication of already-included entries. DB-agnostic adjacency input; unit tests in `tests/relation-engine.test.ts` cover circular, diamond, and deep graphs.
+
+- **STO-1153 Progressions engine**: pure `ProgressionEngine` (`src/lib/codex/progression-engine.ts`) applies scene-linked Codex progressions with temporal filtering (only scenes <= current scene in Act->Chapter->Scene reading order) and `ADDITION` / `REPLACEMENT` modes. Service helpers `loadNovelSceneReadingOrder` and `resolveCodexEntryAtScene` resolve an entry description at a scene. Unit tests in `tests/progression-engine.test.ts`.
+
+- **Mention Detection Service (`src/lib/codex/mention-detection.ts`)**:
+  - Text scanner detecting Codex entry names and aliases inside scene text or beat prompts.
+  - Case-insensitive, word-boundary aware (handling punctuation, quotes, and apostrophes without false substring matches).
+  - Longer-match precedence for overlapping mentions (e.g. "The Glass Weaver" over "Glass Weaver").
+  - Returns character indices (`startIndex`, `endIndex`) and unique matched entity IDs.
+  - Integrated via `scanMentionsInNovel`, `scanMentionsInScene`, `detectMentionsAction`, and `POST /api/codex/mentions`.
+- **Codex Domain Service (`src/lib/codex/service.ts`)**:
+  - Full CRUD operations for `CodexEntry`, `CodexAlias`, `CodexTag`, `CodexRelation`, and `CodexProgression`.
+  - Scoping rules enforcement: series-scoped entries are bound to series and shared across all books in that series; book-scoped entries are strictly bound to individual novels and isolated from other books.
+  - Cross-novel validation for graph relations and scene-level temporal progressions.
+  - Soft-delete support (`deletedAt`) across all entities with hard-delete option.
+- **Server Actions (`src/lib/codex/actions.ts`)**:
+  - Strongly typed Server Actions (`createCodexEntryAction`, `updateCodexEntryAction`, `deleteCodexEntryAction`, `listCodexEntriesForNovelAction`, `listCodexEntriesForSeriesAction`, etc.) for seamless React component integration.
+- **Codex UI & Dashboard (`src/app/dashboard/codex/...`)**:
+  - `CodexManager` interface with real-time text search, type filtering pills (Characters, Locations, Items, Lore, Factions, Concepts), and novel/series scoping indicators.
+  - `CodexEditor` for editing entry names, types, tracking modes, descriptions, notes, aliases, tags, graph relations, and progressions.
+  - `CodexCreateModal` for quickly authoring new Codex entries with book vs. series scoping, color themes, and initial aliases.
+  - Updated `/dashboard` with Codex metrics and navigation.
+- **REST Route Handlers (`src/app/api/codex/...`)**:
+  - `GET /api/codex/entries`: list entries by `novelId` or `seriesId` with filters (`type`, `trackingMode`, `search`, `seriesOnly`).
+  - `POST /api/codex/entries`: create new Codex entries with initial aliases and tags.
+  - `GET /api/codex/entries/[id]`: retrieve entry with aliases, tags, progressions, and relations.
+  - `PATCH /api/codex/entries/[id]`: update entry fields or scoping.
+  - `DELETE /api/codex/entries/[id]`: delete entry (soft or `?hard=true`).
+  - `POST /api/codex/entries/[id]/aliases` & `DELETE /api/codex/aliases/[id]`: manage aliases.
+  - `POST /api/codex/entries/[id]/tags` & `DELETE /api/codex/tags/[id]`: manage tags.
+  - `POST /api/codex/relations`, `PATCH /api/codex/relations/[id]`, `DELETE /api/codex/relations/[id]`: manage relations.
+  - `POST /api/codex/progressions`, `PATCH /api/codex/progressions/[id]`, `DELETE /api/codex/progressions/[id]`: manage progressions.
+- **Automated Tests**:
+  - `tests/codex-service.test.ts`: 30 comprehensive tests verifying scoping enforcement, CRUD, relation graphs, progressions, and permission guards.
+  - `tests/codex-actions.test.ts`: 8 tests verifying authentication guards, server action delegation, and error handling.
+  - `tests/codex-api.test.ts`: 16 tests verifying route handlers, query parsing, malformed JSON handling, and response formatting.
+  - `tests/codex-ui.test.ts`: 8 tests verifying Codex manager list, editor details with relations, creation modal, and auth redirects.
+  - **Live Browser E2E QA (`playwright.config.ts`, `tests/e2e/auth.spec.ts`, `tests/e2e/codex-qa.spec.ts`)**: 8 automated browser tests running against the Next.js application, covering unauthenticated redirects, login form navigation, category pill filtering, real-time search, modal entry creation, relation graph rendering, and mobile layout.
+
+### Fixed
+
+- **Codex Scoping & Database Performance (`src/lib/codex/service.ts`)**:
+  - Replaced unbounded full-table scans on `CodexAlias` and `CodexTag` with SQL-level `.where((a) => a.entryId.in(candidateIds))` filtering.
+  - Enforced strict tenant isolation (`ownerId.eq(userId)`) on both novel and series entry listings.
+  - Sanitized `seriesId` assignment on book-scoped entries so entries strictly inherit `novel.seriesId` and prevent arbitrary foreign series association.
+- **Mention Scanner Offset Accuracy (`src/lib/codex/service.ts`)**:
+  - Fixed `scanMentionsInScene` character offset calculation when caller provides explicit text, avoiding offset corruption caused by prepending database content.
+- **API Response Consistency (`src/lib/codex/service.ts`)**:
+  - Unified `listCodexEntriesForSeries` and `listCodexEntriesForNovel` response schemas to ensure both include populated `aliases` and `tags`.
+- **Soft-Delete Cascade & Graph Relations (`src/lib/codex/service.ts`, `src/app/dashboard/codex/_components/CodexEditor.tsx`)**:
+  - Soft-deleting an entry now cascades soft-deletion to its relations, aliases, tags, and progressions.
+  - `getCodexEntry` filters out relations to soft-deleted entities and resolves related entry metadata (`targetEntry` and `sourceEntry`).
+  - Rendered related entity names with directional arrow indicators (`→ Target`, `← Source`) in the relation graph UI.
+- **REST Error Handling (`src/app/api/codex/...`)**:
+  - Handled `SyntaxError` on malformed request JSON across all Codex API route handlers, returning HTTP 400 (`INVALID_JSON`) rather than HTTP 500.
+
+## [a7eb5b6](https://github.com/jgf2/story-builder/commit/a7eb5b62b083c213426e2e505500e572049e0e37) - 2026-09-10
+
+### Summary
+
+Implemented complete test coverage across the application using Vitest and Vite+, establishing 37 persistent unit and integration tests and reaching 100% line coverage and 99.25% statement coverage across all application source modules.
+
+### Added
+
+- `tests/api-health.test.ts`: automated tests for `GET /api/health` endpoint, checking 200 HTTP response, payload schema, dynamic flag, and version fallback
+- `tests/supabase-auth.test.ts`: unit and integration tests for `syncAuthUser`, covering validation errors, metadata resolution (full_name/name, avatar_url/picture), and database upserts
+- `tests/supabase-clients.test.ts`: tests for Supabase browser and server client factories (`createSupabaseBrowserClient`, `createSupabaseServerClient`), including cookie store adapters and server component error handling
+- `tests/supabase-middleware.test.ts`: tests for session cookie refreshes in `updateSession` and static route filtering in `proxy` middleware matcher
+- `tests/pages.test.ts`: server component and page tests covering `RootLayout`, `HomePage`, `DashboardPage` auth redirects and metrics rendering, and `LoginPage`/`SignupPage` auth gates
+- `tests/auth-components.test.ts`: client component tests for `LoginForm`, `SignupForm`, and `LogoutButton` covering input events, loading states, auth error handling, and redirection
+- Vitest coverage and resolve alias configurations in `vite.config.ts`
+
+### Removed
+
+### Fixed
+
+- Added test coverage for database URL parsing edge cases (`[SENSITIVE]`, non-postgres schemes, fallback envs) in `src/lib/prisma.ts`
+
+## [ecf4397](https://github.com/jgf2/story-builder/commit/ecf4397e639905f508bd134a457bfebeda3a08a5) - 2026-09-09
+
+### Summary
+
+Fixed the `oven-sh/setup-bun` GitHub action reference in the CI workflow by updating it to a valid commit SHA matching `v2.2.0`.
+
+### Added
+
+### Removed
+
+### Fixed
+
+- Replaced non-existent commit SHA `4c1f1ad0c1c6b8cd5dc9b4da65fa6e6b1019fd5c` with valid `v2.2.0` commit SHA `0c5077e51419868618aeaa5fe8019c62421857d6` in `.github/workflows/ci.yml`
+
 ## [PR-44](https://github.com/jgf2/story-builder/pull/44) - 2026-09-09
 
 ### Summary

@@ -11,6 +11,7 @@ import { config } from "dotenv";
 config({ path: ".env.local", override: false });
 config({ path: ".env", override: false });
 
+import "temporal-polyfill/full/global";
 import { Temporal } from "temporal-polyfill";
 import postgres from "@prisma/orm-postgres/runtime";
 import type { Contract } from "./contract.d";
