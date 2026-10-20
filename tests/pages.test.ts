@@ -216,7 +216,7 @@ describe("Pages & Server Components", () => {
       const html = renderToStaticMarkup(element);
 
       expect(mockSyncAuthUser).toHaveBeenCalledWith(mockUser);
-      expect(html).toContain("data-testid=\"codex-manager\"");
+      expect(html).toContain('data-testid="codex-manager"');
       expect(mockCodexManager).toHaveBeenCalled();
 
       const props = mockCodexManager.mock.calls.at(-1)![0];
