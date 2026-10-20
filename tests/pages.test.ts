@@ -119,7 +119,7 @@ describe("Pages & Server Components", () => {
       const html = renderToStaticMarkup(element);
 
       expect(html).toContain("InkStory");
-      expect(html).toContain("A novel-writing and world-building platform");
+      expect(html).toContain("Write your novel. Your story bible writes with you.");
       expect(html).toContain('href="/login"');
       expect(html).toContain('href="/signup"');
       expect(html).not.toContain('href="/dashboard"');
@@ -216,7 +216,7 @@ describe("Pages & Server Components", () => {
       const html = renderToStaticMarkup(element);
 
       expect(mockSyncAuthUser).toHaveBeenCalledWith(mockUser);
-      expect(html).toContain("data-testid=\"codex-manager\"");
+      expect(html).toContain('data-testid="codex-manager"');
       expect(mockCodexManager).toHaveBeenCalled();
 
       const props = mockCodexManager.mock.calls.at(-1)![0];

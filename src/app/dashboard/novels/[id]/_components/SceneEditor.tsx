@@ -18,7 +18,7 @@ export interface SceneEditorProps {
    * Text pushed into the editor from the AI drawer (sequence-numbered so
    * repeated inserts of the same text still apply).
    */
-  insertRequest?: { seq: number; text: string } | null;
+  insertRequest?: { seq: number; text: string; sceneId: string } | null;
 }
 
 type SaveStatus = "saved" | "dirty" | "saving" | "error";
@@ -240,7 +240,11 @@ export function SceneEditor(props: SceneEditorProps) {
   // Apply AI-drawer insertions to the working prose.
   const appliedInsertSeqRef = useRef<number>(0);
   useEffect(() => {
-    if (!props.insertRequest || props.insertRequest.seq <= appliedInsertSeqRef.current) {
+    if (
+      !props.insertRequest ||
+      props.insertRequest.sceneId !== scene.id ||
+      props.insertRequest.seq <= appliedInsertSeqRef.current
+    ) {
       return;
     }
     appliedInsertSeqRef.current = props.insertRequest.seq;

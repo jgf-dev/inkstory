@@ -35,3 +35,5 @@ next-env.d.ts
 **/.temp/*
 .repo_memory
 .env*
+.remember
+.mcp.json

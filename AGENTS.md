@@ -2,7 +2,7 @@
 
 ## Canonical stack (read this first)
 
-InkStory application code uses **Supabase Auth + Prisma 8 (Prisma Next) against Supabase Postgres**. It does **not** use InsForge, `@insforge/sdk`, or the InsForge API base below. Treat the InsForge block as vendor boilerplate; do not add InsForge clients or RLS patterns unless explicitly asked.
+InkStory application code uses **Supabase Auth + Prisma 8 (Prisma Next) against Supabase Postgres**. It does **not** use InsForge or `@insforge/sdk`; do not add InsForge clients or RLS patterns unless explicitly asked.
 
 | Layer | Actual code |
 | ----- | ----------- |
@@ -19,28 +19,22 @@ Progressions (STO-1153) resolve descriptions with Act→Chapter→Scene order (`
 
 Context assembly (STO-1170) is the pure `assembleContext` in `src/lib/codex/context-assembler.ts`: it takes pre-loaded entries, relations, progressions, and scene reading order, seeds from manual attachments → `ALWAYS` entries → detected mentions, expands relations (default depth 2), ranks/truncates (default 40), then applies progressions at the current scene. DB loading lives in `assembleCodexContextForScene` (`src/lib/codex/service.ts`), and `POST /api/context/assemble` returns the full `AssembledContext` for inspection (STO-1171); generation flows and Prompt Preview should call the same service function.
 
-<!-- INSFORGE:START -->
+## Available skills
 
-## InsForge backend
-
-This project uses [InsForge](https://insforge.dev): an all-in-one, open-source Postgres-based backend (BaaS) that gives this app a database, authentication, file storage, edge functions, realtime, an AI model gateway, and payments through one platform.
-
-- **Project:** **inkstory** (API base `https://a2827zt7.us-east.insforge.app`)
-- **Skills:** these InsForge skills are installed for supported coding agents. Reach for them before implementing any InsForge feature instead of guessing the API:
-  - `insforge`: app code with the `@insforge/sdk` client (database CRUD, auth, storage, edge functions, realtime, AI, email, and Stripe payments).
-  - `insforge-cli`: backend and infrastructure via the `insforge` CLI (projects, SQL, migrations, RLS policies, storage buckets, functions, secrets, payment setup, schedules, deploys).
-  - `insforge-debug`: diagnosing failures (SDK/HTTP errors, RLS denials, auth and OAuth issues) and running security or performance audits.
-  - `insforge-integrations`: wiring external auth providers (Clerk, Auth0, WorkOS, Better Auth, etc.) for JWT-based RLS, or the OKX x402 payment facilitator.
-  - `find-skills`: discovering additional skills on demand.
-- **Credentials:** app code reads keys from `.env.local`; the CLI reads `.insforge/project.json`. Never hardcode or commit keys.
-
-Key patterns:
-
-- Database inserts take an array: `insert([{ ... }])`.
-- Reference users with `auth.users(id)`; use `auth.uid()` in RLS policies.
-- For storage uploads, persist both the returned `url` and `key`.
-
-<!-- INSFORGE:END -->
+- [design-md](.agents/skills/design-md/SKILL.md)
+- [design-taste-frontend](.agents/skills/design-taste-frontend/SKILL.md)
+- [high-end-visual-design](.agents/skills/high-end-visual-design/SKILL.md)
+- [impeccable](.agents/skills/impeccable/SKILL.md)
+- [inkstory](.agents/skills/inkstory/SKILL.md)
+- [prisma-8](.agents/skills/prisma-8/SKILL.md)
+- [prisma-composer-core-concepts](.agents/skills/prisma-composer-core-concepts/SKILL.md)
+- [prisma-compute](.agents/skills/prisma-compute/SKILL.md)
+- [redesign-existing-projects](.agents/skills/redesign-existing-projects/SKILL.md)
+- [stitch-loop](.agents/skills/stitch-loop/SKILL.md)
+- [stitch::generate-design](.agents/skills/stitch-generate-design/SKILL.md)
+- [supabase](.agents/skills/supabase/SKILL.md)
+- [supabase-postgres-best-practices](.agents/skills/supabase-postgres-best-practices/SKILL.md)
+- [taste-design](.agents/skills/taste-design/SKILL.md)
 
 <!-- VERCEL BEST PRACTICES START -->
 
@@ -64,7 +58,7 @@ These defaults are optimized for AI coding agents (and humans) working on apps t
 - Add OpenTelemetry via `@vercel/otel` on Node; don't expect OTEL support on the Edge runtime
 - Enable Web Analytics + Speed Insights early
 - Use AI Gateway for model routing, set AI_GATEWAY_API_KEY, using a model string (e.g. 'anthropic/claude-sonnet-4.6'), Gateway is already default in AI SDK
-  needed. Always curl https://ai-gateway.vercel.sh/v1/models first; never trust model IDs from memory
+  needed. Always curl <https://ai-gateway.vercel.sh/v1/models> first; never trust model IDs from memory
 - For durable agent loops or untrusted code: use Workflow (pause/resume/state) + Sandbox; use Vercel MCP for secure infra access
 
 <!-- VERCEL BEST PRACTICES END -->

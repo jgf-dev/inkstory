@@ -11,7 +11,11 @@ type CookieToSet = { name: string; value: string; options?: CookieOptions };
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request });
 
-  if (process.env.NEXT_PUBLIC_E2E === "true" && request.cookies.get("e2e-user")) {
+  if (
+    process.env.NODE_ENV !== "production" &&
+    process.env.NEXT_PUBLIC_E2E === "true" &&
+    request.cookies.get("e2e-user")
+  ) {
     return response;
   }
 
