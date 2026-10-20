@@ -25,3 +25,26 @@ export async function authenticateAsSeedUser(context: BrowserContext) {
     },
   ]);
 }
+
+/**
+ * Authenticates as a fresh E2E user identity (created lazily by syncAuthUser
+ * on first dashboard hit: FREE plan, no novels). Each caller passes a unique
+ * id/email so tests never collide on quota state.
+ */
+export async function authenticateAsNewUser(context: BrowserContext, id: string, email: string) {
+  await context.addCookies([
+    {
+      name: "e2e-user",
+      value: encodeURIComponent(JSON.stringify({ id, email })),
+      domain: "localhost",
+      path: "/",
+      httpOnly: false,
+      sameSite: "Lax",
+    },
+  ]);
+}
+
+/** Fresh identity for a run-scoped E2E user (id comes in as a UUID). */
+export function launchUser(id: string) {
+  return { id, email: `launch-qa-${id.slice(0, 8)}@inkstory.local` };
+}
