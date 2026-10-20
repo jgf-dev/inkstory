@@ -2,6 +2,22 @@
 
 All notable changes to InkStory are tracked here. This file follows [Keep a Changelog](https://keepachangelog.com/) and the project adheres to [Semantic Versioning](https://semver.org/).
 
+## [PR-119](https://github.com/jgf-dev/inkstory/pull/119) - 2026-10-19
+
+### Summary
+
+Refactored nested JSX lists in `CodexEditor` into modular subcomponents and hardened accessibility and title reactivity.
+
+### Added
+
+- `src/app/dashboard/codex/_components/CodexEditorSections.tsx`: modular subcomponents (`CodexAliasesSection`, `CodexTagsSection`, `CodexRelationsSection`, `CodexProgressionsSection`, and child items) with accessible labels and strict typing.
+- `tests/codex-editor-sections.test.ts`: component tests verifying rendering, empty states, and accessibility attributes for all section subcomponents.
+
+### Changed
+
+- `src/app/dashboard/codex/_components/CodexEditor.tsx`: replaced nested JSX structures with extracted subcomponents while preserving reactive title updates, scope badges, tracking mode indicator, and test attributes.
+- `tests/codex-ui.test.ts`: asserted `data-testid="codex-editor"`, title reactivity, and metadata badges in editor tests.
+
 ## [PR-104](https://github.com/jgf-dev/inkstory/pull/104) - 2026-10-19
 
 ### Summary

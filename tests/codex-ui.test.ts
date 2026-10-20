@@ -204,6 +204,10 @@ describe("Codex UI Components", { timeout: 20_000 }, () => {
         }),
       );
 
+      expect(html).toContain('data-testid="codex-editor"');
+      expect(html).toContain("Mara Vance");
+      expect(html).toContain("Book-Scoped");
+      expect(html).toContain("ALWAYS");
       expect(html).toContain("MENTOR_TO");
       expect(html).toContain("Kaelen");
       expect(html).toContain("Theron");

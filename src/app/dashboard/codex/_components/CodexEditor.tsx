@@ -227,27 +227,35 @@ export function CodexEditor({
 
   if (!entry) {
     return (
-      <div className="p-8 text-center text-sm text-ink-500">
-        Failed to load Codex entry or entry has been deleted.
+      <div className="flex h-64 items-center justify-center p-8 text-sm text-ink-500">
+        {error || "Failed to load Codex entry or entry has been deleted."}
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" data-testid="codex-editor">
       {/* Top Bar: Title & Actions */}
       <div className="flex items-center justify-between border-b border-ink-200 pb-4">
         <div className="flex items-center gap-3">
-          <div className="h-4 w-4 rounded-full" style={{ backgroundColor: color }} />
-          <h2 className="text-xl font-bold text-ink-900">{entry.name}</h2>
-          <span className="rounded bg-ink-100 px-2 py-0.5 text-xs font-semibold uppercase tracking-wider text-ink-700">
-            {entry.type}
-          </span>
-          {entry.seriesScoped && (
-            <span className="rounded bg-amber-100 px-2 py-0.5 text-xs font-semibold uppercase tracking-wider text-amber-800">
-              Series-Scoped
-            </span>
-          )}
+          <div
+            className="h-5 w-5 rounded-full ring-2 ring-ink-200"
+            style={{ backgroundColor: color || "#3b82f6" }}
+          />
+          <div>
+            <h2 className="text-2xl font-semibold text-ink-900">{name || "Untitled Entry"}</h2>
+            <div className="mt-1 flex items-center gap-2">
+              <span className="rounded bg-ink-200 px-2 py-0.5 text-xs font-medium text-ink-700">
+                {type}
+              </span>
+              <span className="rounded bg-ink-100 px-2 py-0.5 text-xs text-ink-600">
+                {entry.seriesScoped ? "Series-Scoped" : "Book-Scoped"}
+              </span>
+              <span className="rounded bg-ink-100 px-2 py-0.5 text-xs text-ink-600">
+                {trackingMode}
+              </span>
+            </div>
+          </div>
         </div>
 
         <div className="flex items-center gap-2">

@@ -15,6 +15,7 @@ export function CodexAliasItem({ alias, onDelete }: CodexAliasItemProps) {
       <button
         type="button"
         onClick={() => onDelete(alias.id)}
+        aria-label={`Remove alias ${alias.name}`}
         className="ml-1 text-ink-400 hover:text-ink-700"
       >
         ×
@@ -87,6 +88,7 @@ export function CodexTagItem({ tag, onDelete }: CodexTagItemProps) {
       <button
         type="button"
         onClick={() => onDelete(tag.id)}
+        aria-label={`Remove tag ${tag.name}`}
         className="ml-1 text-ink-400 hover:text-ink-700"
       >
         ×
@@ -195,8 +197,8 @@ export function CodexTargetRelationCard({ relation }: CodexTargetRelationCardPro
 }
 
 export interface CodexRelationsSectionProps {
-  sourceRelations?: any[];
-  targetRelations?: any[];
+  sourceRelations?: CodexSourceRelationCardProps["relation"][];
+  targetRelations?: CodexTargetRelationCardProps["relation"][];
 }
 
 export function CodexRelationsSection({
@@ -248,7 +250,7 @@ export function CodexProgressionCard({ progression }: CodexProgressionCardProps)
 }
 
 export interface CodexProgressionsSectionProps {
-  progressions?: any[];
+  progressions?: CodexProgressionCardProps["progression"][];
 }
 
 export function CodexProgressionsSection({ progressions }: CodexProgressionsSectionProps) {

@@ -24,6 +24,7 @@ describe("CodexEditorSections Subcomponents", () => {
         }),
       );
       expect(html).toContain("The Hero");
+      expect(html).toContain('aria-label="Remove alias The Hero"');
       expect(html).toContain("×");
     });
 
@@ -70,6 +71,7 @@ describe("CodexEditorSections Subcomponents", () => {
         }),
       );
       expect(html).toContain("Protagonist");
+      expect(html).toContain('aria-label="Remove tag Protagonist"');
     });
 
     it("renders empty tags state", () => {
