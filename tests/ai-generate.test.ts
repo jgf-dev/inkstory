@@ -13,6 +13,9 @@ import { POST as generateRoute } from "../src/app/api/ai/generate/route";
 import * as codexService from "../src/lib/codex/service";
 import * as writingService from "../src/lib/writing/service";
 import { CodexError } from "../src/lib/codex/errors";
+import * as entitlements from "../src/lib/billing/entitlements";
+import { PLANS } from "../src/lib/billing/plans";
+import * as tokenBudgeter from "../src/lib/codex/token-budgeter";
 
 const mockGetUser = vi.fn();
 vi.mock("../src/lib/supabase/server", () => ({
@@ -190,6 +193,7 @@ describe("AI generation (scene continuation / beat expansion)", () => {
       mockGetUser.mockResolvedValue({
         data: { user: { id: "ai-user", email: "ai@inkstory.local" } },
       });
+      vi.spyOn(entitlements, "getEntitlements").mockResolvedValue(PLANS.FREE);
       vi.unstubAllEnvs();
       vi.stubEnv("AI_GATEWAY_API_KEY", "");
     });
@@ -323,6 +327,31 @@ describe("AI generation (scene continuation / beat expansion)", () => {
       expect(res.status).toBe(200);
       const gatewayBody = JSON.parse(fetchMock.mock.calls[0][1].body);
       expect(gatewayBody.max_tokens).toBe(500);
+    });
+
+    it("caps the prompt context at the user's tier token ceiling", async () => {
+      vi.stubEnv("AI_GATEWAY_API_KEY", "test-key");
+      vi.mocked(entitlements.getEntitlements).mockResolvedValueOnce(PLANS.PRO);
+      const budgetSpy = vi.spyOn(tokenBudgeter, "applyTokenBudget");
+      vi.spyOn(writingService, "getSceneForEditor").mockResolvedValueOnce(editorScene);
+      vi.spyOn(codexService, "assembleCodexContextForScene").mockResolvedValueOnce({
+        entries: [],
+        meta: {},
+      } as any);
+      vi.stubGlobal(
+        "fetch",
+        vi
+          .fn()
+          .mockResolvedValue(fetchPayload({ choices: [{ message: { content: "New prose." } }] })),
+      );
+
+      const res = await generateRoute(makeRequest({ sceneId, mode: "continuation" }));
+      expect(res.status).toBe(200);
+      expect(entitlements.getEntitlements).toHaveBeenCalledWith("ai-user");
+      expect(budgetSpy).toHaveBeenCalledWith(expect.anything(), {
+        maxTokens: PLANS.PRO.maxContextTokens,
+      });
+      budgetSpy.mockRestore();
     });
   });
 });

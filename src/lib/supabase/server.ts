@@ -13,7 +13,7 @@ type CookieToSet = { name: string; value: string; options?: CookieOptions };
 export async function createSupabaseServerClient() {
   const cookieStore = await cookies();
 
-  if (process.env.NEXT_PUBLIC_E2E === "true") {
+  if (process.env.NODE_ENV !== "production" && process.env.NEXT_PUBLIC_E2E === "true") {
     const e2eUserCookie = cookieStore.get("e2e-user");
     if (e2eUserCookie?.value) {
       try {

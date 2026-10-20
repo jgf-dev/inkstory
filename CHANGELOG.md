@@ -2,6 +2,82 @@
 
 All notable changes to InkStory are tracked here. This file follows [Keep a Changelog](https://keepachangelog.com/) and the project adheres to [Semantic Versioning](https://semver.org/).
 
+## [PR-119](https://github.com/jgf-dev/inkstory/pull/119) - 2026-10-19
+
+### Summary
+
+Refactored nested JSX lists in `CodexEditor` into modular subcomponents and hardened accessibility and title reactivity.
+
+### Added
+
+- `src/app/dashboard/codex/_components/CodexEditorSections.tsx`: modular subcomponents (`CodexAliasesSection`, `CodexTagsSection`, `CodexRelationsSection`, `CodexProgressionsSection`, and child items) with accessible labels and strict typing.
+- `tests/codex-editor-sections.test.ts`: component tests verifying rendering, empty states, and accessibility attributes for all section subcomponents.
+
+### Changed
+
+- `src/app/dashboard/codex/_components/CodexEditor.tsx`: replaced nested JSX structures with extracted subcomponents while preserving reactive title updates, scope badges, tracking mode indicator, and test attributes.
+- `tests/codex-ui.test.ts`: asserted `data-testid="codex-editor"`, title reactivity, and metadata badges in editor tests.
+
+## [PR-124](https://github.com/jgf-dev/inkstory/pull/124) - 2026-10-19
+
+### Summary
+
+Batched act, chapter, and scene queries during reading order loading to eliminate an N+1 database roundtrip waterfall in Codex context assembly and temporal progression resolution.
+
+### Added
+
+- `tests/codex-api.test.ts`: added unit tests verifying batched scene order mapping and empty entity edge cases.
+
+### Fixed
+
+- `src/lib/codex/service.ts`: batched chapter and scene queries in `loadNovelSceneReadingOrder` using `in` filters and in-memory parent position mapping, reducing sequential queries from $O(A + C)$ to at most 3.
+
+## [PR-122](https://github.com/jgf-dev/inkstory/pull/122) - 2026-10-19
+
+### Summary
+
+Gated E2E mock authentication and session refresh bypass behind a `NODE_ENV !== "production"` check.
+
+### Fixed
+
+- `src/lib/supabase/server.ts`: disabled `e2e-user` cookie authentication stub in production environments.
+- `src/lib/supabase/middleware.ts`: prevented skipping Supabase session refresh in production when `e2e-user` cookie is present.
+
+## [PR-107](https://github.com/jgf-dev/inkstory/pull/107) - 2026-10-19
+
+### Summary
+
+Added manuscript export in Markdown and DOCX formats with reading order resolution and selection filtering ([STO-1163](https://linear.app/jgfdev/issue/STO-1163)).
+
+### Added
+
+- `src/lib/export/`: manuscript export pipeline supporting Markdown and DOCX generation with act, chapter, and scene selection and configurable heading levels.
+- `src/app/api/books/[id]/export/route.ts`: ownership-checked export endpoint returning formatted manuscript downloads.
+- `tests/export.test.ts`: test suite covering Markdown rendering, DOCX packaging, query batching, and sibling order resolution.
+
+### Fixed
+
+- `src/lib/export/service.ts`: batched chapter and scene queries to eliminate N+1 round trips and aligned sibling ordering with `byPositionThenCreated`.
+
+## [PR-102](https://github.com/jgf-dev/inkstory/pull/102) - 2026-10-19
+
+### Summary
+
+Added interactive relation and progression editor modals, custom fields editor, and reading-order scene selector to the Codex manager and editor UI.
+
+### Added
+
+- `src/app/dashboard/codex/_components/Modal.tsx`: accessible dialog modal with focus trapping and backdrop dismissal.
+- `src/app/dashboard/codex/_components/RelationEditorModal.tsx`: modal to create and edit directed Codex entry relationships.
+- `src/app/dashboard/codex/_components/ProgressionEditorModal.tsx`: modal to create and edit scene-specific Codex entry progressions with reading-order resolution.
+- `tests/codex-ui-dom.test.tsx`: DOM test suite covering modal interactions, relation and progression creation, custom field validation, and manager filters.
+
+### Changed
+
+- `src/app/dashboard/codex/_components/CodexEditor.tsx`: integrated custom fields dynamic editor, relation and progression modal triggers, and inline deletion.
+- `src/app/dashboard/codex/_components/CodexManager.tsx`: wired entry selection and update callbacks with the refreshed editor.
+- `tests/codex-ui.test.ts`: added test coverage for custom fields and sub-modal component rendering.
+
 ## [PR-104](https://github.com/jgf-dev/inkstory/pull/104) - 2026-10-19
 
 ### Summary

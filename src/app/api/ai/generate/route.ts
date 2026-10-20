@@ -4,6 +4,7 @@ import { handleCodexApiError } from "@/lib/codex/errors";
 import { assembleCodexContextForScene } from "@/lib/codex/service";
 import { formatAssembledContext } from "@/lib/codex/prompt-formatter";
 import { applyTokenBudget } from "@/lib/codex/token-budgeter";
+import { getEntitlements, resolveContextTokenBudget } from "@/lib/billing/entitlements";
 import { getSceneForEditor } from "@/lib/writing/service";
 import { POV_LABELS, TENSE_LABELS } from "@/lib/writing/meta";
 import {
@@ -125,7 +126,13 @@ export async function POST(request: NextRequest) {
       beatText: body.beatText || scene.summary || undefined,
       recentProse: prose || undefined,
     });
-    const prompt = formatAssembledContext(applyTokenBudget(assembled));
+    // Cap the prompt context at the user's tier ceiling (STO-1210).
+    const { maxContextTokens } = await getEntitlements(user.id);
+    const prompt = formatAssembledContext(
+      applyTokenBudget(assembled, {
+        maxTokens: resolveContextTokenBudget(undefined, maxContextTokens),
+      }),
+    );
 
     const messages = buildSceneMessages({
       mode: body.mode,
