@@ -36,3 +36,4 @@ next-env.d.ts
 .repo_memory
 .env*
 supabase/.temp
+.remember
