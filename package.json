@@ -53,7 +53,7 @@
     "happy-dom": "20.14.6",
     "oxlint": "1.82.0",
     "postcss": "8.5.28",
-    "prisma": "8.0.0-rc.22",
+    "prisma": "8.0.0-rc.23",
     "tailwindcss": "4.3.3",
     "tsx": "4.23.13",
     "typescript": "7.0.2",
