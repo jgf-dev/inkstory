@@ -22,6 +22,7 @@ import {
   redactSecret,
   toAnthropicMessages,
 } from "../src/lib/ai/providers";
+import { stripTrailingSlashes } from "../src/lib/ai/providers/http";
 import { errorCodeForStatus } from "../src/lib/ai/providers/openrouter";
 import { errorCodeForStatus as openAICompatibleErrorCode } from "../src/lib/ai/providers/openai-compatible";
 import type { LlmProvider } from "../src/lib/ai/providers";
@@ -1459,5 +1460,48 @@ describe("provider registry and helpers", () => {
     expect(new ProviderError("x", "TIMEOUT", "openai").retryable).toBe(true);
     expect(new ProviderError("x", "INSUFFICIENT_CREDITS", "anthropic").retryable).toBe(false);
     expect(new ProviderError("x", "INVALID_RESPONSE", "openrouter").status).toBeNull();
+  });
+});
+
+describe("stripTrailingSlashes", () => {
+  it.each([
+    ["https://api.example.com/v1", "https://api.example.com/v1"],
+    ["https://api.example.com/v1/", "https://api.example.com/v1"],
+    ["https://api.example.com/v1///", "https://api.example.com/v1"],
+    ["https://api.example.com//v1//", "https://api.example.com//v1"],
+    ["/", ""],
+    ["///", ""],
+    ["", ""],
+    ["no-slash", "no-slash"],
+    ["a/ ", "a/ "],
+  ])("strips trailing slashes from %j", (input, expected) => {
+    expect(stripTrailingSlashes(input)).toBe(expected);
+  });
+
+  it("returns the same string when there is nothing to strip", () => {
+    const url = "https://api.example.com/v1";
+    expect(stripTrailingSlashes(url)).toBe(url);
+  });
+
+  it("handles long adversarial slash runs in linear time", () => {
+    const adversarial = `${"/".repeat(100_000)}x`;
+    const start = performance.now();
+    expect(stripTrailingSlashes(adversarial)).toBe(adversarial);
+    expect(stripTrailingSlashes(`x${"/".repeat(100_000)}`)).toBe("x");
+    expect(performance.now() - start).toBeLessThan(100);
+  });
+});
+
+describe("OpenAI-compatible core: base URL normalization", () => {
+  it("trims whitespace and trailing slashes without backtracking on slash runs", async () => {
+    const fetchMock = mockFetch(jsonResponse({ data: [] }));
+    const provider = createOpenAICompatibleProvider({
+      providerId: "openai",
+      label: "Proxy",
+      baseUrl: `  https://proxy.example.com/v1${"/".repeat(50_000)}  `,
+      fetch: fetchMock as unknown as typeof fetch,
+    });
+    await provider.listModels();
+    expect(fetchMock.mock.calls[0]?.[0]).toBe("https://proxy.example.com/v1/models");
   });
 });

@@ -61,3 +61,15 @@ export async function readJsonResponse(
     return null;
   }
 }
+
+/**
+ * Remove every trailing `/` from a URL. Equivalent to
+ * `url.replace(/\/+$/, "")` but runs in linear time: an end-anchored `\/+`
+ * regex is retried from every slash run in the input, which is quadratic for
+ * long runs of `/` that are not at the end (ReDoS).
+ */
+export function stripTrailingSlashes(url: string): string {
+  let end = url.length;
+  while (end > 0 && url.codePointAt(end - 1) === 47) end--;
+  return end === url.length ? url : url.slice(0, end);
+}
