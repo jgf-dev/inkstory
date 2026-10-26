@@ -302,6 +302,60 @@ export async function getCodexEntry(userId: string, entryId: string) {
   };
 }
 
+const CODEX_ENTRY_PASSTHROUGH_FIELDS = [
+  "type",
+  "description",
+  "notes",
+  "trackingMode",
+  "customFields",
+  "color",
+  "thumbnailUrl",
+  "position",
+] as const satisfies readonly (keyof UpdateCodexEntryInput)[];
+
+/** Collects the plain field updates for a codex entry, trimming and validating the name. */
+export function buildCodexEntryFieldUpdates(input: UpdateCodexEntryInput): Record<string, unknown> {
+  const updates: Record<string, unknown> = {};
+
+  if (input.name !== undefined) {
+    const trimmed = input.name.trim();
+    if (!trimmed) {
+      throw new CodexError("Entry name cannot be empty", "VALIDATION_FAILED", 422);
+    }
+    updates.name = trimmed;
+  }
+
+  for (const field of CODEX_ENTRY_PASSTHROUGH_FIELDS) {
+    if (input[field] !== undefined) updates[field] = input[field];
+  }
+
+  return updates;
+}
+
+/** Resolves the scoping columns when seriesScoped, novelId, or seriesId changes. */
+async function resolveCodexEntryScopeUpdate(
+  userId: string,
+  entry: { seriesScoped: boolean; novelId: string | null; seriesId: string | null },
+  input: UpdateCodexEntryInput,
+) {
+  const isSeriesScoped = input.seriesScoped !== undefined ? input.seriesScoped : entry.seriesScoped;
+  const targetNovelId = input.novelId !== undefined ? input.novelId : entry.novelId;
+  const targetSeriesId = input.seriesId !== undefined ? input.seriesId : entry.seriesId;
+
+  const { resolvedNovelId, resolvedSeriesId } = await resolveAndValidateScope(
+    userId,
+    isSeriesScoped,
+    targetNovelId,
+    targetSeriesId,
+  );
+
+  return {
+    seriesScoped: isSeriesScoped,
+    novelId: resolvedNovelId,
+    seriesId: resolvedSeriesId,
+  };
+}
+
 export async function updateCodexEntry(
   userId: string,
   entryId: string,
@@ -316,49 +370,17 @@ export async function updateCodexEntry(
     throw new CodexError("Unauthorized to update this codex entry", "FORBIDDEN", 403);
   }
 
-  const now = nowTimestamp();
   const updateData: Record<string, unknown> = {
-    updatedAt: now,
+    updatedAt: nowTimestamp(),
+    ...buildCodexEntryFieldUpdates(input),
   };
-
-  if (input.name !== undefined) {
-    const trimmed = input.name.trim();
-    if (!trimmed) {
-      throw new CodexError("Entry name cannot be empty", "VALIDATION_FAILED", 422);
-    }
-    updateData.name = trimmed;
-  }
-
-  if (input.type !== undefined) updateData.type = input.type;
-  if (input.description !== undefined) updateData.description = input.description;
-  if (input.notes !== undefined) updateData.notes = input.notes;
-  if (input.trackingMode !== undefined) updateData.trackingMode = input.trackingMode;
-  if (input.customFields !== undefined) updateData.customFields = input.customFields;
-  if (input.color !== undefined) updateData.color = input.color;
-  if (input.thumbnailUrl !== undefined) updateData.thumbnailUrl = input.thumbnailUrl;
-  if (input.position !== undefined) updateData.position = input.position;
-
-  // Handle scoping update if seriesScoped, novelId, or seriesId changed
-  const isSeriesScoped = input.seriesScoped !== undefined ? input.seriesScoped : entry.seriesScoped;
 
   if (
     input.seriesScoped !== undefined ||
     input.novelId !== undefined ||
     input.seriesId !== undefined
   ) {
-    const targetNovelId = input.novelId !== undefined ? input.novelId : entry.novelId;
-    const targetSeriesId = input.seriesId !== undefined ? input.seriesId : entry.seriesId;
-
-    const { resolvedNovelId, resolvedSeriesId } = await resolveAndValidateScope(
-      userId,
-      isSeriesScoped,
-      targetNovelId,
-      targetSeriesId,
-    );
-
-    updateData.seriesScoped = isSeriesScoped;
-    updateData.novelId = resolvedNovelId;
-    updateData.seriesId = resolvedSeriesId;
+    Object.assign(updateData, await resolveCodexEntryScopeUpdate(userId, entry, input));
   }
 
   await db.orm.public.CodexEntry.where({ id: entryId }).update(updateData);
@@ -789,14 +811,12 @@ export async function createCodexProgression(userId: string, input: CreateCodexP
         422,
       );
     }
-  } else {
-    if (entry.novelId !== sceneContext.novelId) {
-      throw new CodexError(
-        "Book-scoped entry cannot be linked to a scene in a different novel",
-        "SCOPING_ERROR",
-        422,
-      );
-    }
+  } else if (entry.novelId !== sceneContext.novelId) {
+    throw new CodexError(
+      "Book-scoped entry cannot be linked to a scene in a different novel",
+      "SCOPING_ERROR",
+      422,
+    );
   }
 
   const now = nowTimestamp();
