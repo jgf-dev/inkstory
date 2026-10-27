@@ -1,4 +1,4 @@
-import { createTransportError, readJsonResponse } from "./http";
+import { createTransportError, readJsonResponse, stripTrailingSlashes } from "./http";
 import {
   ProviderError,
   redactSecret,
@@ -160,7 +160,7 @@ export function createAnthropicProvider(options: AnthropicProviderOptions): LlmP
   if (!apiKey) {
     throw new ProviderError("An Anthropic API key is required", "AUTH_FAILED", "anthropic");
   }
-  const baseUrl = (options.baseUrl ?? ANTHROPIC_DEFAULT_BASE_URL).replace(/\/+$/, "");
+  const baseUrl = stripTrailingSlashes(options.baseUrl ?? ANTHROPIC_DEFAULT_BASE_URL);
   const apiVersion = options.apiVersion ?? ANTHROPIC_DEFAULT_VERSION;
   const doFetch = options.fetch ?? globalThis.fetch;
 
