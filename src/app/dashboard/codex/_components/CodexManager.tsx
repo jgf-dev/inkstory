@@ -100,7 +100,7 @@ export function CodexManager({ initialEntries, novels, series }: CodexManagerPro
               placeholder="Search entries..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full rounded-md border border-ink-200 bg-ink-50 px-3 py-2 text-sm text-ink-900 placeholder:text-ink-400 focus:border-ink-400 focus:outline-hidden"
+              className="w-full rounded-md border border-ink-200 bg-ink-50 px-3 py-2 text-sm text-ink-900 placeholder:text-ink-500 focus:border-ink-600 focus:outline-hidden"
             />
           </div>
 
@@ -111,7 +111,7 @@ export function CodexManager({ initialEntries, novels, series }: CodexManagerPro
                 key={pill.value}
                 type="button"
                 onClick={() => setActiveType(pill.value)}
-                className={`rounded-full px-2.5 py-1 text-xs font-medium transition-colors ${
+                className={`flex min-h-9 items-center rounded-full px-3 py-1 text-xs font-medium transition-colors ${
                   activeType === pill.value
                     ? "bg-ink-800 text-ink-50"
                     : "bg-ink-100 text-ink-600 hover:bg-ink-200"
@@ -152,7 +152,7 @@ export function CodexManager({ initialEntries, novels, series }: CodexManagerPro
                     <p className="mt-1 line-clamp-2 text-xs text-ink-500">{entry.description}</p>
                   )}
 
-                  <div className="mt-2 flex items-center gap-2 text-[10px] text-ink-400">
+                  <div className="mt-2 flex items-center gap-2 text-[10px] text-ink-600">
                     <span>{entry.seriesScoped ? "Series" : "Book"}</span>
                     <span>•</span>
                     <span>{entry.trackingMode}</span>
@@ -162,7 +162,7 @@ export function CodexManager({ initialEntries, novels, series }: CodexManagerPro
             })}
 
             {filteredEntries.length === 0 && (
-              <div className="p-6 text-center text-xs text-ink-400">
+              <div className="p-6 text-center text-xs text-ink-500">
                 No entries match the filter criteria.
               </div>
             )}
@@ -181,7 +181,7 @@ export function CodexManager({ initialEntries, novels, series }: CodexManagerPro
           ) : (
             <div className="flex h-64 flex-col items-center justify-center text-center text-sm text-ink-500">
               <p className="font-medium text-ink-700">No Codex Entry Selected</p>
-              <p className="mt-1 text-xs text-ink-400">
+              <p className="mt-1 text-xs text-ink-500">
                 Select an entry from the list or create a new one to start editing.
               </p>
               <button

@@ -123,7 +123,8 @@ export function CodexCreateModal({
           <button
             type="button"
             onClick={onClose}
-            className="text-ink-400 hover:text-ink-700 text-sm"
+            className="text-ink-600 hover:text-ink-800 flex min-h-9 min-w-9 items-center justify-center text-sm"
+            aria-label="Close dialog"
           >
             ✕
           </button>
@@ -146,7 +147,7 @@ export function CodexCreateModal({
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g. Mara Vance, Sunken Archives"
-              className="border-ink-200 bg-ink-100 focus:border-ink-400 mt-1 w-full rounded-md border p-2 text-sm focus:outline-hidden"
+              className="border-ink-200 bg-ink-100 focus:border-ink-600 mt-1 w-full rounded-md border p-2 text-sm focus:outline-hidden"
             />
           </div>
 
@@ -158,7 +159,7 @@ export function CodexCreateModal({
               <select
                 value={type}
                 onChange={(e) => setType(e.target.value as CodexType)}
-                className="border-ink-200 bg-ink-100 focus:border-ink-400 mt-1 w-full rounded-md border p-2 text-sm focus:outline-hidden"
+                className="border-ink-200 bg-ink-100 focus:border-ink-600 mt-1 w-full rounded-md border p-2 text-sm focus:outline-hidden"
               >
                 {CODEX_TYPES.map((t) => (
                   <option key={t} value={t}>
@@ -175,7 +176,7 @@ export function CodexCreateModal({
               <select
                 value={trackingMode}
                 onChange={(e) => setTrackingMode(e.target.value as CodexTrackingMode)}
-                className="border-ink-200 bg-ink-100 focus:border-ink-400 mt-1 w-full rounded-md border p-2 text-sm focus:outline-hidden"
+                className="border-ink-200 bg-ink-100 focus:border-ink-600 mt-1 w-full rounded-md border p-2 text-sm focus:outline-hidden"
               >
                 {TRACKING_MODES.map((m) => (
                   <option key={m} value={m}>
@@ -221,7 +222,7 @@ export function CodexCreateModal({
                 <select
                   value={selectedSeriesId}
                   onChange={(e) => setSelectedSeriesId(e.target.value)}
-                  className="border-ink-200 bg-ink-100 focus:border-ink-400 mt-1 w-full rounded-md border p-2 text-sm focus:outline-hidden"
+                  className="border-ink-200 bg-ink-100 focus:border-ink-600 mt-1 w-full rounded-md border p-2 text-sm focus:outline-hidden"
                 >
                   {series.map((s) => (
                     <option key={s.id} value={s.id}>
@@ -244,7 +245,7 @@ export function CodexCreateModal({
                 <select
                   value={selectedNovelId}
                   onChange={(e) => setSelectedNovelId(e.target.value)}
-                  className="border-ink-200 bg-ink-100 focus:border-ink-400 mt-1 w-full rounded-md border p-2 text-sm focus:outline-hidden"
+                  className="border-ink-200 bg-ink-100 focus:border-ink-600 mt-1 w-full rounded-md border p-2 text-sm focus:outline-hidden"
                 >
                   {novels.map((n) => (
                     <option key={n.id} value={n.id}>
@@ -270,7 +271,8 @@ export function CodexCreateModal({
                   key={preset}
                   type="button"
                   onClick={() => setColor(preset)}
-                  className={`h-6 w-6 rounded-full transition-transform ${
+                  aria-label={`Select color ${preset}`}
+                  className={`h-9 w-9 rounded-full transition-transform ${
                     color === preset
                       ? "scale-110 ring-2 ring-ink-800 ring-offset-1"
                       : "hover:scale-105"
@@ -290,7 +292,7 @@ export function CodexCreateModal({
               value={aliasesText}
               onChange={(e) => setAliasesText(e.target.value)}
               placeholder="e.g. The Glass Weaver, Mara"
-              className="border-ink-200 bg-ink-100 focus:border-ink-400 mt-1 w-full rounded-md border p-2 text-sm focus:outline-hidden"
+              className="border-ink-200 bg-ink-100 focus:border-ink-600 mt-1 w-full rounded-md border p-2 text-sm focus:outline-hidden"
             />
           </div>
 
@@ -303,7 +305,7 @@ export function CodexCreateModal({
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Primary world bible description..."
-              className="border-ink-200 bg-ink-100 focus:border-ink-400 mt-1 w-full rounded-md border p-2 text-sm focus:outline-hidden"
+              className="border-ink-200 bg-ink-100 focus:border-ink-600 mt-1 w-full rounded-md border p-2 text-sm focus:outline-hidden"
             />
           </div>
 
@@ -316,7 +318,7 @@ export function CodexCreateModal({
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder="Secret backstory, plot triggers, author reminders..."
-              className="border-ink-200 bg-ink-100 focus:border-ink-400 mt-1 w-full rounded-md border p-2 text-sm focus:outline-hidden"
+              className="border-ink-200 bg-ink-100 focus:border-ink-600 mt-1 w-full rounded-md border p-2 text-sm focus:outline-hidden"
             />
           </div>
 

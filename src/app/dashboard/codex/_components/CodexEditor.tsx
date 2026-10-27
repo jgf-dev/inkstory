@@ -294,7 +294,7 @@ export function CodexEditor({
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="mt-1 w-full rounded-md border border-ink-200 bg-ink-100 p-2 text-sm focus:border-ink-400 focus:outline-hidden"
+              className="mt-1 w-full rounded-md border border-ink-200 bg-ink-100 p-2 text-sm focus:border-ink-600 focus:outline-hidden"
             />
           </div>
 
@@ -306,7 +306,7 @@ export function CodexEditor({
               <select
                 value={type}
                 onChange={(e) => setType(e.target.value as CodexType)}
-                className="mt-1 w-full rounded-md border border-ink-200 bg-ink-100 p-2 text-sm focus:border-ink-400 focus:outline-hidden"
+                className="mt-1 w-full rounded-md border border-ink-200 bg-ink-100 p-2 text-sm focus:border-ink-600 focus:outline-hidden"
               >
                 {CODEX_TYPES.map((t) => (
                   <option key={t} value={t}>
@@ -323,7 +323,7 @@ export function CodexEditor({
               <select
                 value={trackingMode}
                 onChange={(e) => setTrackingMode(e.target.value as CodexTrackingMode)}
-                className="mt-1 w-full rounded-md border border-ink-200 bg-ink-100 p-2 text-sm focus:border-ink-400 focus:outline-hidden"
+                className="mt-1 w-full rounded-md border border-ink-200 bg-ink-100 p-2 text-sm focus:border-ink-600 focus:outline-hidden"
               >
                 {TRACKING_MODES.map((m) => (
                   <option key={m} value={m}>
@@ -342,7 +342,7 @@ export function CodexEditor({
               rows={4}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className="mt-1 w-full rounded-md border border-ink-200 bg-ink-100 p-2 text-sm focus:border-ink-400 focus:outline-hidden"
+              className="mt-1 w-full rounded-md border border-ink-200 bg-ink-100 p-2 text-sm focus:border-ink-600 focus:outline-hidden"
             />
           </div>
 
@@ -354,7 +354,7 @@ export function CodexEditor({
               rows={3}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              className="mt-1 w-full rounded-md border border-ink-200 bg-ink-100 p-2 text-sm focus:border-ink-400 focus:outline-hidden"
+              className="mt-1 w-full rounded-md border border-ink-200 bg-ink-100 p-2 text-sm focus:border-ink-600 focus:outline-hidden"
             />
           </div>
         </div>
@@ -376,14 +376,15 @@ export function CodexEditor({
                   <button
                     type="button"
                     onClick={() => handleDeleteAlias(a.id)}
-                    className="text-ink-400 hover:text-ink-700 ml-1"
+                    className="text-ink-500 hover:text-ink-700 ml-1 flex min-h-9 min-w-9 items-center justify-center"
+                    aria-label={`Remove alias ${a.name}`}
                   >
                     ×
                   </button>
                 </span>
               ))}
               {(!entry.aliases || entry.aliases.length === 0) && (
-                <p className="text-xs text-ink-400">No aliases added yet.</p>
+                <p className="text-xs text-ink-500">No aliases added yet.</p>
               )}
             </div>
 
@@ -393,7 +394,7 @@ export function CodexEditor({
                 placeholder="New alias name..."
                 value={newAliasName}
                 onChange={(e) => setNewAliasName(e.target.value)}
-                className="w-full rounded border border-ink-200 bg-ink-100 px-2 py-1 text-xs focus:border-ink-400 focus:outline-hidden"
+                className="w-full rounded border border-ink-200 bg-ink-100 px-2 py-1 text-xs focus:border-ink-600 focus:outline-hidden"
               />
               <button
                 type="submit"
@@ -418,14 +419,15 @@ export function CodexEditor({
                   <button
                     type="button"
                     onClick={() => handleDeleteTag(t.id)}
-                    className="text-ink-400 hover:text-ink-700 ml-1"
+                    className="text-ink-500 hover:text-ink-700 ml-1 flex min-h-9 min-w-9 items-center justify-center"
+                    aria-label={`Remove tag ${t.name}`}
                   >
                     ×
                   </button>
                 </span>
               ))}
               {(!entry.tags || entry.tags.length === 0) && (
-                <p className="text-xs text-ink-400">No tags added yet.</p>
+                <p className="text-xs text-ink-500">No tags added yet.</p>
               )}
             </div>
 
@@ -435,7 +437,7 @@ export function CodexEditor({
                 placeholder="New tag..."
                 value={newTagName}
                 onChange={(e) => setNewTagName(e.target.value)}
-                className="w-full rounded border border-ink-200 bg-ink-100 px-2 py-1 text-xs focus:border-ink-400 focus:outline-hidden"
+                className="w-full rounded border border-ink-200 bg-ink-100 px-2 py-1 text-xs focus:border-ink-600 focus:outline-hidden"
               />
               <button
                 type="submit"
@@ -485,7 +487,7 @@ export function CodexEditor({
               ))}
               {(!entry.sourceRelations || entry.sourceRelations.length === 0) &&
                 (!entry.targetRelations || entry.targetRelations.length === 0) && (
-                  <p className="text-xs text-ink-400">No relations established yet.</p>
+                  <p className="text-xs text-ink-500">No relations established yet.</p>
                 )}
             </div>
           </div>
@@ -510,7 +512,7 @@ export function CodexEditor({
                 </div>
               ))}
               {(!entry.progressions || entry.progressions.length === 0) && (
-                <p className="text-xs text-ink-400">No progressions recorded yet.</p>
+                <p className="text-xs text-ink-500">No progressions recorded yet.</p>
               )}
             </div>
           </div>

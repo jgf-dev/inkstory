@@ -61,7 +61,7 @@ export function SignupForm() {
           required
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="border-ink-300 mt-1 block w-full rounded-md border px-3 py-2 text-sm"
+          className="border-ink-300 mt-1 block w-full rounded-md border px-3 py-2 text-sm focus:border-ink-600"
         />
       </div>
       <div>
@@ -75,7 +75,7 @@ export function SignupForm() {
           minLength={6}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="border-ink-300 mt-1 block w-full rounded-md border px-3 py-2 text-sm"
+          className="border-ink-300 mt-1 block w-full rounded-md border px-3 py-2 text-sm focus:border-ink-600"
         />
         <p className="text-ink-500 mt-1 text-xs">Minimum 6 characters.</p>
       </div>

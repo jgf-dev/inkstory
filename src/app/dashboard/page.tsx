@@ -60,7 +60,7 @@ export default async function DashboardPage() {
         >
           <div className="flex items-center justify-between">
             <p className="text-ink-500 text-sm tracking-wide uppercase">Codex</p>
-            <span className="text-ink-400 group-hover:text-ink-700 text-xs font-medium">
+            <span className="text-ink-500 group-hover:text-ink-700 text-xs font-medium">
               Manage →
             </span>
           </div>

@@ -10,7 +10,7 @@ export default async function Home() {
   return (
     <main className="mx-auto flex min-h-screen max-w-2xl flex-col items-center justify-center gap-8 px-6 text-center">
       <header className="space-y-2">
-        <h1 className="text-5xl font-semibold tracking-tight">InkStory</h1>
+        <h1 className="prose-reading text-5xl font-semibold tracking-tight">InkStory</h1>
         <p className="text-ink-500 text-lg">
           A novel-writing and world-building platform with an AI-aware Codex.
         </p>
