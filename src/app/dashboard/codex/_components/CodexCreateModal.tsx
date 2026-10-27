@@ -275,7 +275,7 @@ function TargetSelector({
       <div>
         <label
           className="text-ink-600 block text-xs font-semibold uppercase tracking-wider"
-          htmlFor={selectId}
+          htmlFor={series.length > 0 ? selectId : undefined}
         >
           Target Series *
         </label>
@@ -305,7 +305,7 @@ function TargetSelector({
     <div>
       <label
         className="text-ink-600 block text-xs font-semibold uppercase tracking-wider"
-        htmlFor={selectId}
+        htmlFor={novels.length > 0 ? selectId : undefined}
       >
         Target Novel *
       </label>
