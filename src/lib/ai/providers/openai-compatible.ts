@@ -1,4 +1,4 @@
-import { createTransportError, readJsonResponse } from "./http";
+import { createTransportError, readJsonResponse, stripTrailingSlashes } from "./http";
 import {
   ProviderError,
   redactSecret,
@@ -115,7 +115,7 @@ export function createOpenAICompatibleProvider(
 ): LlmProvider {
   const { providerId, label } = options;
   const apiKey = options.apiKey?.trim() ?? "";
-  const baseUrl = options.baseUrl.trim().replace(/\/+$/, "");
+  const baseUrl = stripTrailingSlashes(options.baseUrl.trim());
   const doFetch = options.fetch ?? globalThis.fetch;
   const reachTarget = options.includeBaseUrlInNetworkErrors ? `${label} at ${baseUrl}` : label;
 
