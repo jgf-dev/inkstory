@@ -4,6 +4,7 @@ import { CodexError } from "@/lib/codex/errors";
 import { isPovValue, isTenseValue, type PovValue, type TenseValue } from "./meta";
 import { toEpochMs, toIsoString } from "./dates";
 import { countWords } from "./word-count";
+import { lockNovelStructure, type DbTransaction } from "./novel-lock";
 
 function nowTimestamp(): Temporal.PlainDateTime {
   return Temporal.Now.plainDateTimeISO();
@@ -214,26 +215,53 @@ const DEFAULT_TITLES: Record<OutlineKind, string> = {
 };
 
 /**
- * Next free position among a node's siblings. For acts the parent is the
- * novel, so `parentId` is the novel id; for chapters/scenes it is the act or
- * chapter id.
+ * Live (non-deleted) siblings under a parent, read inside the caller's
+ * transaction. For acts the parent is the novel, so `parentId` is the novel
+ * id; for chapters/scenes it is the act or chapter id.
  */
-async function computeNextPosition(kind: OutlineKind, parentId: string): Promise<number> {
-  let siblings: Array<{ position: number }> = [];
+async function loadSiblings(
+  tx: DbTransaction,
+  kind: OutlineKind,
+  parentId: string,
+): Promise<Array<{ id: string; position: number; createdAt: unknown }>> {
   if (kind === "act") {
-    siblings = await db.orm.public.Act.where((a) => a.novelId.eq(parentId))
+    return tx.orm.public.Act.where((a) => a.novelId.eq(parentId))
       .where((a) => a.deletedAt.isNull())
       .all();
-  } else if (kind === "chapter") {
-    siblings = await db.orm.public.Chapter.where((c) => c.actId.eq(parentId))
+  }
+  if (kind === "chapter") {
+    return tx.orm.public.Chapter.where((c) => c.actId.eq(parentId))
       .where((c) => c.deletedAt.isNull())
       .all();
-  } else {
-    siblings = await db.orm.public.Scene.where((s) => s.chapterId.eq(parentId))
-      .where((s) => s.deletedAt.isNull())
-      .all();
   }
+  return tx.orm.public.Scene.where((s) => s.chapterId.eq(parentId))
+    .where((s) => s.deletedAt.isNull())
+    .all();
+}
+
+/** Next free position among a node's siblings. */
+async function computeNextPosition(
+  tx: DbTransaction,
+  kind: OutlineKind,
+  parentId: string,
+): Promise<number> {
+  const siblings = await loadSiblings(tx, kind, parentId);
   return siblings.reduce((max, s) => Math.max(max, s.position), -1) + 1;
+}
+
+/**
+ * Runs a position write for a novel inside one transaction that first takes
+ * the novel's structure lock (shared with import confirm), so positions are
+ * read only after any concurrent import or reorder has committed.
+ */
+function withNovelStructureLock<T>(
+  novelId: string,
+  work: (tx: DbTransaction) => Promise<T>,
+): Promise<T> {
+  return db.transaction(async (tx) => {
+    await lockNovelStructure(tx, novelId);
+    return work(tx);
+  });
 }
 
 /**
@@ -251,16 +279,17 @@ export async function createOutlineNode(
   const kind = input.kind;
 
   if (kind === "act") {
-    const position = input.position ?? (await computeNextPosition("act", novel.id));
-    const act = await db.orm.public.Act.create({
-      id: crypto.randomUUID(),
-      novelId: novel.id,
-      title,
-      position,
-      createdAt: now,
-      updatedAt: now,
-      deletedAt: null,
-    });
+    const act = await withNovelStructureLock(novel.id, async (tx) =>
+      tx.orm.public.Act.create({
+        id: crypto.randomUUID(),
+        novelId: novel.id,
+        title,
+        position: input.position ?? (await computeNextPosition(tx, "act", novel.id)),
+        createdAt: now,
+        updatedAt: now,
+        deletedAt: null,
+      }),
+    );
     return { kind, node: act };
   }
 
@@ -272,16 +301,17 @@ export async function createOutlineNode(
     if (!act || act.deletedAt !== null || act.novelId !== novel.id) {
       throw new CodexError("Act not found in this novel", "NOT_FOUND", 404);
     }
-    const position = input.position ?? (await computeNextPosition("chapter", act.id));
-    const chapter = await db.orm.public.Chapter.create({
-      id: crypto.randomUUID(),
-      actId: act.id,
-      title,
-      position,
-      createdAt: now,
-      updatedAt: now,
-      deletedAt: null,
-    });
+    const chapter = await withNovelStructureLock(novel.id, async (tx) =>
+      tx.orm.public.Chapter.create({
+        id: crypto.randomUUID(),
+        actId: act.id,
+        title,
+        position: input.position ?? (await computeNextPosition(tx, "chapter", act.id)),
+        createdAt: now,
+        updatedAt: now,
+        deletedAt: null,
+      }),
+    );
     return { kind, node: chapter };
   }
 
@@ -296,19 +326,20 @@ export async function createOutlineNode(
   if (!act || act.deletedAt !== null || act.novelId !== novel.id) {
     throw new CodexError("Chapter not found in this novel", "NOT_FOUND", 404);
   }
-  const position = input.position ?? (await computeNextPosition("scene", chapter.id));
-  const scene = await db.orm.public.Scene.create({
-    id: crypto.randomUUID(),
-    chapterId: chapter.id,
-    title,
-    content: "",
-    pov: "THIRD_LIMITED",
-    tense: "PAST",
-    position,
-    createdAt: now,
-    updatedAt: now,
-    deletedAt: null,
-  });
+  const scene = await withNovelStructureLock(novel.id, async (tx) =>
+    tx.orm.public.Scene.create({
+      id: crypto.randomUUID(),
+      chapterId: chapter.id,
+      title,
+      content: "",
+      pov: "THIRD_LIMITED",
+      tense: "PAST",
+      position: input.position ?? (await computeNextPosition(tx, "scene", chapter.id)),
+      createdAt: now,
+      updatedAt: now,
+      deletedAt: null,
+    }),
+  );
   return { kind, node: scene };
 }
 
@@ -360,15 +391,16 @@ async function updateOutlineNodeRow(
   kind: OutlineKind,
   nodeId: string,
   data: Record<string, unknown>,
+  orm: DbTransaction["orm"] = db.orm,
 ) {
   const now = nowTimestamp();
   const payload = { ...data, updatedAt: now };
   if (kind === "act") {
-    await db.orm.public.Act.where({ id: nodeId }).update(payload);
+    await orm.public.Act.where({ id: nodeId }).update(payload);
   } else if (kind === "chapter") {
-    await db.orm.public.Chapter.where({ id: nodeId }).update(payload);
+    await orm.public.Chapter.where({ id: nodeId }).update(payload);
   } else {
-    await db.orm.public.Scene.where({ id: nodeId }).update(payload);
+    await orm.public.Scene.where({ id: nodeId }).update(payload);
   }
 }
 
@@ -395,44 +427,38 @@ export async function moveOutlineNode(
 ) {
   const node = await loadOutlineNode(userId, novelId, input.kind, input.id);
 
-  let siblings: Array<{ id: string; position: number; createdAt: unknown }>;
-  if (input.kind === "act") {
-    siblings = await db.orm.public.Act.where((a) => a.novelId.eq(novelId))
-      .where((a) => a.deletedAt.isNull())
-      .all();
-  } else if (input.kind === "chapter") {
-    siblings = await db.orm.public.Chapter.where((c) => c.actId.eq(node.parentId))
-      .where((c) => c.deletedAt.isNull())
-      .all();
-  } else {
-    siblings = await db.orm.public.Scene.where((s) => s.chapterId.eq(node.parentId))
-      .where((s) => s.deletedAt.isNull())
-      .all();
-  }
-  siblings.sort(byPositionThenCreated);
+  // Positions are read only after the lock, so a concurrent import or
+  // reorder into the same novel has committed before we look.
+  const moved = await withNovelStructureLock(novelId, async (tx) => {
+    const siblings = await loadSiblings(tx, input.kind, node.parentId);
+    siblings.sort(byPositionThenCreated);
 
-  const index = siblings.findIndex((s) => s.id === node.id);
-  if (index === -1) {
-    throw new CodexError("Outline node not found", "NOT_FOUND", 404);
-  }
-  const targetIndex = input.direction === "up" ? index - 1 : index + 1;
-  if (targetIndex < 0 || targetIndex >= siblings.length) {
-    return { id: node.id, kind: input.kind, moved: false as const };
-  }
-
-  const neighbor = siblings[targetIndex];
-  if (node.position !== neighbor.position) {
-    await updateOutlineNodeRow(input.kind, node.id, { position: neighbor.position });
-    await updateOutlineNodeRow(input.kind, neighbor.id, { position: node.position });
-  } else {
-    const temp = siblings[index];
-    siblings[index] = siblings[targetIndex];
-    siblings[targetIndex] = temp;
-    for (let i = 0; i < siblings.length; i++) {
-      await updateOutlineNodeRow(input.kind, siblings[i].id, { position: i });
+    const index = siblings.findIndex((s) => s.id === node.id);
+    if (index === -1) {
+      throw new CodexError("Outline node not found", "NOT_FOUND", 404);
     }
-  }
-  return { id: node.id, kind: input.kind, moved: true as const };
+    const targetIndex = input.direction === "up" ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= siblings.length) {
+      return false;
+    }
+
+    const current = siblings[index];
+    const neighbor = siblings[targetIndex];
+    if (current.position !== neighbor.position) {
+      await updateOutlineNodeRow(input.kind, current.id, { position: neighbor.position }, tx.orm);
+      await updateOutlineNodeRow(input.kind, neighbor.id, { position: current.position }, tx.orm);
+    } else {
+      siblings[index] = neighbor;
+      siblings[targetIndex] = current;
+      for (let i = 0; i < siblings.length; i++) {
+        await updateOutlineNodeRow(input.kind, siblings[i].id, { position: i }, tx.orm);
+      }
+    }
+    return true;
+  });
+  return moved
+    ? { id: node.id, kind: input.kind, moved: true as const }
+    : { id: node.id, kind: input.kind, moved: false as const };
 }
 
 /** Soft-deletes an outline node and, for acts/chapters, its descendants. */
