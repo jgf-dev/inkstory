@@ -187,3 +187,44 @@ describe("Mention Detection Service (STO-1152)", () => {
     });
   });
 });
+
+describe("Mention Detection edge cases (STO-1220)", () => {
+  it("skips blank names and blank or nameless aliases", () => {
+    const entries = [
+      { id: "blank", name: "   ", aliases: ["  ", { name: "" }] },
+      { id: "ada", name: " Ada ", aliases: [{ name: " Countess " }] },
+    ] as CandidateEntity[];
+    const result = detectMentionsInText("The Countess met Ada.", entries);
+
+    expect(result.matchedEntryIds).toEqual(["ada"]);
+    expect(result.matches.map((m) => [m.matchedText, m.matchType])).toEqual([
+      ["Countess", "alias"],
+      ["Ada", "name"],
+    ]);
+  });
+
+  it("keeps the first-listed entry when equal-length phrases cover the same span", () => {
+    const entries: CandidateEntity[] = [
+      { id: "first", name: "Raven" },
+      { id: "second", name: "raven" },
+    ];
+    const result = detectMentionsInText("A raven, then another Raven.", entries);
+
+    expect(result.matchedEntryIds).toEqual(["first"]);
+    expect(result.matches.map((m) => [m.startIndex, m.endIndex, m.originalText])).toEqual([
+      [2, 7, "raven"],
+      [22, 27, "Raven"],
+    ]);
+  });
+
+  it("orders matched entry IDs by first occurrence and dedupes repeats", () => {
+    const entries: CandidateEntity[] = [
+      { id: "b", name: "Bram" },
+      { id: "a", name: "Ada", aliases: ["Countess"] },
+    ];
+    const result = detectMentionsInText("Ada and Bram; the Countess and Bram again.", entries);
+
+    expect(result.matchedEntryIds).toEqual(["a", "b"]);
+    expect(result.matches).toHaveLength(4);
+  });
+});
