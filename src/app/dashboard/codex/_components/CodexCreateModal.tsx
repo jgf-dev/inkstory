@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useId } from "react";
 import type { CodexTrackingMode, CodexType } from "@/lib/codex/types";
 import { useCodexCreateForm } from "./useCodexCreateForm";
 
@@ -48,6 +48,8 @@ export function CodexCreateModal({
     onClose,
   });
 
+  const fieldId = useId();
+
   if (!isOpen) return null;
 
   return (
@@ -66,10 +68,14 @@ export function CodexCreateModal({
 
         <form onSubmit={actions.handleSubmit} className="space-y-4">
           <div>
-            <label className="text-ink-600 block text-xs font-semibold uppercase tracking-wider">
+            <label
+              className="text-ink-600 block text-xs font-semibold uppercase tracking-wider"
+              htmlFor={`${fieldId}-name`}
+            >
               Name *
             </label>
             <input
+              id={`${fieldId}-name`}
               type="text"
               required
               value={formState.name}
@@ -81,10 +87,14 @@ export function CodexCreateModal({
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-ink-600 block text-xs font-semibold uppercase tracking-wider">
+              <label
+                className="text-ink-600 block text-xs font-semibold uppercase tracking-wider"
+                htmlFor={`${fieldId}-type`}
+              >
                 Type
               </label>
               <select
+                id={`${fieldId}-type`}
                 value={formState.type}
                 onChange={(e) => actions.setType(e.target.value as CodexType)}
                 className="border-ink-200 bg-ink-100 focus:border-ink-400 mt-1 w-full rounded-md border p-2 text-sm focus:outline-hidden"
@@ -98,10 +108,14 @@ export function CodexCreateModal({
             </div>
 
             <div>
-              <label className="text-ink-600 block text-xs font-semibold uppercase tracking-wider">
+              <label
+                className="text-ink-600 block text-xs font-semibold uppercase tracking-wider"
+                htmlFor={`${fieldId}-tracking-mode`}
+              >
                 Tracking Mode
               </label>
               <select
+                id={`${fieldId}-tracking-mode`}
                 value={formState.trackingMode}
                 onChange={(e) => actions.setTrackingMode(e.target.value as CodexTrackingMode)}
                 className="border-ink-200 bg-ink-100 focus:border-ink-400 mt-1 w-full rounded-md border p-2 text-sm focus:outline-hidden"
@@ -130,16 +144,17 @@ export function CodexCreateModal({
             onNovelChange={actions.setSelectedNovelId}
           />
 
-          <ColorPresetPicker
-            currentColor={formState.color}
-            onSelectColor={actions.setColor}
-          />
+          <ColorPresetPicker currentColor={formState.color} onSelectColor={actions.setColor} />
 
           <div>
-            <label className="text-ink-600 block text-xs font-semibold uppercase tracking-wider">
+            <label
+              className="text-ink-600 block text-xs font-semibold uppercase tracking-wider"
+              htmlFor={`${fieldId}-aliases`}
+            >
               Aliases (comma separated)
             </label>
             <input
+              id={`${fieldId}-aliases`}
               type="text"
               value={formState.aliasesText}
               onChange={(e) => actions.setAliasesText(e.target.value)}
@@ -149,10 +164,14 @@ export function CodexCreateModal({
           </div>
 
           <div>
-            <label className="text-ink-600 block text-xs font-semibold uppercase tracking-wider">
+            <label
+              className="text-ink-600 block text-xs font-semibold uppercase tracking-wider"
+              htmlFor={`${fieldId}-description`}
+            >
               Description
             </label>
             <textarea
+              id={`${fieldId}-description`}
               rows={3}
               value={formState.description}
               onChange={(e) => actions.setDescription(e.target.value)}
@@ -162,10 +181,14 @@ export function CodexCreateModal({
           </div>
 
           <div>
-            <label className="text-ink-600 block text-xs font-semibold uppercase tracking-wider">
+            <label
+              className="text-ink-600 block text-xs font-semibold uppercase tracking-wider"
+              htmlFor={`${fieldId}-notes`}
+            >
               Private Author Notes
             </label>
             <textarea
+              id={`${fieldId}-notes`}
               rows={2}
               value={formState.notes}
               onChange={(e) => actions.setNotes(e.target.value)}
@@ -174,10 +197,7 @@ export function CodexCreateModal({
             />
           </div>
 
-          <ModalFooter
-            onClose={onClose}
-            loading={formState.loading}
-          />
+          <ModalFooter onClose={onClose} loading={formState.loading} />
         </form>
       </div>
     </div>
@@ -188,11 +208,7 @@ function ModalHeader({ onClose }: { onClose: () => void }) {
   return (
     <div className="mb-4 flex items-center justify-between border-b border-ink-200 pb-3">
       <h2 className="text-xl font-semibold">New Codex Entry</h2>
-      <button
-        type="button"
-        onClick={onClose}
-        className="text-ink-400 hover:text-ink-700 text-sm"
-      >
+      <button type="button" onClick={onClose} className="text-ink-400 hover:text-ink-700 text-sm">
         ✕
       </button>
     </div>
@@ -252,14 +268,20 @@ function TargetSelector({
   onSeriesChange: (id: string) => void;
   onNovelChange: (id: string) => void;
 }) {
+  const selectId = useId();
+
   if (seriesScoped) {
     return (
       <div>
-        <label className="text-ink-600 block text-xs font-semibold uppercase tracking-wider">
+        <label
+          className="text-ink-600 block text-xs font-semibold uppercase tracking-wider"
+          htmlFor={selectId}
+        >
           Target Series *
         </label>
         {series.length > 0 ? (
           <select
+            id={selectId}
             value={selectedSeriesId}
             onChange={(e) => onSeriesChange(e.target.value)}
             className="border-ink-200 bg-ink-100 focus:border-ink-400 mt-1 w-full rounded-md border p-2 text-sm focus:outline-hidden"
@@ -281,11 +303,15 @@ function TargetSelector({
 
   return (
     <div>
-      <label className="text-ink-600 block text-xs font-semibold uppercase tracking-wider">
+      <label
+        className="text-ink-600 block text-xs font-semibold uppercase tracking-wider"
+        htmlFor={selectId}
+      >
         Target Novel *
       </label>
       {novels.length > 0 ? (
         <select
+          id={selectId}
           value={selectedNovelId}
           onChange={(e) => onNovelChange(e.target.value)}
           className="border-ink-200 bg-ink-100 focus:border-ink-400 mt-1 w-full rounded-md border p-2 text-sm focus:outline-hidden"
@@ -312,16 +338,23 @@ function ColorPresetPicker({
   currentColor: string;
   onSelectColor: (color: string) => void;
 }) {
+  const headingId = useId();
+
   return (
     <div>
-      <label className="text-ink-600 block text-xs font-semibold uppercase tracking-wider">
+      <span
+        id={headingId}
+        className="text-ink-600 block text-xs font-semibold uppercase tracking-wider"
+      >
         Color Theme
-      </label>
-      <div className="mt-1 flex items-center gap-2">
+      </span>
+      <div role="group" aria-labelledby={headingId} className="mt-1 flex items-center gap-2">
         {COLOR_PRESETS.map((preset) => (
           <button
             key={preset}
             type="button"
+            aria-label={`Color ${preset}`}
+            aria-pressed={currentColor === preset}
             onClick={() => onSelectColor(preset)}
             className={`h-6 w-6 rounded-full transition-transform ${
               currentColor === preset
@@ -336,13 +369,7 @@ function ColorPresetPicker({
   );
 }
 
-function ModalFooter({
-  onClose,
-  loading,
-}: {
-  onClose: () => void;
-  loading: boolean;
-}) {
+function ModalFooter({ onClose, loading }: { onClose: () => void; loading: boolean }) {
   return (
     <div className="flex items-center justify-end gap-2 border-t border-ink-200 pt-4">
       <button
