@@ -8,6 +8,8 @@ import {
   createCodexProgression,
   createCodexRelation,
   createCodexTag,
+  createInitialAliases,
+  createInitialTags,
   deleteCodexAlias,
   deleteCodexEntry,
   deleteCodexProgression,
@@ -448,6 +450,45 @@ describe("Codex Service & Scoping Engine", { timeout: 20_000 }, () => {
 
       const del = await deleteCodexTag(userId, tag.id);
       expect(del.success).toBe(true);
+    });
+  });
+
+  describe("Bulk initial aliases & tags", () => {
+    const now = () => Temporal.Now.plainDateTimeISO("UTC");
+
+    it("bulk-inserts trimmed aliases and tags, skipping blanks", async () => {
+      const entry = await createCodexEntry(userId, {
+        name: "Bulk Entry",
+        novelId: novelAId,
+        aliases: ["  Alpha ", "", "   ", "Beta", "Gamma"],
+        tags: [{ name: " Hero " }, { name: "  " }, { name: "Villain", color: "#ff0000" }],
+      });
+
+      expect(entry.aliases.map((a) => a.name).sort()).toEqual(["Alpha", "Beta", "Gamma"]);
+      expect(entry.tags.map((t) => t.name).sort()).toEqual(["Hero", "Villain"]);
+      const hero = entry.tags.find((t) => t.name === "Hero");
+      const villain = entry.tags.find((t) => t.name === "Villain");
+      expect(hero?.color).toBeNull();
+      expect(villain?.color).toBe("#ff0000");
+      expect(new Set(entry.aliases.map((a) => a.id)).size).toBe(3);
+    });
+
+    it("returns inserted counts and skips the insert for empty input", async () => {
+      const entry = await createCodexEntry(userId, { name: "Count Entry", novelId: novelAId });
+
+      expect(await createInitialAliases(entry.id, undefined, now())).toBe(0);
+      expect(await createInitialAliases(entry.id, ["", "  "], now())).toBe(0);
+      expect(await createInitialTags(entry.id, undefined, now())).toBe(0);
+      expect(await createInitialTags(entry.id, [{ name: " " }], now())).toBe(0);
+
+      expect(await createInitialAliases(entry.id, ["One", " Two "], now())).toBe(2);
+      expect(
+        await createInitialTags(entry.id, [{ name: "T1" }, { name: "T2", color: null }], now()),
+      ).toBe(2);
+
+      const refreshed = await getCodexEntry(userId, entry.id);
+      expect(refreshed.aliases.map((a) => a.name).sort()).toEqual(["One", "Two"]);
+      expect(refreshed.tags.map((t) => t.name).sort()).toEqual(["T1", "T2"]);
     });
   });
 
