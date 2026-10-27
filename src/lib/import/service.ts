@@ -1,5 +1,6 @@
 import { Temporal } from "temporal-polyfill";
 import { db } from "@/lib/prisma";
+import { lockNovelStructure } from "@/lib/writing/novel-lock";
 import { previewManuscript } from "./preview";
 import { ImportError, type ImportManuscript, type ImportPreview } from "./types";
 
@@ -39,14 +40,11 @@ export async function importManuscript(
 
   // One transaction: a failure part-way leaves nothing behind.
   const actIds = await db.transaction(async (tx) => {
-    // Serialise imports into the same novel: the lock is held until the
-    // transaction ends, so the next act position is read only after any
-    // concurrent import has committed. Must stay the first statement.
-    await tx.execute(
-      db.raw.sql`SELECT pg_advisory_xact_lock(hashtext(${`novel-import:${novelId}`}))`
-        .affectedCount()
-        .build(),
-    );
+    // Serialise imports and manual outline edits into the same novel: the
+    // lock is held until the transaction ends, so the next act position is
+    // read only after any concurrent writer has committed. Must stay the
+    // first statement.
+    await lockNovelStructure(tx, novelId);
     const existing = await tx.orm.public.Act.where((a) => a.novelId.eq(novelId))
       .where((a) => a.deletedAt.isNull())
       .all();
