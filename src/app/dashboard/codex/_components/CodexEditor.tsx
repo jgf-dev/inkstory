@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useId, useState } from "react";
 import {
   createCodexAliasAction,
   createCodexTagAction,
@@ -101,6 +101,7 @@ export function CodexEditor({
   onEntryDeleted,
 }: CodexEditorProps) {
   const [entry, setEntry] = useState<Record<string, any> | null>(initialEntry ?? null);
+  const fieldId = useId();
   const [loading, setLoading] = useState(!initialEntry);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -473,10 +474,14 @@ export function CodexEditor({
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
         <div className="space-y-4">
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-ink-600">
+            <label
+              className="block text-xs font-semibold uppercase tracking-wider text-ink-600"
+              htmlFor={`${fieldId}-name`}
+            >
               Entry Name
             </label>
             <input
+              id={`${fieldId}-name`}
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -486,10 +491,14 @@ export function CodexEditor({
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-ink-600">
+              <label
+                className="block text-xs font-semibold uppercase tracking-wider text-ink-600"
+                htmlFor={`${fieldId}-type`}
+              >
                 Type
               </label>
               <select
+                id={`${fieldId}-type`}
                 value={type}
                 onChange={(e) => setType(e.target.value as CodexType)}
                 className="mt-1 w-full rounded-md border border-ink-200 bg-ink-100 p-2 text-sm focus:border-ink-400 focus:outline-hidden"
@@ -503,10 +512,14 @@ export function CodexEditor({
             </div>
 
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-ink-600">
+              <label
+                className="block text-xs font-semibold uppercase tracking-wider text-ink-600"
+                htmlFor={`${fieldId}-tracking-mode`}
+              >
                 Tracking Mode
               </label>
               <select
+                id={`${fieldId}-tracking-mode`}
                 value={trackingMode}
                 onChange={(e) => setTrackingMode(e.target.value as CodexTrackingMode)}
                 className="mt-1 w-full rounded-md border border-ink-200 bg-ink-100 p-2 text-sm focus:border-ink-400 focus:outline-hidden"
@@ -521,10 +534,14 @@ export function CodexEditor({
           </div>
 
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-ink-600">
+            <label
+              className="block text-xs font-semibold uppercase tracking-wider text-ink-600"
+              htmlFor={`${fieldId}-description`}
+            >
               Description
             </label>
             <textarea
+              id={`${fieldId}-description`}
               rows={4}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
@@ -533,10 +550,14 @@ export function CodexEditor({
           </div>
 
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-ink-600">
+            <label
+              className="block text-xs font-semibold uppercase tracking-wider text-ink-600"
+              htmlFor={`${fieldId}-notes`}
+            >
               Private Author Notes
             </label>
             <textarea
+              id={`${fieldId}-notes`}
               rows={3}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
