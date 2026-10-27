@@ -24,7 +24,7 @@ changes:
          to `@prisma/orm-sqlite/config` and `@prisma/orm-mongo/config`.
       3. If the config reads `process.env`, keep (or add) `import 'dotenv/config';` as the
          first import — the loader does not read `.env` for you.
-      4. In `package.json`, replace the `prisma-next` devDependency with `@prisma/cli@next`
+      4. In `package.json`, replace the `prisma-next` devDependency with `prisma@latest`
          plus `@prisma/cli-engine` at the exact version that `@prisma/cli` names in its own
          dependencies, and update your extension's contract-space
          build and emit scripts from `prisma-next contract emit` to `prisma-cli contract emit`.
@@ -53,7 +53,7 @@ changes:
       glob: "**/*.{ts,mts,cts}"
       regex:
         - 'createRawSql\('
-        - "RawSqlTag"
+        - 'RawSqlTag'
         # `fns.raw` is a fragment call site and is deliberately excluded:
         # fragments are unchanged by this release.
         - '(?<!(?<![\w$])fns)\.raw`'
@@ -89,8 +89,8 @@ changes:
 and exposes it as the raw lane:
 
 ```ts
-import { createRawLane, sql } from "@internal/sql-builder/runtime";
-import type { Db, RawLane } from "@internal/sql-builder/types";
+import { createRawLane, sql } from '@internal/sql-builder/runtime';
+import type { Db, RawLane } from '@internal/sql-builder/types';
 
 const sqlDb: Db<TContract> = sql<TContract>({ context, rawCodecInferer });
 const raw: RawLane<TContract> = createRawLane<TContract>({ context, rawCodecInferer });

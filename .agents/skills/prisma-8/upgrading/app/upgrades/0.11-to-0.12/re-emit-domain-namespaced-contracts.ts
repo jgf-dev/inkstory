@@ -18,16 +18,16 @@
  *   --check   dry-run; lists contract-spaces that still need re-emitting
  *             and exits 1 if any remain.
  */
-import { execFile } from "node:child_process";
-import { access, readdir, readFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
-import { promisify } from "node:util";
+import { execFile } from 'node:child_process';
+import { access, readdir, readFile } from 'node:fs/promises';
+import { dirname, join } from 'node:path';
+import { promisify } from 'node:util';
 
 const execFileAsync = promisify(execFile);
 
-const SKIP_DIRS = new Set(["node_modules", ".git", "dist", "build"]);
+const SKIP_DIRS = new Set(['node_modules', '.git', 'dist', 'build']);
 
-const dryRun = process.argv.includes("--check");
+const dryRun = process.argv.includes('--check');
 const projectRoot = process.cwd();
 
 async function pathExists(path: string): Promise<boolean> {
@@ -40,7 +40,7 @@ async function pathExists(path: string): Promise<boolean> {
 }
 
 function isJsonObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 async function findPrismaNextConfigDirs(root: string): Promise<string[]> {
@@ -57,7 +57,7 @@ async function findPrismaNextConfigDirs(root: string): Promise<string[]> {
       if (entry.isDirectory()) {
         if (SKIP_DIRS.has(entry.name)) continue;
         await walk(join(dir, entry.name));
-      } else if (entry.isFile() && entry.name === "prisma.config.ts") {
+      } else if (entry.isFile() && entry.name === 'prisma.config.ts') {
         out.push(dir);
       }
     }
@@ -69,19 +69,19 @@ async function findPrismaNextConfigDirs(root: string): Promise<string[]> {
 
 function contractJsonCandidates(configDir: string): string[] {
   return [
-    join(configDir, "src", "contract.json"),
-    join(configDir, "src", "prisma", "contract.json"),
-    join(configDir, "prisma", "contract.json"),
-    join(configDir, "contract.json"),
+    join(configDir, 'src', 'contract.json'),
+    join(configDir, 'src', 'prisma', 'contract.json'),
+    join(configDir, 'prisma', 'contract.json'),
+    join(configDir, 'contract.json'),
   ];
 }
 
 function contractDtsCandidates(configDir: string): string[] {
   return [
-    join(configDir, "src", "contract.d.ts"),
-    join(configDir, "src", "prisma", "contract.d.ts"),
-    join(configDir, "prisma", "contract.d.ts"),
-    join(configDir, "contract.d.ts"),
+    join(configDir, 'src', 'contract.d.ts'),
+    join(configDir, 'src', 'prisma', 'contract.d.ts'),
+    join(configDir, 'prisma', 'contract.d.ts'),
+    join(configDir, 'contract.d.ts'),
   ];
 }
 
@@ -93,9 +93,9 @@ function contractJsonNeedsDomainPlaneMigration(raw: string): boolean {
     return false;
   }
   if (!isJsonObject(parsed)) return false;
-  const domain = parsed["domain"];
+  const domain = parsed['domain'];
   if (!isJsonObject(domain)) return true;
-  const namespaces = domain["namespaces"];
+  const namespaces = domain['namespaces'];
   return !isJsonObject(namespaces) || Object.keys(namespaces).length === 0;
 }
 
@@ -104,15 +104,15 @@ function contractDtsNeedsDomainPlaneMigration(raw: string): boolean {
 }
 
 async function packageJsonHasEmitScript(dir: string): Promise<boolean> {
-  const pkgPath = join(dir, "package.json");
+  const pkgPath = join(dir, 'package.json');
   if (!(await pathExists(pkgPath))) return false;
-  const raw = await readFile(pkgPath, "utf-8");
+  const raw = await readFile(pkgPath, 'utf-8');
   try {
     const parsed: unknown = JSON.parse(raw);
     if (!isJsonObject(parsed)) return false;
-    const scripts = parsed["scripts"];
+    const scripts = parsed['scripts'];
     if (!isJsonObject(scripts)) return false;
-    return typeof scripts["emit"] === "string" && scripts["emit"].length > 0;
+    return typeof scripts['emit'] === 'string' && scripts['emit'].length > 0;
   } catch {
     return false;
   }
@@ -126,34 +126,34 @@ async function resolveEmitInvocation(configDir: string): Promise<{
   let dir = configDir;
   while (dir.startsWith(projectRoot)) {
     if (await packageJsonHasEmitScript(dir)) {
-      return { cwd: dir, args: ["emit"], key: `script:${dir}` };
+      return { cwd: dir, args: ['emit'], key: `script:${dir}` };
     }
     const parent = dirname(dir);
     if (parent === dir) break;
     dir = parent;
   }
-  const configPath = join(configDir, "prisma.config.ts");
+  const configPath = join(configDir, 'prisma.config.ts');
   return {
     cwd: projectRoot,
-    args: ["exec", "prisma-next", "contract", "emit", "--config", configPath],
+    args: ['exec', 'prisma-next', 'contract', 'emit', '--config', configPath],
     key: `config:${configPath}`,
   };
 }
 
 async function runEmit(configDir: string): Promise<void> {
   const { cwd, args } = await resolveEmitInvocation(configDir);
-  await execFileAsync("pnpm", args, { cwd, env: process.env });
+  await execFileAsync('pnpm', args, { cwd, env: process.env });
 }
 
 async function configDirNeedsDomainPlaneMigration(configDir: string): Promise<boolean> {
   for (const candidate of contractJsonCandidates(configDir)) {
     if (!(await pathExists(candidate))) continue;
-    const raw = await readFile(candidate, "utf-8");
+    const raw = await readFile(candidate, 'utf-8');
     if (contractJsonNeedsDomainPlaneMigration(raw)) return true;
   }
   for (const candidate of contractDtsCandidates(configDir)) {
     if (!(await pathExists(candidate))) continue;
-    const raw = await readFile(candidate, "utf-8");
+    const raw = await readFile(candidate, 'utf-8');
     if (contractDtsNeedsDomainPlaneMigration(raw)) return true;
   }
   return false;
@@ -179,7 +179,7 @@ if (targets.length === 0) {
 let needsFix = 0;
 
 for (const configDir of targets) {
-  const rel = configDir.slice(projectRoot.length + 1) || ".";
+  const rel = configDir.slice(projectRoot.length + 1) || '.';
   if (!(await configDirNeedsDomainPlaneMigration(configDir))) {
     console.log(`OK    ${rel}`);
     continue;
@@ -195,7 +195,7 @@ for (const configDir of targets) {
 
 console.log();
 console.log(
-  `${targets.length} contract-space(s): ${needsFix} ${dryRun ? "needing re-emit" : "re-emitted"}.`,
+  `${targets.length} contract-space(s): ${needsFix} ${dryRun ? 'needing re-emit' : 're-emitted'}.`,
 );
 
 if (dryRun && needsFix > 0) process.exit(1);

@@ -19,9 +19,9 @@ changes:
     detection:
       glob: "**/*.{ts,mts,cts}"
       contains:
-        - "CheckConstraint"
-        - "permittedValues"
-        - "resolveValueSetValues"
+        - 'CheckConstraint'
+        - 'permittedValues'
+        - 'resolveValueSetValues'
       anyMatch: true
   - id: add-check-constraint-call-takes-an-expression
     summary: |
@@ -35,8 +35,8 @@ changes:
     detection:
       glob: "**/*.{ts,mts,cts}"
       contains:
-        - "AddCheckConstraintCall"
-        - "addCheckConstraint"
+        - 'AddCheckConstraintCall'
+        - 'addCheckConstraint'
       anyMatch: true
   - id: specifier-default-control-policy-requires-create-namespace
     summary: |
@@ -55,8 +55,8 @@ changes:
     detection:
       glob: "**/*.{ts,mts,cts}"
       contains:
-        - "typescriptContract"
-        - "defaultControlPolicy"
+        - 'typescriptContract'
+        - 'defaultControlPolicy'
       anyMatch: false
   - id: re-emit-extension-contract-spaces
     summary: |
@@ -252,15 +252,15 @@ changes:
       surface is gated on it. And a check is no longer "derived" merely by being wire-named —
       user-authored checks are wire-named too. Derivation is now decided by whether the wire prefix
       is one derivation would produce for a column of that table. A pack that read
-      `check.prefix !== undefined` to mean "Prisma Next generated this" must use the same
+      `check.prefix !== undefined` to mean "Prisma 8 generated this" must use the same
       prefix-shape test, `derivedCheckPrefixes` from `@internal/sql-schema-ir/naming`. An authored
       name that collides with a derived prefix shape is rejected at authoring with
       `CONTRACT.CHECK_NAME_RESERVED`.
     detection:
       glob: "**/*.{ts,tsx}"
       contains:
-        - "checkConstraint"
-        - "derivedCheckPrefixes"
+        - 'checkConstraint'
+        - 'derivedCheckPrefixes'
       anyMatch: true
   - id: runtime-query-execute-hard-cut
     summary: |
@@ -349,7 +349,7 @@ changes:
 The aggregate method sets are built by enumerating the composed registry, once per `Collection` construction and once at `orm(...)`. A test that fabricates an `ExecutionContext` therefore has to supply one:
 
 ```ts
-import { buildSqlAggregateDescriptorRegistry } from "@internal/sql-relational-core/aggregate-descriptor-registry";
+import { buildSqlAggregateDescriptorRegistry } from '@internal/sql-relational-core/aggregate-descriptor-registry';
 
 const context = {
   contract,
@@ -369,22 +369,22 @@ A minimal hand-written stub that keeps `count` available:
 ```ts
 const aggregateDescriptors = {
   resolve: (operation: string) =>
-    operation === "count"
+    operation === 'count'
       ? {
           operation,
-          output: { codecId: "pg/int8@1" },
+          output: { codecId: 'pg/int8@1' },
           nullable: false as const,
-          emptyResultJson: "0",
+          emptyResultJson: '0',
           lower: undefined,
         }
       : undefined,
   values: function* () {
     yield {
-      operation: "count",
-      input: { kind: "any" as const },
-      output: { kind: "codec" as const, codecId: "pg/int8@1" },
+      operation: 'count',
+      input: { kind: 'any' as const },
+      output: { kind: 'codec' as const, codecId: 'pg/int8@1' },
       nullable: false as const,
-      emptyResultJson: "0",
+      emptyResultJson: '0',
     };
   },
 };
@@ -398,13 +398,13 @@ Prefer the real builder where the test can afford it — it applies the same val
 
 Every aggregate surface is now a mapped type keyed by the operation names in the contract's emitted `AggregateTypes` block:
 
-| Surface                       | Type                                                                      |
-| ----------------------------- | ------------------------------------------------------------------------- |
-| `collection.aggregate(fn)`    | `AggregateBuilder<TContract, ModelName, NsId>`                            |
-| `groupBy(...).aggregate(fn)`  | the same                                                                  |
-| `groupBy(...).having(fn)`     | `HavingBuilder<…>` — keyed by the map _intersected with_ the SQL alphabet |
-| `include('rel', (rel) => …)`  | `AggregateIncludeReducers<…>` on the collection                           |
-| `sql().select((f, fns) => …)` | `AggregateOnlyFunctions<QC>`                                              |
+| Surface | Type |
+| --- | --- |
+| `collection.aggregate(fn)` | `AggregateBuilder<TContract, ModelName, NsId>` |
+| `groupBy(...).aggregate(fn)` | the same |
+| `groupBy(...).having(fn)` | `HavingBuilder<…>` — keyed by the map *intersected with* the SQL alphabet |
+| `include('rel', (rel) => …)` | `AggregateIncludeReducers<…>` on the collection |
+| `sql().select((f, fns) => …)` | `AggregateOnlyFunctions<QC>` |
 
 For a contract emitted by `prisma-next contract emit` on 8.0.0-rc.1 or later, the derivation itself takes nothing away — the block names whatever the composed stack declares. It does not name the same list it did, though: PostgreSQL now declares eight operations and SQLite seven, and the bare results over integer columns moved — `count`, `sum`, and `avg`. `min` / `max` did not, nor did `sum` and `avg` over a float, `numeric`, `interval`, or `time` column, nor `sum` over an `UnboundedInt` column; each of those stays in its own family. Re-emit, then work the two entries that carry those changes — [`count-over-a-field-counts-that-field`](#count-over-a-field-counts-that-field) and [`aggregate-defaults-are-js-native-numbers`](#aggregate-defaults-are-js-native-numbers).
 
@@ -422,13 +422,13 @@ Property 'count' does not exist on type 'AggregateOperationsUnavailable'.
 Runtime behaviour is unchanged — the methods are installed from the composed registry either way — so a cast is a legitimate fix where the contract is deliberately un-emitted:
 
 ```ts
-import type { AggregateSpec } from "@internal/sql-orm-client";
+import type { AggregateSpec } from '@internal/sql-orm-client';
 
 type DynamicAggregates = Record<string, (field?: string) => AggregateSpec[string]>;
 
 const stats = await readings.aggregate((aggregate) => {
   const dynamic = aggregate as DynamicAggregates;
-  return { total: dynamic["sum"]!("counter"), peak: dynamic["max"]!("counter") };
+  return { total: dynamic['sum']!('counter'), peak: dynamic['max']!('counter') };
 });
 ```
 
@@ -436,12 +436,9 @@ The same shape works for an include reducer, whose callback receives the refinem
 
 ```ts
 const reduceToTotal = (related: unknown): unknown =>
-  (related as DynamicAggregates)["sum"]!("counter");
+  (related as DynamicAggregates)['sum']!('counter');
 
-await readings
-  .select("id")
-  .include("samples", (samples) => reduceToTotal(samples) as never)
-  .all();
+await readings.select('id').include('samples', (samples) => reduceToTotal(samples) as never).all();
 ```
 
 Where an argument was previously widened past the types — `aggregate.sum('counter' as never)` compiled because `AggregateFieldNames` was already `never` for such a contract — the cast moves from the argument to the builder, and the field name goes back to being a plain string.
@@ -456,7 +453,7 @@ The better fix, wherever the pack can emit, is to emit: run `prisma-next contrac
 await db.orm.User.aggregate((aggregate) => ({ all: aggregate.count() }));
 // SELECT COUNT(*) …
 
-await db.orm.User.aggregate((aggregate) => ({ named: aggregate.count("email") }));
+await db.orm.User.aggregate((aggregate) => ({ named: aggregate.count('email') }));
 // SELECT COUNT("email") … — rows whose email is NULL are not counted
 ```
 
@@ -477,15 +474,15 @@ Aggregate operation names are an open vocabulary, and they now reach the consume
 **Declare a `lower` hook.** The AST's `AggregateExpr` carries only alphabet names, so a novel operation has no default form; the hook builds its whole expression from existing nodes:
 
 ```ts
-import type { SqlAggregateDescriptor } from "@internal/sql-relational-core/aggregate-descriptor-registry";
-import { FunctionCallExpr } from "@internal/sql-relational-core/ast";
+import type { SqlAggregateDescriptor } from '@internal/sql-relational-core/aggregate-descriptor-registry';
+import { FunctionCallExpr } from '@internal/sql-relational-core/ast';
 
 const bitOr: SqlAggregateDescriptor = {
-  operation: "bitOr",
-  input: { kind: "codec", codecId: "pg/int8@1" },
-  output: { kind: "codec", codecId: "pg/int8@1" },
+  operation: 'bitOr',
+  input: { kind: 'codec', codecId: 'pg/int8@1' },
+  output: { kind: 'codec', codecId: 'pg/int8@1' },
   nullable: true,
-  lower: ({ expr }) => FunctionCallExpr.of("bit_or", expr === undefined ? [] : [expr]),
+  lower: ({ expr }) => FunctionCallExpr.of('bit_or', expr === undefined ? [] : [expr]),
 };
 ```
 
@@ -507,18 +504,18 @@ Reference: [the aggregate descriptor guide](https://github.com/prisma/prisma/blo
 
 Both built-in targets now split their aggregate vocabulary: the bare operations answer in the JS-native type, three new suffixed operations answer losslessly.
 
-| Operation     | Input                                               | Result codec                                | Was                             |
-| ------------- | --------------------------------------------------- | ------------------------------------------- | ------------------------------- |
-| `count`       | none or any                                         | `pg/int8number@1` / `sqlite/bigintnumber@1` | `pg/int8@1` / `sqlite/bigint@1` |
-| `countBigInt` | none or any                                         | `pg/int8@1` / `sqlite/bigint@1`             | — (new)                         |
-| `sum`         | `pg/int2@1`, `pg/int4@1`, `pg/int@1`, `sql/int@1`   | `pg/int8number@1`                           | `pg/int8@1`                     |
-| `sum`         | `pg/int8@1`, `pg/int8number@1`                      | `pg/int8number@1`                           | `pg/numeric@1`                  |
-| `sum`         | SQLite's integer codecs                             | `sqlite/bigintnumber@1`                     | `sqlite/bigint@1`               |
-| `sumBigInt`   | `pg/int2@1`, `pg/int4@1`, `pg/int@1`, `sql/int@1`   | `pg/int8@1`                                 | — (new)                         |
-| `sumBigInt`   | `pg/int8@1`, `pg/int8number@1`, `pg/unboundedint@1` | `pg/unboundedint@1`                         | — (new)                         |
-| `sumBigInt`   | SQLite's integer codecs                             | `sqlite/bigint@1`                           | — (new)                         |
-| `avg`         | every PostgreSQL integer codec                      | `pg/float8@1`, through a result cast        | `pg/numeric@1`                  |
-| `avgDecimal`  | every PostgreSQL integer codec, plus `pg/numeric@1` | `pg/numeric@1`                              | — (new)                         |
+| Operation | Input | Result codec | Was |
+| --- | --- | --- | --- |
+| `count` | none or any | `pg/int8number@1` / `sqlite/bigintnumber@1` | `pg/int8@1` / `sqlite/bigint@1` |
+| `countBigInt` | none or any | `pg/int8@1` / `sqlite/bigint@1` | — (new) |
+| `sum` | `pg/int2@1`, `pg/int4@1`, `pg/int@1`, `sql/int@1` | `pg/int8number@1` | `pg/int8@1` |
+| `sum` | `pg/int8@1`, `pg/int8number@1` | `pg/int8number@1` | `pg/numeric@1` |
+| `sum` | SQLite's integer codecs | `sqlite/bigintnumber@1` | `sqlite/bigint@1` |
+| `sumBigInt` | `pg/int2@1`, `pg/int4@1`, `pg/int@1`, `sql/int@1` | `pg/int8@1` | — (new) |
+| `sumBigInt` | `pg/int8@1`, `pg/int8number@1`, `pg/unboundedint@1` | `pg/unboundedint@1` | — (new) |
+| `sumBigInt` | SQLite's integer codecs | `sqlite/bigint@1` | — (new) |
+| `avg` | every PostgreSQL integer codec | `pg/float8@1`, through a result cast | `pg/numeric@1` |
+| `avgDecimal` | every PostgreSQL integer codec, plus `pg/numeric@1` | `pg/numeric@1` | — (new) |
 
 Everything else keeps its row: `min` / `max`, `sum` and `avg` over the float codecs, `sum` over `pg/numeric@1` and `pg/unboundedint@1`, `avg` over `pg/numeric@1` and `pg/interval@1`, and SQLite's `avg`, which was already `sqlite/real@1`.
 
@@ -527,7 +524,7 @@ Everything else keeps its row: `min` / `max`, `sum` and `avg` over the float cod
 ### What to do
 
 1. **Re-run your contract space's `contract emit`.** The `AggregateTypes` block in the committed `contract.d.ts` gains `countBigInt`, `sumBigInt`, and `avgDecimal`, and the changed result codecs on `count` / `sum` / `avg`.
-2. **Fix value assertions in pack tests.** `expect(stats.total).toBe(2n)` becomes `toBe(2)`; a decimal-string average expectation becomes a number. Where the test was proving exactness, change the _method_ to the suffixed variant rather than the expectation.
+2. **Fix value assertions in pack tests.** `expect(stats.total).toBe(2n)` becomes `toBe(2)`; a decimal-string average expectation becomes a number. Where the test was proving exactness, change the *method* to the suffixed variant rather than the expectation.
 3. **Fix rendered-SQL assertions on PostgreSQL `avg`.** An integer `avg` renders `CAST(avg("t"."c") AS float8)` where it rendered a plain `avg("t"."c")`. The cast is on the **result**, so the exact `numeric` mean is computed first and rounded once.
 4. **Expect a JSON number from a SQLite include aggregate.** `sqlite/bigintnumber@1` carries a JSON projection (`CAST(… AS INTEGER)`), so an included `count` or `sum` arrives inside `json_object` as a JSON number rather than a JSON string. The transport cast to text on the flat path is unchanged.
 5. **Retype SQL-builder comparison literals against an aggregate.** `fns.gt(a, b)` types both operands from one codec, so a literal compared against `fns.count()` or an integer `fns.sum(...)` follows the aggregate's new result codec: `fns.gt(fns.count(), 1n)` becomes `fns.gt(fns.count(), 1)`. The ORM's `having(...)` is not this case — its comparand is typed `number` outright.
@@ -539,12 +536,12 @@ Everything else keeps its row: `min` / `max`, `sum` and `avg` over the float cod
 A descriptor that declares `nullable: false` must declare `emptyResultJson` beside it:
 
 ```ts
-import type { SqlAggregateDescriptor } from "@internal/sql-relational-core/aggregate-descriptor-registry";
+import type { SqlAggregateDescriptor } from '@internal/sql-relational-core/aggregate-descriptor-registry';
 
 const count: SqlAggregateDescriptor = {
-  operation: "count",
-  input: { kind: "any" },
-  output: { kind: "codec", codecId: "pg/int8number@1" },
+  operation: 'count',
+  input: { kind: 'any' },
+  output: { kind: 'codec', codecId: 'pg/int8number@1' },
   nullable: false,
   emptyResultJson: 0,
 };
@@ -618,7 +615,6 @@ own normalized form — a `varchar` membership test comes back as
 drifts against the authored text. Equality for a wire-named check is name equality, because the
 hash already commits to the predicate; only an exact-named check compares its body, and then
 byte-for-byte.
-
 ## If your target pack authors checks
 
 Check emission is driven by a duck-typed `renderCheckExpressions` hook on the pack's
@@ -629,7 +625,6 @@ where `kind` is `'membership'` or `'elementNotNull'`. A pack without the hook em
 at all, which is how SQLite keeps its no-CHECK stance. Nothing in the return value is a name:
 the contract builder composes the prefix from the table, the column, and the kind, truncates it
 to 54 UTF-8 bytes, and appends the content hash.
-
 ## Hand-written checks are visible now
 
 Postgres introspection reads `pg_get_expr(c.conbin, c.conrelid)` and stores the predicate

@@ -71,7 +71,7 @@ changes:
 
 ## `replace-verify-with-verify-marker`
 
-Starting at the 0.12 release, the SQL runtime's marker-verification API is simplified. The previous `verify: { mode; requireMarker }` option carried two concerns — _when_ to verify and _whether to throw on absent markers_ — both of which leaked internal implementation detail into the public API. The new option is a single discriminated union: `verifyMarker?: 'onFirstUse' | false`, with `'onFirstUse'` as the default.
+Starting at the 0.12 release, the SQL runtime's marker-verification API is simplified. The previous `verify: { mode; requireMarker }` option carried two concerns — *when* to verify and *whether to throw on absent markers* — both of which leaked internal implementation detail into the public API. The new option is a single discriminated union: `verifyMarker?: 'onFirstUse' | false`, with `'onFirstUse'` as the default.
 
 The runtime's response to contract-marker drift also changes. Previously the runtime threw `CONTRACT.MARKER_MISMATCH` (or `CONTRACT.MARKER_MISSING`) on every query when the database's contract hash didn't match the runtime's. From 0.12 onward, the runtime emits a structured `warn`-level log line **once per runtime instance** and proceeds with the query. The intent is to make rolling deploys safe by default: a drifted-but-running app surfaces the warning loudly without crashing every query for the duration of the deploy window.
 
@@ -94,7 +94,7 @@ const runtime = createRuntime({
   stackInstance,
   context,
   driver,
-  verify: { mode: "onFirstUse", requireMarker: false },
+  verify: { mode: 'onFirstUse', requireMarker: false },
 });
 
 try {
@@ -102,7 +102,7 @@ try {
     // ...
   }
 } catch (err) {
-  if (err.code === "CONTRACT.MARKER_MISMATCH") {
+  if (err.code === 'CONTRACT.MARKER_MISMATCH') {
     // deploy-skew detected — crash and let the orchestrator restart us
     process.exit(1);
   }
@@ -122,8 +122,8 @@ const runtime = createRuntime({
     warn: (payload) => {
       console.warn(payload);
       if (
-        payload.code === "CONTRACT.MARKER_MISMATCH" ||
-        payload.code === "CONTRACT.MARKER_MISSING"
+        payload.code === 'CONTRACT.MARKER_MISMATCH' ||
+        payload.code === 'CONTRACT.MARKER_MISSING'
       ) {
         // optional: forward to your observability surface
         sendToTelemetry(payload);
@@ -166,8 +166,8 @@ Two consumer-visible consequences:
 ### Before 0.12
 
 ```ts
-import { defineContract } from "@internal/postgres/contract-builder";
-import { pgvector } from "@internal/pgvector";
+import { defineContract } from '@internal/postgres/contract-builder';
+import { pgvector } from '@internal/pgvector';
 
 export const contract = defineContract(
   {
@@ -177,7 +177,7 @@ export const contract = defineContract(
         lateral: true,
         jsonAgg: true,
         returning: true,
-        "pgvector.cosine": true,
+        'pgvector.cosine': true,
       },
     },
   },
@@ -190,8 +190,8 @@ export const contract = defineContract(
 ### Starting at 0.12
 
 ```ts
-import { defineContract } from "@internal/postgres/contract-builder";
-import { pgvector } from "@internal/pgvector";
+import { defineContract } from '@internal/postgres/contract-builder';
+import { pgvector } from '@internal/pgvector';
 
 export const contract = defineContract(
   {
@@ -298,7 +298,7 @@ After re-emitting and applying, run `pnpm typecheck && pnpm test` (or your appli
 
 Starting at the 0.12 release, un-namespaced Postgres models resolve to the `public` namespace id instead of falling back to the `__unbound__` sentinel. The emitted contract's default storage namespace key changes from `__unbound__` with `"kind": "postgres-unbound-schema"` to `public` with `"kind": "postgres-schema"`. Domain roots, FK `namespaceId` fields, and `contract.d.ts` namespace literals follow the same rename.
 
-Explicit opt-in to the sentinel remains available: `namespace unbound { … }` in PSL still round-trips to `__unbound__` on Postgres. Only contracts whose _default_ namespace is still the old sentinel shape need this migration.
+Explicit opt-in to the sentinel remains available: `namespace unbound { … }` in PSL still round-trips to `__unbound__` on Postgres. Only contracts whose *default* namespace is still the old sentinel shape need this migration.
 
 ### Re-emit Postgres contracts
 
