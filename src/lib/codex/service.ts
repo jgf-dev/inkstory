@@ -157,49 +157,56 @@ async function insertCodexEntry(
   });
 }
 
-async function createInitialAliases(
+/**
+ * Inserts all initial aliases for a new entry in a single bulk statement.
+ * Blank names are dropped after trimming. Returns the number of rows inserted.
+ */
+export async function createInitialAliases(
   entryId: string,
   aliases: string[] | undefined,
   now: Temporal.PlainDateTime,
-): Promise<void> {
-  if (!aliases || aliases.length === 0) return;
-
-  for (const aliasName of aliases) {
-    const trimmed = aliasName.trim();
-    if (trimmed) {
-      await db.orm.public.CodexAlias.create({
-        id: crypto.randomUUID(),
-        entryId,
-        name: trimmed,
-        createdAt: now,
-        updatedAt: now,
-        deletedAt: null,
-      });
-    }
-  }
+): Promise<number> {
+  const rows = (aliases ?? [])
+    .map((aliasName) => aliasName.trim())
+    .filter((name) => name.length > 0)
+    .map((name) => ({
+      id: crypto.randomUUID(),
+      entryId,
+      name,
+      createdAt: now,
+      updatedAt: now,
+      deletedAt: null,
+    }));
+  if (rows.length === 0) return 0;
+  return db.orm.public.CodexAlias.createAndCount(rows);
 }
 
-async function createInitialTags(
+/**
+ * Inserts all initial tags for a new entry in a single bulk statement.
+ * Blank names are dropped after trimming. Returns the number of rows inserted.
+ */
+export async function createInitialTags(
   entryId: string,
   tags: Array<{ name: string; color?: string | null }> | undefined,
   now: Temporal.PlainDateTime,
-): Promise<void> {
-  if (!tags || tags.length === 0) return;
-
-  for (const tag of tags) {
-    const trimmed = tag.name?.trim();
-    if (trimmed) {
-      await db.orm.public.CodexTag.create({
+): Promise<number> {
+  const rows = (tags ?? []).flatMap((tag) => {
+    const name = tag.name?.trim();
+    if (!name) return [];
+    return [
+      {
         id: crypto.randomUUID(),
         entryId,
-        name: trimmed,
+        name,
         color: tag.color ?? null,
         createdAt: now,
         updatedAt: now,
         deletedAt: null,
-      });
-    }
-  }
+      },
+    ];
+  });
+  if (rows.length === 0) return 0;
+  return db.orm.public.CodexTag.createAndCount(rows);
 }
 
 export async function createCodexEntry(userId: string, input: CreateCodexEntryInput) {
