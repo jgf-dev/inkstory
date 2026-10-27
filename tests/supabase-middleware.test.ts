@@ -103,9 +103,38 @@ describe("Supabase Middleware & Proxy", () => {
   });
 
   describe("updateSession E2E auth bypass", () => {
+    const originalNodeEnv = process.env.NODE_ENV;
+
     afterEach(() => {
       delete process.env.NEXT_PUBLIC_E2E;
+      (process.env as any).NODE_ENV = originalNodeEnv;
       vi.resetModules();
+    });
+
+    it("does not skip session refresh in production even if NEXT_PUBLIC_E2E is true and e2e-user cookie exists", async () => {
+      process.env.NEXT_PUBLIC_E2E = "true";
+      (process.env as any).NODE_ENV = "production";
+      mockGetUser.mockResolvedValue({ data: { user: null }, error: null });
+      mockCreateServerClient.mockImplementation(() => ({
+        auth: { getUser: mockGetUser },
+      }));
+
+      const mockRequest = {
+        cookies: {
+          get: vi.fn().mockReturnValue({ name: "e2e-user", value: "seed" }),
+          getAll: vi.fn().mockReturnValue([]),
+          set: vi.fn(),
+        },
+        headers: new Headers(),
+        nextUrl: new URL("http://localhost:3000/dashboard"),
+      } as unknown as NextRequest;
+
+      vi.resetModules();
+      const { updateSession } = await import("../src/lib/supabase/middleware");
+      await updateSession(mockRequest);
+
+      expect(mockCreateServerClient).toHaveBeenCalled();
+      expect(mockGetUser).toHaveBeenCalled();
     });
 
     it("skips Supabase session refresh when NEXT_PUBLIC_E2E is true and e2e-user cookie exists", async () => {

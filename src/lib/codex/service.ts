@@ -2,7 +2,6 @@ import { Temporal } from "temporal-polyfill";
 import { db } from "@/lib/prisma";
 import {
   assembleContext,
-  ContextAssemblyError,
   type AssembledContext,
   type ContextAssemblyOptions,
 } from "./context-assembler";
@@ -25,44 +24,10 @@ import type {
   UpdateCodexRelationInput,
 } from "./types";
 
-/**
- * Custom error class for Codex domain validation and authorization failures.
- */
-export class CodexError extends Error {
-  constructor(
-    message: string,
-    public readonly code:
-      | "NOT_FOUND"
-      | "FORBIDDEN"
-      | "VALIDATION_FAILED"
-      | "SCOPING_ERROR"
-      | "CONFLICT",
-    public readonly status: number = 400,
-  ) {
-    super(message);
-    this.name = "CodexError";
-  }
-}
+import { ensureCodexEntryQuota } from "@/lib/billing/entitlements";
+import { CodexError, handleCodexApiError } from "./errors";
 
-/**
- * Standardized API error handler for Codex REST routes.
- * Ensures malformed JSON (SyntaxError) returns 400 instead of 500.
- */
-export function handleCodexApiError(err: unknown): Response {
-  if (err instanceof SyntaxError) {
-    return Response.json(
-      { error: "Malformed or invalid JSON body", code: "INVALID_JSON" },
-      { status: 400 },
-    );
-  }
-  if (err instanceof CodexError) {
-    return Response.json({ error: err.message, code: err.code }, { status: err.status });
-  }
-  if (err instanceof ContextAssemblyError) {
-    return Response.json({ error: err.message, code: "CONTEXT_ASSEMBLY_FAILED" }, { status: 422 });
-  }
-  return Response.json({ error: "Internal server error" }, { status: 500 });
-}
+export { CodexError, handleCodexApiError };
 
 function nowTimestamp(): Temporal.PlainDateTime {
   return Temporal.Now.plainDateTimeISO();
@@ -154,24 +119,24 @@ async function resolveSceneContext(
 
 // ─── Entry CRUD ──────────────────────────────────────────────────────────────
 
-export async function createCodexEntry(userId: string, input: CreateCodexEntryInput) {
-  const trimmedName = input.name?.trim();
+function validateEntryName(name?: string): string {
+  const trimmedName = name?.trim();
   if (!trimmedName) {
     throw new CodexError("Entry name cannot be empty", "VALIDATION_FAILED", 422);
   }
+  return trimmedName;
+}
 
-  const isSeriesScoped = Boolean(input.seriesScoped);
-  const { resolvedNovelId, resolvedSeriesId } = await resolveAndValidateScope(
-    userId,
-    isSeriesScoped,
-    input.novelId,
-    input.seriesId,
-  );
-
-  const now = nowTimestamp();
+async function insertCodexEntry(
+  userId: string,
+  trimmedName: string,
+  input: CreateCodexEntryInput,
+  resolvedNovelId: string | null,
+  resolvedSeriesId: string | null,
+  now: Temporal.PlainDateTime,
+) {
   const entryId = crypto.randomUUID();
-
-  const entry = await db.orm.public.CodexEntry.create({
+  return db.orm.public.CodexEntry.create({
     id: entryId,
     ownerId: userId,
     name: trimmedName,
@@ -179,7 +144,7 @@ export async function createCodexEntry(userId: string, input: CreateCodexEntryIn
     description: input.description ?? "",
     notes: input.notes ?? null,
     trackingMode: input.trackingMode ?? "DETECTED",
-    seriesScoped: isSeriesScoped,
+    seriesScoped: Boolean(input.seriesScoped),
     novelId: resolvedNovelId,
     seriesId: resolvedSeriesId,
     customFields: (input.customFields as any) ?? null,
@@ -190,41 +155,87 @@ export async function createCodexEntry(userId: string, input: CreateCodexEntryIn
     updatedAt: now,
     deletedAt: null,
   });
+}
 
-  // Create optional initial aliases
-  if (input.aliases && input.aliases.length > 0) {
-    for (const aliasName of input.aliases) {
-      const trimmed = aliasName.trim();
-      if (trimmed) {
-        await db.orm.public.CodexAlias.create({
-          id: crypto.randomUUID(),
-          entryId: entry.id,
-          name: trimmed,
-          createdAt: now,
-          updatedAt: now,
-          deletedAt: null,
-        });
-      }
-    }
-  }
+/**
+ * Inserts all initial aliases for a new entry in a single bulk statement.
+ * Blank names are dropped after trimming. Returns the number of rows inserted.
+ */
+export async function createInitialAliases(
+  entryId: string,
+  aliases: string[] | undefined,
+  now: Temporal.PlainDateTime,
+): Promise<number> {
+  const rows = (aliases ?? [])
+    .map((aliasName) => aliasName.trim())
+    .filter((name) => name.length > 0)
+    .map((name) => ({
+      id: crypto.randomUUID(),
+      entryId,
+      name,
+      createdAt: now,
+      updatedAt: now,
+      deletedAt: null,
+    }));
+  if (rows.length === 0) return 0;
+  return db.orm.public.CodexAlias.createAndCount(rows);
+}
 
-  // Create optional initial tags
-  if (input.tags && input.tags.length > 0) {
-    for (const tag of input.tags) {
-      const trimmed = tag.name?.trim();
-      if (trimmed) {
-        await db.orm.public.CodexTag.create({
-          id: crypto.randomUUID(),
-          entryId: entry.id,
-          name: trimmed,
-          color: tag.color ?? null,
-          createdAt: now,
-          updatedAt: now,
-          deletedAt: null,
-        });
-      }
-    }
-  }
+/**
+ * Inserts all initial tags for a new entry in a single bulk statement.
+ * Blank names are dropped after trimming. Returns the number of rows inserted.
+ */
+export async function createInitialTags(
+  entryId: string,
+  tags: Array<{ name: string; color?: string | null }> | undefined,
+  now: Temporal.PlainDateTime,
+): Promise<number> {
+  const rows = (tags ?? []).flatMap((tag) => {
+    const name = tag.name?.trim();
+    if (!name) return [];
+    return [
+      {
+        id: crypto.randomUUID(),
+        entryId,
+        name,
+        color: tag.color ?? null,
+        createdAt: now,
+        updatedAt: now,
+        deletedAt: null,
+      },
+    ];
+  });
+  if (rows.length === 0) return 0;
+  return db.orm.public.CodexTag.createAndCount(rows);
+}
+
+export async function createCodexEntry(userId: string, input: CreateCodexEntryInput) {
+  const trimmedName = validateEntryName(input.name);
+
+  // Tier quota guard (STO-1210): 402 with an upgrade trigger on the Free plan.
+  await ensureCodexEntryQuota(userId);
+
+  const isSeriesScoped = Boolean(input.seriesScoped);
+  const { resolvedNovelId, resolvedSeriesId } = await resolveAndValidateScope(
+    userId,
+    isSeriesScoped,
+    input.novelId,
+    input.seriesId,
+  );
+
+  const now = nowTimestamp();
+
+  const entry = await insertCodexEntry(
+    userId,
+    trimmedName,
+    input,
+    resolvedNovelId,
+    resolvedSeriesId,
+    now,
+  );
+
+  await createInitialAliases(entry.id, input.aliases, now);
+  await createInitialTags(entry.id, input.tags, now);
 
   return getCodexEntry(userId, entry.id);
 }
@@ -298,6 +309,60 @@ export async function getCodexEntry(userId: string, entryId: string) {
   };
 }
 
+const CODEX_ENTRY_PASSTHROUGH_FIELDS = [
+  "type",
+  "description",
+  "notes",
+  "trackingMode",
+  "customFields",
+  "color",
+  "thumbnailUrl",
+  "position",
+] as const satisfies readonly (keyof UpdateCodexEntryInput)[];
+
+/** Collects the plain field updates for a codex entry, trimming and validating the name. */
+export function buildCodexEntryFieldUpdates(input: UpdateCodexEntryInput): Record<string, unknown> {
+  const updates: Record<string, unknown> = {};
+
+  if (input.name !== undefined) {
+    const trimmed = input.name.trim();
+    if (!trimmed) {
+      throw new CodexError("Entry name cannot be empty", "VALIDATION_FAILED", 422);
+    }
+    updates.name = trimmed;
+  }
+
+  for (const field of CODEX_ENTRY_PASSTHROUGH_FIELDS) {
+    if (input[field] !== undefined) updates[field] = input[field];
+  }
+
+  return updates;
+}
+
+/** Resolves the scoping columns when seriesScoped, novelId, or seriesId changes. */
+async function resolveCodexEntryScopeUpdate(
+  userId: string,
+  entry: { seriesScoped: boolean; novelId: string | null; seriesId: string | null },
+  input: UpdateCodexEntryInput,
+) {
+  const isSeriesScoped = input.seriesScoped !== undefined ? input.seriesScoped : entry.seriesScoped;
+  const targetNovelId = input.novelId !== undefined ? input.novelId : entry.novelId;
+  const targetSeriesId = input.seriesId !== undefined ? input.seriesId : entry.seriesId;
+
+  const { resolvedNovelId, resolvedSeriesId } = await resolveAndValidateScope(
+    userId,
+    isSeriesScoped,
+    targetNovelId,
+    targetSeriesId,
+  );
+
+  return {
+    seriesScoped: isSeriesScoped,
+    novelId: resolvedNovelId,
+    seriesId: resolvedSeriesId,
+  };
+}
+
 export async function updateCodexEntry(
   userId: string,
   entryId: string,
@@ -312,49 +377,17 @@ export async function updateCodexEntry(
     throw new CodexError("Unauthorized to update this codex entry", "FORBIDDEN", 403);
   }
 
-  const now = nowTimestamp();
   const updateData: Record<string, unknown> = {
-    updatedAt: now,
+    updatedAt: nowTimestamp(),
+    ...buildCodexEntryFieldUpdates(input),
   };
-
-  if (input.name !== undefined) {
-    const trimmed = input.name.trim();
-    if (!trimmed) {
-      throw new CodexError("Entry name cannot be empty", "VALIDATION_FAILED", 422);
-    }
-    updateData.name = trimmed;
-  }
-
-  if (input.type !== undefined) updateData.type = input.type;
-  if (input.description !== undefined) updateData.description = input.description;
-  if (input.notes !== undefined) updateData.notes = input.notes;
-  if (input.trackingMode !== undefined) updateData.trackingMode = input.trackingMode;
-  if (input.customFields !== undefined) updateData.customFields = input.customFields;
-  if (input.color !== undefined) updateData.color = input.color;
-  if (input.thumbnailUrl !== undefined) updateData.thumbnailUrl = input.thumbnailUrl;
-  if (input.position !== undefined) updateData.position = input.position;
-
-  // Handle scoping update if seriesScoped, novelId, or seriesId changed
-  const isSeriesScoped = input.seriesScoped !== undefined ? input.seriesScoped : entry.seriesScoped;
 
   if (
     input.seriesScoped !== undefined ||
     input.novelId !== undefined ||
     input.seriesId !== undefined
   ) {
-    const targetNovelId = input.novelId !== undefined ? input.novelId : entry.novelId;
-    const targetSeriesId = input.seriesId !== undefined ? input.seriesId : entry.seriesId;
-
-    const { resolvedNovelId, resolvedSeriesId } = await resolveAndValidateScope(
-      userId,
-      isSeriesScoped,
-      targetNovelId,
-      targetSeriesId,
-    );
-
-    updateData.seriesScoped = isSeriesScoped;
-    updateData.novelId = resolvedNovelId;
-    updateData.seriesId = resolvedSeriesId;
+    Object.assign(updateData, await resolveCodexEntryScopeUpdate(userId, entry, input));
   }
 
   await db.orm.public.CodexEntry.where({ id: entryId }).update(updateData);
@@ -785,14 +818,12 @@ export async function createCodexProgression(userId: string, input: CreateCodexP
         422,
       );
     }
-  } else {
-    if (entry.novelId !== sceneContext.novelId) {
-      throw new CodexError(
-        "Book-scoped entry cannot be linked to a scene in a different novel",
-        "SCOPING_ERROR",
-        422,
-      );
-    }
+  } else if (entry.novelId !== sceneContext.novelId) {
+    throw new CodexError(
+      "Book-scoped entry cannot be linked to a scene in a different novel",
+      "SCOPING_ERROR",
+      422,
+    );
   }
 
   const now = nowTimestamp();
@@ -873,26 +904,55 @@ export async function loadNovelSceneReadingOrder(
     .where((a) => a.deletedAt.isNull())
     .all();
 
+  if (acts.length === 0) {
+    return new Map();
+  }
+
+  const actMap = new Map<string, number>();
+  for (const act of acts) {
+    actMap.set(act.id, act.position);
+  }
+  const actIds = Array.from(actMap.keys());
+
+  const chapters = await db.orm.public.Chapter.where((c) => c.actId.in(actIds))
+    .where((c) => c.deletedAt.isNull())
+    .all();
+
+  if (chapters.length === 0) {
+    return new Map();
+  }
+
+  const chapterMap = new Map<string, { chapterPosition: number; actPosition: number }>();
+  for (const chapter of chapters) {
+    const actPosition = actMap.get(chapter.actId);
+    if (actPosition !== undefined) {
+      chapterMap.set(chapter.id, {
+        chapterPosition: chapter.position,
+        actPosition,
+      });
+    }
+  }
+  const chapterIds = Array.from(chapterMap.keys());
+
+  if (chapterIds.length === 0) {
+    return new Map();
+  }
+
+  const scenes = await db.orm.public.Scene.where((s) => s.chapterId.in(chapterIds))
+    .where((s) => s.deletedAt.isNull())
+    .all();
+
   const rows: SceneReadingOrderKey[] = [];
 
-  for (const act of acts) {
-    const chapters = await db.orm.public.Chapter.where((c) => c.actId.eq(act.id))
-      .where((c) => c.deletedAt.isNull())
-      .all();
-
-    for (const chapter of chapters) {
-      const scenes = await db.orm.public.Scene.where((s) => s.chapterId.eq(chapter.id))
-        .where((s) => s.deletedAt.isNull())
-        .all();
-
-      for (const scene of scenes) {
-        rows.push({
-          sceneId: scene.id,
-          actPosition: act.position,
-          chapterPosition: chapter.position,
-          scenePosition: scene.position,
-        });
-      }
+  for (const scene of scenes) {
+    const parentMeta = chapterMap.get(scene.chapterId);
+    if (parentMeta) {
+      rows.push({
+        sceneId: scene.id,
+        actPosition: parentMeta.actPosition,
+        chapterPosition: parentMeta.chapterPosition,
+        scenePosition: scene.position,
+      });
     }
   }
 
