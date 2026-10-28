@@ -1,0 +1,14 @@
+inputSet:
+  name: Build_inkstory_1793164287410-push-trigger-input-set
+  identifier: Build_inkstory_1793164287410pushtriggerinputset
+  orgIdentifier: default
+  projectIdentifier: inkstory
+  pipeline:
+    identifier: Build_inkstory_1793164287410
+    properties:
+      ci:
+        codebase:
+          build:
+            type: branch
+            spec:
+              branch: <+trigger.branch>
