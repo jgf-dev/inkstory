@@ -4,20 +4,22 @@
 
 InkStory application code uses **Supabase Auth + Prisma 8 (Prisma Next) against Supabase Postgres**. It does **not** use InsForge or `@insforge/sdk`; do not add InsForge clients or RLS patterns unless explicitly asked.
 
-| Layer | Actual code |
-| ----- | ----------- |
-| App | Next.js 16 App Router, React 19, `src/proxy.ts` session refresh |
-| Data | `prisma/contract.prisma`, `@prisma/orm-postgres`, `db.orm.public.*` in `src/lib/prisma.ts` |
-| Auth | `@supabase/ssr` cookie session; Codex routes 401 without `getUser()` |
-| Codex | `src/lib/codex/{service,actions,types,mention-detection,progression-engine,relation-engine,context-assembler}.ts` |
-| UI | `/dashboard` metrics, `/dashboard/codex` manager/editor |
-| Tooling | bun (CI/Vercel), vite-plus (`vp lint` / `vp fmt` / `vp test` / `vp check`) |
+| Layer   | Actual code                                                                                                       |
+| ------- | ----------------------------------------------------------------------------------------------------------------- |
+| App     | Next.js 16 App Router, React 19, `src/proxy.ts` session refresh                                                   |
+| Data    | `prisma/contract.prisma`, `@prisma/orm-postgres`, `db.orm.public.*` in `src/lib/prisma.ts`                        |
+| Auth    | `@supabase/ssr` cookie session; Codex routes 401 without `getUser()`                                              |
+| Codex   | `src/lib/codex/{service,actions,types,mention-detection,progression-engine,relation-engine,context-assembler}.ts` |
+| UI      | `/dashboard` metrics, `/dashboard/codex` manager/editor                                                           |
+| Tooling | bun (CI/Vercel), vite-plus (`vp lint` / `vp fmt` / `vp test` / `vp check`)                                        |
 
 Commands: `bun run dev`, `bun run test`, `bun run test:e2e`, `bun run db:update`, `bun run db:seed`, `bun run contract:emit`. There is no `db:migrate` or `db:studio`.
 
 Progressions (STO-1153) resolve descriptions with Act→Chapter→Scene order (`ADDITION` / `REPLACEMENT`) via `resolveCodexEntryAtScene`. Relation CRUD is on the API; graph expansion (STO-1154) ships on `main` as the pure `RelationEngine` (`src/lib/codex/relation-engine.ts`) — BFS, cycle detection, depth limit (default 2), dedupe — with no dedicated HTTP endpoint.
 
 Context assembly (STO-1170) is the pure `assembleContext` in `src/lib/codex/context-assembler.ts`: it takes pre-loaded entries, relations, progressions, and scene reading order, seeds from manual attachments → `ALWAYS` entries → detected mentions, expands relations (default depth 2), ranks/truncates (default 40), then applies progressions at the current scene. DB loading lives in `assembleCodexContextForScene` (`src/lib/codex/service.ts`), and `POST /api/context/assemble` returns the full `AssembledContext` for inspection (STO-1171); generation flows and Prompt Preview should call the same service function.
+
+Theming (JGF-128): the `ink-*` ramp is defined as CSS variables in `src/app/globals.css` and registered via `@theme inline`; `[data-theme="dark"]` ("Obsidian Desk") is an OKLCH lightness inversion of the same map, so components must use token classes (`bg-app`, `bg-card`, `text-primary`, `text-muted`, `border-subtle`, `bg-budget-*`) rather than hardcoded hex. Theme, prose font (`[data-prose-font]`), and workspace mode persist in localStorage (`src/lib/ui/preferences.ts`) with a pre-paint bootstrap in `src/app/layout.tsx`. The writing workspace ships three progressive-disclosure modes (Writer / Stage / Architect) in `WritingWorkspace.tsx`, gated by `NEXT_PUBLIC_INKSTORY_OPERATING_MODES=0` as a kill switch; the Relation Linker (`RelationLinkerModal`), Progression Timeline (`ProgressionTimelineDrawer`), and Token Budget Bar (`TokenBudgetBar` + `src/lib/codex/budget-segments.ts`) live under the novel workspace.
 
 ## Available skills
 

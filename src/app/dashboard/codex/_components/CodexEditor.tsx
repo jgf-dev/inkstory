@@ -16,6 +16,7 @@ import type { CodexTrackingMode, CodexType, JsonValue } from "@/lib/codex/types"
 import { CodexAliasesSection, CodexTagsSection } from "./CodexEditorSections";
 import type { RelationDraft } from "./RelationEditorModal";
 import { RelationEditorModal } from "./RelationEditorModal";
+import { RelationLinkerModal, type RelationChipData } from "./RelationLinkerModal";
 import type { ProgressionDraft } from "./ProgressionEditorModal";
 import { ProgressionEditorModal } from "./ProgressionEditorModal";
 
@@ -92,6 +93,28 @@ function parseFieldValue(raw: string): JsonValue {
   }
 }
 
+/**
+ * Maps a loaded entry's relation rows to Relation Linker chips (directional
+ * badges relative to the open entry).
+ */
+function linkerChipsFromEntry(entry: Record<string, any>): RelationChipData[] {
+  const outgoing: RelationChipData[] = (entry.sourceRelations ?? []).map((r: any) => ({
+    id: r.id,
+    otherName: r.targetEntry?.name ?? r.targetEntryId,
+    relationType: r.relationType,
+    reverseType: r.reverseType ?? null,
+    direction: "outgoing" as const,
+  }));
+  const incoming: RelationChipData[] = (entry.targetRelations ?? []).map((r: any) => ({
+    id: r.id,
+    otherName: r.sourceEntry?.name ?? r.sourceEntryId,
+    relationType: r.relationType,
+    reverseType: r.reverseType ?? null,
+    direction: "incoming" as const,
+  }));
+  return [...outgoing, ...incoming];
+}
+
 export function CodexEditor({
   entryId,
   initialEntry,
@@ -134,6 +157,7 @@ export function CodexEditor({
     open: boolean;
     relation: RelationDraft | null;
   }>({ open: false, relation: null });
+  const [linkerOpen, setLinkerOpen] = useState(false);
   const [progressionModal, setProgressionModal] = useState<{
     open: boolean;
     progression: ProgressionDraft | null;
@@ -643,13 +667,23 @@ export function CodexEditor({
               <h3 className="text-xs font-semibold uppercase tracking-wider text-ink-600">
                 Relations Graph
               </h3>
-              <button
-                type="button"
-                onClick={() => setRelationModal({ open: true, relation: null })}
-                className="rounded bg-ink-700 px-2.5 py-1 text-xs font-medium text-ink-50 hover:bg-ink-800"
-              >
-                + Add Relation
-              </button>
+              <span className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setLinkerOpen(true)}
+                  title="Open the Relation Linker (predicate picker + symmetry toggle)"
+                  className="rounded border border-ink-300 px-2.5 py-1 text-xs font-medium text-ink-700 hover:bg-ink-100"
+                >
+                  Link with predicates
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRelationModal({ open: true, relation: null })}
+                  className="rounded bg-ink-700 px-2.5 py-1 text-xs font-medium text-ink-50 hover:bg-ink-800"
+                >
+                  + Add Relation
+                </button>
+              </span>
             </div>
             <div className="mt-2 space-y-1.5" data-testid="relations-list">
               {entry.sourceRelations?.map((r: any) => (
@@ -833,6 +867,16 @@ export function CodexEditor({
           entries={entries}
           relation={relationModal.relation}
           onClose={() => setRelationModal({ open: false, relation: null })}
+          onSaved={refreshEntry}
+        />
+      )}
+      {linkerOpen && (
+        <RelationLinkerModal
+          isOpen
+          sourceEntry={{ id: entryId, name: entry.name }}
+          entries={entries}
+          existingRelations={linkerChipsFromEntry(entry)}
+          onClose={() => setLinkerOpen(false)}
           onSaved={refreshEntry}
         />
       )}
