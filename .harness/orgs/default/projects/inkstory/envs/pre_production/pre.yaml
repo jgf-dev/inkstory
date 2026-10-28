@@ -1,0 +1,8 @@
+environment:
+  name: pre
+  identifier: pre
+  description: ""
+  tags: {}
+  type: PreProduction
+  orgIdentifier: default
+  projectIdentifier: inkstory
