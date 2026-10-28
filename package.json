@@ -40,7 +40,7 @@
     "temporal-polyfill": "1.0.4"
   },
   "devDependencies": {
-    "@playwright/test": "^1.63.0",
+    "@playwright/test": "^1.64.1",
     "@prisma/cli": "8.0.0-rc.22",
     "@testing-library/react": "16.3.3",
     "@types/node": "26.5.1",
