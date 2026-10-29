@@ -7,8 +7,9 @@ describe("GET /api/health", () => {
   });
 
   it("returns a 200 Response with expected JSON payload", async () => {
-    const response = await GET();
+    const response = GET();
 
+    expect(response).toBeInstanceOf(Response);
     expect(response.status).toBe(200);
     expect(response.headers.get("content-type")).toContain("application/json");
 
@@ -27,7 +28,7 @@ describe("GET /api/health", () => {
     delete process.env.npm_package_version;
 
     try {
-      const response = await GET();
+      const response = GET();
       const data = await response.json();
       expect(data.version).toBe("0.1.0");
     } finally {
