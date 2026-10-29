@@ -4,6 +4,7 @@ import React, { useId } from "react";
 import type { CodexTrackingMode, CodexType } from "@/lib/codex/types";
 import { useCodexCreateForm } from "./useCodexCreateForm";
 import { a11yClasses } from "@/lib/ui/a11y-classes";
+import { CodexLabeledSelect } from "./CodexLabeledSelect";
 
 interface CodexCreateModalProps {
   isOpen: boolean;
@@ -87,47 +88,25 @@ export function CodexCreateModal({
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label
-                className="text-ink-600 block text-xs font-semibold uppercase tracking-wider"
-                htmlFor={`${fieldId}-type`}
-              >
-                Type
-              </label>
-              <select
-                id={`${fieldId}-type`}
-                value={formState.type}
-                onChange={(e) => actions.setType(e.target.value as CodexType)}
-                className={a11yClasses.codexCreateField}
-              >
-                {CODEX_TYPES.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <CodexLabeledSelect
+              id={`${fieldId}-type`}
+              label="Type"
+              value={formState.type}
+              onChange={(e) => actions.setType(e.target.value as CodexType)}
+              options={CODEX_TYPES}
+              className={a11yClasses.codexCreateField}
+              labelClassName="text-ink-600 block text-xs font-semibold uppercase tracking-wider"
+            />
 
-            <div>
-              <label
-                className="text-ink-600 block text-xs font-semibold uppercase tracking-wider"
-                htmlFor={`${fieldId}-tracking-mode`}
-              >
-                Tracking Mode
-              </label>
-              <select
-                id={`${fieldId}-tracking-mode`}
-                value={formState.trackingMode}
-                onChange={(e) => actions.setTrackingMode(e.target.value as CodexTrackingMode)}
-                className={a11yClasses.codexCreateField}
-              >
-                {TRACKING_MODES.map((m) => (
-                  <option key={m} value={m}>
-                    {m}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <CodexLabeledSelect
+              id={`${fieldId}-tracking-mode`}
+              label="Tracking Mode"
+              value={formState.trackingMode}
+              onChange={(e) => actions.setTrackingMode(e.target.value as CodexTrackingMode)}
+              options={TRACKING_MODES}
+              className={a11yClasses.codexCreateField}
+              labelClassName="text-ink-600 block text-xs font-semibold uppercase tracking-wider"
+            />
           </div>
 
           <ScopeSelector

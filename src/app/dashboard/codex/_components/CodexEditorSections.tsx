@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { a11yClasses } from "@/lib/ui/a11y-classes";
+import { CodexChipRemoveButton } from "./CodexChipRemoveButton";
 
 // Alias Components
 export interface CodexAliasItemProps {
@@ -13,14 +13,10 @@ export function CodexAliasItem({ alias, onDelete }: CodexAliasItemProps) {
   return (
     <span className="flex items-center gap-1 rounded bg-ink-100 px-2 py-0.5 text-xs text-ink-800">
       {alias.name}
-      <button
-        type="button"
+      <CodexChipRemoveButton
+        label={`Remove alias ${alias.name}`}
         onClick={() => onDelete(alias.id)}
-        aria-label={`Remove alias ${alias.name}`}
-        className={a11yClasses.iconRemoveButton}
-      >
-        ×
-      </button>
+      />
     </span>
   );
 }
@@ -86,14 +82,7 @@ export function CodexTagItem({ tag, onDelete }: CodexTagItemProps) {
   return (
     <span className="flex items-center gap-1 rounded bg-ink-100 px-2 py-0.5 text-xs text-ink-800">
       {tag.name}
-      <button
-        type="button"
-        onClick={() => onDelete(tag.id)}
-        aria-label={`Remove tag ${tag.name}`}
-        className={a11yClasses.iconRemoveButton}
-      >
-        ×
-      </button>
+      <CodexChipRemoveButton label={`Remove tag ${tag.name}`} onClick={() => onDelete(tag.id)} />
     </span>
   );
 }

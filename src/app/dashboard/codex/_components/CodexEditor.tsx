@@ -19,6 +19,7 @@ import { RelationEditorModal } from "./RelationEditorModal";
 import type { ProgressionDraft } from "./ProgressionEditorModal";
 import { ProgressionEditorModal } from "./ProgressionEditorModal";
 import { a11yClasses } from "@/lib/ui/a11y-classes";
+import { CodexLabeledSelect } from "./CodexLabeledSelect";
 
 interface CodexEditorProps {
   entryId: string;
@@ -491,47 +492,25 @@ export function CodexEditor({
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label
-                className="block text-xs font-semibold uppercase tracking-wider text-ink-600"
-                htmlFor={`${fieldId}-type`}
-              >
-                Type
-              </label>
-              <select
-                id={`${fieldId}-type`}
-                value={type}
-                onChange={(e) => setType(e.target.value as CodexType)}
-                className={a11yClasses.codexEditorField}
-              >
-                {CODEX_TYPES.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <CodexLabeledSelect
+              id={`${fieldId}-type`}
+              label="Type"
+              value={type}
+              onChange={(e) => setType(e.target.value as CodexType)}
+              options={CODEX_TYPES}
+              className={a11yClasses.codexEditorField}
+              labelClassName="block text-xs font-semibold uppercase tracking-wider text-ink-600"
+            />
 
-            <div>
-              <label
-                className="block text-xs font-semibold uppercase tracking-wider text-ink-600"
-                htmlFor={`${fieldId}-tracking-mode`}
-              >
-                Tracking Mode
-              </label>
-              <select
-                id={`${fieldId}-tracking-mode`}
-                value={trackingMode}
-                onChange={(e) => setTrackingMode(e.target.value as CodexTrackingMode)}
-                className={a11yClasses.codexEditorField}
-              >
-                {TRACKING_MODES.map((m) => (
-                  <option key={m} value={m}>
-                    {m}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <CodexLabeledSelect
+              id={`${fieldId}-tracking-mode`}
+              label="Tracking Mode"
+              value={trackingMode}
+              onChange={(e) => setTrackingMode(e.target.value as CodexTrackingMode)}
+              options={TRACKING_MODES}
+              className={a11yClasses.codexEditorField}
+              labelClassName="block text-xs font-semibold uppercase tracking-wider text-ink-600"
+            />
           </div>
 
           <div>
