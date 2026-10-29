@@ -143,12 +143,18 @@ describe("Supabase Client Factories", () => {
       const client = await createSupabaseServerClient();
 
       expect(mockCreateServerClient).not.toHaveBeenCalled();
-      const { data, error } = await client.auth.getUser();
+      const userPromise = client.auth.getUser();
+      expect(userPromise).toBeInstanceOf(Promise);
+      const { data, error } = await userPromise;
       expect(error).toBeNull();
       expect(data.user).toEqual(user);
-      const session = await client.auth.getSession();
+      const sessionPromise = client.auth.getSession();
+      expect(sessionPromise).toBeInstanceOf(Promise);
+      const session = await sessionPromise;
       expect(session.data.session?.user).toEqual(user);
-      const signOut = await client.auth.signOut();
+      const signOutPromise = client.auth.signOut();
+      expect(signOutPromise).toBeInstanceOf(Promise);
+      const signOut = await signOutPromise;
       expect(signOut.error).toBeNull();
     });
 
