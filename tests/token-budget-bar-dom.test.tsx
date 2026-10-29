@@ -82,6 +82,20 @@ describe("TokenBudgetBar (JGF-128)", () => {
     );
   });
 
+  it("opens the breakdown card on mouse enter", () => {
+    render(
+      React.createElement(TokenBudgetBar, {
+        segments: SEGMENTS,
+        maxTokens: 4000,
+        breakdown: { seed: [{ label: "World Seed", tokens: 800 }] },
+      }),
+    );
+    fireEvent.mouseEnter(screen.getByTestId("budget-segment-seed"));
+    expect(screen.getByTestId("budget-breakdown-seed").textContent).toContain("World Seed");
+    fireEvent.mouseLeave(screen.getByTestId("budget-segment-seed"));
+    expect(screen.queryByTestId("budget-breakdown-seed")).toBeNull();
+  });
+
   it("renders an all-buffer empty state at zero usage", () => {
     render(
       React.createElement(TokenBudgetBar, {

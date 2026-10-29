@@ -175,6 +175,47 @@ describe("RelationLinkerModal (JGF-128)", () => {
     expect(chips.textContent).toContain("──[home_of]──▶");
   });
 
+  it("navigates the target list with the keyboard", () => {
+    setup();
+    const input = screen.getByRole("combobox", { name: /Target Entity/ });
+    fireEvent.focus(input);
+    fireEvent.keyDown(input, { key: "ArrowDown" });
+    fireEvent.keyDown(input, { key: "ArrowDown" });
+    fireEvent.keyDown(input, { key: "ArrowUp" });
+    fireEvent.keyDown(input, { key: "Enter" });
+    expect((input as HTMLInputElement).value).toBe("Harbormaster Qhu");
+    fireEvent.focus(input);
+    fireEvent.keyDown(input, { key: "Escape" });
+    expect(screen.queryByRole("listbox")).toBeNull();
+  });
+
+  it("surfaces thrown action errors", async () => {
+    setup();
+    (actions.createCodexRelationAction as any).mockRejectedValueOnce(new Error("network failed"));
+    const input = screen.getByRole("combobox", { name: /Target Entity/ });
+    fireEvent.change(input, { target: { value: "qhu" } });
+    fireEvent.mouseDown(listboxOptions()[0]);
+    fireEvent.click(screen.getByRole("button", { name: "Link Relation" }));
+    expect(await screen.findByText("network failed")).toBeTruthy();
+  });
+
+  it("types a custom label into the custom field", () => {
+    setup();
+    fireEvent.change(screen.getByTestId("relation-predicate"), { target: { value: "custom" } });
+    const custom = screen.getByLabelText(/Custom relation label/);
+    fireEvent.change(custom, { target: { value: "bound_to" } });
+    expect((custom as HTMLInputElement).value).toBe("bound_to");
+  });
+
+  it("highlights a target option on mouse enter", () => {
+    setup();
+    const input = screen.getByRole("combobox", { name: /Target Entity/ });
+    fireEvent.focus(input);
+    fireEvent.mouseEnter(listboxOptions()[1]);
+    fireEvent.keyDown(input, { key: "Enter" });
+    expect((input as HTMLInputElement).value).toBe("Sunken Archives");
+  });
+
   it("surfaces action errors and keeps the modal open", async () => {
     const p = setup();
     (actions.createCodexRelationAction as any).mockResolvedValueOnce({
