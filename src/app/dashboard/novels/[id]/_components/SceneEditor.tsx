@@ -19,9 +19,19 @@ export interface SceneEditorProps {
    * repeated inserts of the same text still apply).
    */
   insertRequest?: { seq: number; text: string; sceneId: string } | null;
+  /**
+   * Live save-state/word-count stream for the Writer Mode status pill
+   * (JGF-128).
+   */
+  onStatusChange?: (status: SaveStatus, words: number) => void;
+  /**
+   * `"full"` renders the word count / save state / details cluster in the
+   * header; `"focus"` (Writer Mode) moves them to the workspace status pill.
+   */
+  chrome?: "full" | "focus";
 }
 
-type SaveStatus = "saved" | "dirty" | "saving" | "error";
+export type SaveStatus = "saved" | "dirty" | "saving" | "error";
 
 interface SceneSnapshot {
   title: string;
@@ -280,11 +290,18 @@ export function SceneEditor(props: SceneEditorProps) {
 
   const words = countWords(content);
 
+  // Stream save state + word count to the workspace (Writer Mode status pill).
+  const onStatusChangeRef = useRef(props.onStatusChange);
+  onStatusChangeRef.current = props.onStatusChange;
+  useEffect(() => {
+    onStatusChangeRef.current?.(status, words);
+  }, [status, words]);
+
   return (
     <div className="flex h-full min-w-0 flex-col" data-testid="scene-editor">
       <div className="border-ink-200 flex flex-wrap items-center gap-3 border-b px-6 py-3">
         <div className="min-w-0 flex-1">
-          <p className="text-ink-400 truncate text-xs">
+          <p className="text-muted truncate text-xs">
             {scene.actTitle} / {scene.chapterTitle}
           </p>
           <input
@@ -292,42 +309,44 @@ export function SceneEditor(props: SceneEditorProps) {
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             aria-label="Scene title"
-            className="w-full bg-transparent text-lg font-semibold text-ink-900 focus:outline-none"
+            className="w-full bg-transparent text-lg font-semibold text-primary focus:outline-none"
           />
         </div>
-        <div className="flex items-center gap-3">
-          <span className="text-ink-400 text-xs tabular-nums" data-testid="word-count">
-            {formatWordCount(words)}
-          </span>
-          <span
-            data-testid="save-status"
-            className={`text-xs font-medium ${
-              status === "error"
-                ? "text-red-600"
+        {props.chrome !== "focus" && (
+          <div className="flex items-center gap-3">
+            <span className="text-muted text-xs tabular-nums" data-testid="word-count">
+              {formatWordCount(words)}
+            </span>
+            <span
+              data-testid="save-status"
+              className={`text-xs font-medium ${
+                status === "error"
+                  ? "text-red-600"
+                  : status === "saving"
+                    ? "text-ink-500"
+                    : status === "dirty"
+                      ? "text-ink-400"
+                      : "text-emerald-600"
+              }`}
+            >
+              {status === "error"
+                ? "Save failed — draft kept locally"
                 : status === "saving"
-                  ? "text-ink-500"
+                  ? "Saving…"
                   : status === "dirty"
-                    ? "text-ink-400"
-                    : "text-emerald-600"
-            }`}
-          >
-            {status === "error"
-              ? "Save failed — draft kept locally"
-              : status === "saving"
-                ? "Saving…"
-                : status === "dirty"
-                  ? "Unsaved changes"
-                  : "All changes saved"}
-          </span>
-          <button
-            type="button"
-            onClick={() => setShowMeta((v) => !v)}
-            aria-expanded={showMeta}
-            className="rounded-md border border-ink-200 px-2.5 py-1 text-xs font-medium text-ink-700 hover:bg-ink-50"
-          >
-            {showMeta ? "Hide details" : "Details"}
-          </button>
-        </div>
+                    ? "Unsaved changes"
+                    : "All changes saved"}
+            </span>
+            <button
+              type="button"
+              onClick={() => setShowMeta((v) => !v)}
+              aria-expanded={showMeta}
+              className="rounded-md border border-ink-200 px-2.5 py-1 text-xs font-medium text-ink-700 hover:bg-ink-50"
+            >
+              {showMeta ? "Hide details" : "Details"}
+            </button>
+          </div>
+        )}
       </div>
 
       {restoreOffer && (
@@ -428,7 +447,7 @@ export function SceneEditor(props: SceneEditorProps) {
         placeholder="Start writing…"
         aria-label="Scene text"
         spellCheck
-        className="min-h-0 flex-1 resize-none bg-transparent px-6 py-5 font-serif text-[17px] leading-8 text-ink-900 placeholder:text-ink-300 focus:outline-none"
+        className="prose-canvas min-h-0 flex-1 resize-none bg-transparent px-6 py-5 text-[17px] leading-8 text-primary placeholder:text-ink-300 focus:outline-none"
       />
     </div>
   );

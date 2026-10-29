@@ -1,0 +1,42 @@
+{
+  "timestamp": "2026-10-28T19:50:17.524Z",
+  "contrast": {
+    "light": {
+      "text-primary on bg-app": "18.37:1",
+      "text-muted on rail footer bg": "6.17:1",
+      "seed segment on buffer track": "3.86:1",
+      "primary button label on fill": "17.23:1"
+    },
+    "dark": {
+      "text-primary on bg-app": "15.60:1",
+      "text-muted on rail footer bg": "4.98:1",
+      "seed segment on buffer track": "3.07:1",
+      "primary button label on fill": "15.16:1"
+    }
+  },
+  "notes": [
+    "Empty/error drawer and budget states captured with transport stubs where noted; all other states are live against the seeded local database."
+  ],
+  "screenshots": [
+    "architect-mode-dark-desktop.png",
+    "architect-mode-dark-mobile.png",
+    "architect-mode-light-desktop.png",
+    "architect-mode-light-mobile.png",
+    "progression-timeline-dark-desktop.png",
+    "progression-timeline-empty-light-desktop.png",
+    "progression-timeline-light-desktop.png",
+    "relation-linker-dark-desktop.png",
+    "relation-linker-light-desktop.png",
+    "stage-mode-dark-desktop.png",
+    "stage-mode-dark-mobile.png",
+    "stage-mode-light-desktop.png",
+    "stage-mode-light-mobile.png",
+    "token-budget-error-light-desktop.png",
+    "token-budget-over-budget-light-desktop.png",
+    "writer-mode-dark-desktop.png",
+    "writer-mode-dark-mobile.png",
+    "writer-mode-light-desktop.png",
+    "writer-mode-light-mobile.png",
+    "writer-mode-sans-prose-light-desktop.png"
+  ]
+}

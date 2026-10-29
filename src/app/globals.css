@@ -1,33 +1,135 @@
 @import "tailwindcss";
 @config "../../tailwind.config.ts";
 
+/*
+ * Semantic design tokens (JGF-128, design-audit-and-direction rev 4 §1.1).
+ *
+ * The existing `ink-*` ramp stays the single source of truth for color. Dark
+ * theme ("Obsidian Desk") is an OKLCH lightness inversion of the SAME token
+ * map — utilities like `bg-ink-50` / `text-ink-900` keep their semantic role
+ * in both themes, so no component needs a parallel hardcoded palette.
+ *
+ * `#8A7A55` (light ink-400) remains a decorative-border-only token in both
+ * themes (WCAG 1.4.11 non-text); interactive text never uses it.
+ */
 :root {
-  --background: var(--color-ink-50, #f7f5f1);
-  --foreground: var(--color-ink-900, #0b0802);
+  /* Ink ramp — light "Parchment Desk" (canonical values). */
+  --ink-50: #f7f5f1;
+  --ink-100: #ece6d8;
+  --ink-200: #d8cfb6;
+  --ink-300: #b9a982;
+  --ink-400: #8a7a55;
+  --ink-500: #5e5236;
+  --ink-600: #3f3622;
+  --ink-700: #29220f;
+  --ink-800: #171106;
+  --ink-900: #0b0802;
+
+  /* Semantic surface/text tokens (light). */
+  --bg-app: var(--ink-50);
+  --bg-card: #ffffff;
+  --bg-elevated: var(--ink-100);
+  --border-subtle: var(--ink-200);
+  --border-strong: var(--ink-400); /* >=3:1 on app bg; interactive boundaries */
+  --text-primary: var(--ink-900); /* 18.2:1 on parchment */
+  --text-secondary: var(--ink-600);
+  --text-muted: var(--ink-500); /* 6.48:1 on parchment */
+  --text-accent: var(--ink-500);
+
+  /* Token Budget Bar segments (design rev 4 §1.1). Categorical fills are
+     theme-stable; the buffer track inverts with the theme. */
+  --budget-seed: #64748b;
+  --budget-mentions: #06b6d4;
+  --budget-relations: #f59e0b;
+  --budget-progressions: #8b5cf6;
+  --budget-buffer: #e2e8f0;
+  --budget-overflow: #dc2626;
+
+  /* Typography: UI chrome is Inter/system everywhere; prose canvas is
+     author-selectable (JGF-128 scope item 6). */
+  --font-ui: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-prose: "Georgia", "Cambria", "Times New Roman", serif;
+  --font-prose-sans: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-prose-active: var(--font-prose);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: var(--color-ink-900, #0b0802);
-    --foreground: var(--color-ink-100, #ece6d8);
-  }
+/* Obsidian Desk — OKLCH lightness inversion of the ink ramp. */
+[data-theme="dark"] {
+  --ink-50: oklch(0.15 0.02 60); /* #16130E — app background */
+  --ink-100: oklch(0.2 0.02 60); /* #221E17 — card/surface */
+  --ink-200: #2d2820; /* elevated */
+  --ink-300: #3d352a; /* subtle border */
+  --ink-400: #6e6146; /* decorative border only (>=3:1 on app bg) */
+  --ink-500: #8f8573; /* muted text (>=4.5:1 on app/card) */
+  --ink-600: #c4bcac; /* secondary text */
+  --ink-700: #d8c7a3; /* accent text */
+  --ink-800: #e8e1d3;
+  --ink-900: oklch(0.92 0.02 70); /* #EFECE6 — primary text */
+
+  --bg-card: oklch(0.2 0.02 60); /* cards sit on the obsidian app bg */
+  --budget-buffer: #2d2820; /* elevated tone: >=3:1 against the seed segment */
+  --budget-overflow: #f87171;
+}
+
+[data-prose-font="sans"] {
+  --font-prose-active: var(--font-prose-sans);
+}
+
+/*
+ * Register the tokens with Tailwind. `inline` keeps the generated utilities
+ * pointing at the CSS variables so `[data-theme="dark"]` swaps them at
+ * runtime without a rebuild.
+ */
+@theme inline {
+  --color-ink-50: var(--ink-50);
+  --color-ink-100: var(--ink-100);
+  --color-ink-200: var(--ink-200);
+  --color-ink-300: var(--ink-300);
+  --color-ink-400: var(--ink-400);
+  --color-ink-500: var(--ink-500);
+  --color-ink-600: var(--ink-600);
+  --color-ink-700: var(--ink-700);
+  --color-ink-800: var(--ink-800);
+  --color-ink-900: var(--ink-900);
+
+  --color-app: var(--bg-app);
+  --color-card: var(--bg-card);
+  --color-elevated: var(--bg-elevated);
+  --color-subtle: var(--border-subtle);
+  --color-strong: var(--border-strong);
+  --color-primary: var(--text-primary);
+  --color-secondary: var(--text-secondary);
+  --color-muted: var(--text-muted);
+  --color-accent: var(--text-accent);
+
+  --color-budget-seed: var(--budget-seed);
+  --color-budget-mentions: var(--budget-mentions);
+  --color-budget-relations: var(--budget-relations);
+  --color-budget-progressions: var(--budget-progressions);
+  --color-budget-buffer: var(--budget-buffer);
+  --color-budget-overflow: var(--budget-overflow);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-sans, "Inter", ui-sans-serif, system-ui, sans-serif);
+  background: var(--bg-app);
+  color: var(--text-primary);
+  font-family: var(--font-ui);
 }
 
-/* Prose reading surfaces only (JGF-19): SceneEditor, reading previews,
-   landing display headings. UI controls inherit sans from body. */
+/* Prose canvas: the ONLY place the author-selected prose font applies. */
+.prose-canvas {
+  font-family: var(--font-prose-active);
+}
+
+/* Prose reading surfaces outside the editor (JGF-115): landing display
+   headings and reading previews use the default prose font. */
 .prose-reading {
-  font-family: var(--font-serif, "Georgia", "Cambria", "Times New Roman", serif);
+  font-family: var(--font-prose);
 }
 
-/* WCAG AA (JGF-19): visible focus on all interactive elements. */
+/* Visible focus ring on interactive elements in both themes (WCAG 2.4.7). */
 :where(a, button, input, select, textarea, [tabindex]):focus-visible {
-  outline: 2px solid var(--color-ink-800, #171106);
+  outline: 2px solid var(--border-strong);
   outline-offset: 2px;
 }
 
