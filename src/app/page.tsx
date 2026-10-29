@@ -112,7 +112,7 @@ export default async function Home() {
         <p className="mb-4 inline-block rounded-full border border-ink-200 bg-white px-3 py-1 text-xs font-medium text-ink-600">
           AI-aware story bible for novelists
         </p>
-        <h1 className="mx-auto max-w-3xl text-4xl font-semibold leading-tight tracking-tight sm:text-5xl">
+        <h1 className="prose-reading mx-auto max-w-3xl text-4xl font-semibold leading-tight tracking-tight sm:text-5xl">
           Write your novel. Your story bible writes with you.
         </h1>
         <p className="text-ink-500 mx-auto mt-5 max-w-2xl text-lg">

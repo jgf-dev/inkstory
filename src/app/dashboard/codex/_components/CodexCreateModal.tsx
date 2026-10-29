@@ -3,6 +3,8 @@
 import React, { useId } from "react";
 import type { CodexTrackingMode, CodexType } from "@/lib/codex/types";
 import { useCodexCreateForm } from "./useCodexCreateForm";
+import { a11yClasses } from "@/lib/ui/a11y-classes";
+import { CodexLabeledSelect } from "./CodexLabeledSelect";
 
 interface CodexCreateModalProps {
   isOpen: boolean;
@@ -81,52 +83,30 @@ export function CodexCreateModal({
               value={formState.name}
               onChange={(e) => actions.setName(e.target.value)}
               placeholder="e.g. Mara Vance, Sunken Archives"
-              className="border-ink-200 bg-ink-100 focus:border-ink-400 mt-1 w-full rounded-md border p-2 text-sm focus:outline-hidden"
+              className={a11yClasses.codexCreateField}
             />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label
-                className="text-ink-600 block text-xs font-semibold uppercase tracking-wider"
-                htmlFor={`${fieldId}-type`}
-              >
-                Type
-              </label>
-              <select
-                id={`${fieldId}-type`}
-                value={formState.type}
-                onChange={(e) => actions.setType(e.target.value as CodexType)}
-                className="border-ink-200 bg-ink-100 focus:border-ink-400 mt-1 w-full rounded-md border p-2 text-sm focus:outline-hidden"
-              >
-                {CODEX_TYPES.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <CodexLabeledSelect
+              id={`${fieldId}-type`}
+              label="Type"
+              value={formState.type}
+              onChange={(e) => actions.setType(e.target.value as CodexType)}
+              options={CODEX_TYPES}
+              className={a11yClasses.codexCreateField}
+              labelClassName="text-ink-600 block text-xs font-semibold uppercase tracking-wider"
+            />
 
-            <div>
-              <label
-                className="text-ink-600 block text-xs font-semibold uppercase tracking-wider"
-                htmlFor={`${fieldId}-tracking-mode`}
-              >
-                Tracking Mode
-              </label>
-              <select
-                id={`${fieldId}-tracking-mode`}
-                value={formState.trackingMode}
-                onChange={(e) => actions.setTrackingMode(e.target.value as CodexTrackingMode)}
-                className="border-ink-200 bg-ink-100 focus:border-ink-400 mt-1 w-full rounded-md border p-2 text-sm focus:outline-hidden"
-              >
-                {TRACKING_MODES.map((m) => (
-                  <option key={m} value={m}>
-                    {m}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <CodexLabeledSelect
+              id={`${fieldId}-tracking-mode`}
+              label="Tracking Mode"
+              value={formState.trackingMode}
+              onChange={(e) => actions.setTrackingMode(e.target.value as CodexTrackingMode)}
+              options={TRACKING_MODES}
+              className={a11yClasses.codexCreateField}
+              labelClassName="text-ink-600 block text-xs font-semibold uppercase tracking-wider"
+            />
           </div>
 
           <ScopeSelector
@@ -159,7 +139,7 @@ export function CodexCreateModal({
               value={formState.aliasesText}
               onChange={(e) => actions.setAliasesText(e.target.value)}
               placeholder="e.g. The Glass Weaver, Mara"
-              className="border-ink-200 bg-ink-100 focus:border-ink-400 mt-1 w-full rounded-md border p-2 text-sm focus:outline-hidden"
+              className={a11yClasses.codexCreateField}
             />
           </div>
 
@@ -176,7 +156,7 @@ export function CodexCreateModal({
               value={formState.description}
               onChange={(e) => actions.setDescription(e.target.value)}
               placeholder="Primary world bible description..."
-              className="border-ink-200 bg-ink-100 focus:border-ink-400 mt-1 w-full rounded-md border p-2 text-sm focus:outline-hidden"
+              className={a11yClasses.codexCreateField}
             />
           </div>
 
@@ -193,7 +173,7 @@ export function CodexCreateModal({
               value={formState.notes}
               onChange={(e) => actions.setNotes(e.target.value)}
               placeholder="Secret backstory, plot triggers, author reminders..."
-              className="border-ink-200 bg-ink-100 focus:border-ink-400 mt-1 w-full rounded-md border p-2 text-sm focus:outline-hidden"
+              className={a11yClasses.codexCreateField}
             />
           </div>
 
@@ -208,7 +188,12 @@ function ModalHeader({ onClose }: { onClose: () => void }) {
   return (
     <div className="mb-4 flex items-center justify-between border-b border-ink-200 pb-3">
       <h2 className="text-xl font-semibold">New Codex Entry</h2>
-      <button type="button" onClick={onClose} className="text-ink-400 hover:text-ink-700 text-sm">
+      <button
+        type="button"
+        onClick={onClose}
+        className={a11yClasses.dialogCloseButton}
+        aria-label="Close dialog"
+      >
         ✕
       </button>
     </div>
@@ -284,7 +269,7 @@ function TargetSelector({
             id={selectId}
             value={selectedSeriesId}
             onChange={(e) => onSeriesChange(e.target.value)}
-            className="border-ink-200 bg-ink-100 focus:border-ink-400 mt-1 w-full rounded-md border p-2 text-sm focus:outline-hidden"
+            className={a11yClasses.codexCreateField}
           >
             {series.map((s) => (
               <option key={s.id} value={s.id}>
@@ -314,7 +299,7 @@ function TargetSelector({
           id={selectId}
           value={selectedNovelId}
           onChange={(e) => onNovelChange(e.target.value)}
-          className="border-ink-200 bg-ink-100 focus:border-ink-400 mt-1 w-full rounded-md border p-2 text-sm focus:outline-hidden"
+          className={a11yClasses.codexCreateField}
         >
           {novels.map((n) => (
             <option key={n.id} value={n.id}>
@@ -356,10 +341,10 @@ function ColorPresetPicker({
             aria-label={`Color ${preset}`}
             aria-pressed={currentColor === preset}
             onClick={() => onSelectColor(preset)}
-            className={`h-6 w-6 rounded-full transition-transform ${
+            className={`${a11yClasses.colorSwatchBase} ${
               currentColor === preset
-                ? "scale-110 ring-2 ring-ink-800 ring-offset-1"
-                : "hover:scale-105"
+                ? a11yClasses.colorSwatchSelected
+                : a11yClasses.colorSwatchIdle
             }`}
             style={{ backgroundColor: preset }}
           />

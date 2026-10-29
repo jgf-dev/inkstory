@@ -110,17 +110,13 @@ describe("Auth Client Components", () => {
       const { LoginForm } = await import("../src/app/login/LoginForm");
       const { captured } = renderAndCapture(LoginForm);
 
-      // Find email and password inputs in children
       const children = React.Children.toArray(captured.props.children);
-      const emailContainer: any = children[0];
-      const passwordContainer: any = children[1];
-
-      const emailInput = emailContainer.props.children[1];
-      const passwordInput = passwordContainer.props.children[1];
+      const emailField: any = children[0];
+      const passwordField: any = children[1];
 
       expect(() => {
-        emailInput.props.onChange({ target: { value: "test@example.com" } });
-        passwordInput.props.onChange({ target: { value: "secret123" } });
+        emailField.props.onChange({ target: { value: "test@example.com" } });
+        passwordField.props.onChange({ target: { value: "secret123" } });
       }).not.toThrow();
     });
   });
@@ -196,15 +192,12 @@ describe("Auth Client Components", () => {
       const { captured } = renderAndCapture(SignupForm);
 
       const children = React.Children.toArray(captured.props.children);
-      const emailContainer: any = children[0];
-      const passwordContainer: any = children[1];
-
-      const emailInput = emailContainer.props.children[1];
-      const passwordInput = passwordContainer.props.children[1];
+      const emailField: any = children[0];
+      const passwordField: any = children[1];
 
       expect(() => {
-        emailInput.props.onChange({ target: { value: "newuser@example.com" } });
-        passwordInput.props.onChange({ target: { value: "newpassword" } });
+        emailField.props.onChange({ target: { value: "newuser@example.com" } });
+        passwordField.props.onChange({ target: { value: "newpassword" } });
       }).not.toThrow();
     });
   });
