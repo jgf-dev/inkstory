@@ -2,6 +2,7 @@ import { describe, expect, it } from "vite-plus/test";
 import {
   getPredicate,
   RELATION_PREDICATES,
+  type RelationPredicateId,
   resolveRelationTypes,
   validateRelationDraft,
 } from "../src/lib/codex/relation-predicates";
@@ -67,7 +68,7 @@ describe("relation predicates (JGF-128)", () => {
   });
 
   it("getPredicate falls back to custom for unknown ids", () => {
-    expect(getPredicate("custom").id).toBe("custom");
+    expect(getPredicate("not_a_predicate" as RelationPredicateId).id).toBe("custom");
   });
 
   it("validates target and custom label", () => {
