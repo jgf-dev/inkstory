@@ -380,6 +380,72 @@ describe("WritingWorkspace", () => {
     expect(screen.getByDisplayValue("Prose Two")).toBeTruthy();
     expect(screen.queryByDisplayValue("Prose One")).toBeNull();
   });
+
+  it("switches Writer/Stage/Architect modes and opens timeline + linker overlays", async () => {
+    window.localStorage.clear();
+    routeFetch((url) => {
+      if (url === "/api/scenes/scene-1") return { status: 200, body: { scene: makeScene() } };
+      if (url.startsWith("/api/codex/entries?"))
+        return {
+          status: 200,
+          body: {
+            entries: [
+              {
+                id: "mara",
+                name: "Mara Vance",
+                type: "CHARACTER",
+                description: "hero",
+                trackingMode: "detected",
+              },
+            ],
+          },
+        };
+      if (url === "/api/codex/entries/mara")
+        return {
+          status: 200,
+          body: {
+            entry: {
+              id: "mara",
+              name: "Mara Vance",
+              sourceRelations: [],
+              targetRelations: [],
+              progressions: [],
+            },
+          },
+        };
+      if (url === "/api/codex/mentions")
+        return { status: 200, body: { matchedEntryIds: [], matches: [] } };
+      return undefined;
+    });
+
+    render(
+      React.createElement(WritingWorkspace, { outline: makeOutline(), initialSceneId: "scene-1" }),
+    );
+    await screen.findByTestId("scene-editor");
+    expect(screen.getByTestId("writing-workspace").getAttribute("data-mode")).toBe("architect");
+    expect(screen.getByTestId("architect-mode")).toBeTruthy();
+    expect(screen.getByTestId("architect-rail")).toBeTruthy();
+
+    fireEvent.click(screen.getByTestId("mode-writer"));
+    expect(screen.getByTestId("writing-workspace").getAttribute("data-mode")).toBe("writer");
+    expect(screen.getByTestId("writer-outline-rail")).toBeTruthy();
+    expect(await screen.findByTestId("writer-status-pill")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Timeline" }));
+    expect(await screen.findByTestId("progression-timeline-drawer")).toBeTruthy();
+    fireEvent.click(screen.getByLabelText("Close progression timeline"));
+    expect(screen.queryByTestId("progression-timeline-drawer")).toBeNull();
+
+    fireEvent.click(screen.getByTestId("mode-stage"));
+    expect(screen.getByTestId("stage-mode")).toBeTruthy();
+    expect(screen.getByTestId("stage-console")).toBeTruthy();
+
+    fireEvent.click(screen.getByTestId("mode-architect"));
+    fireEvent.change(screen.getByTestId("linker-source-select"), { target: { value: "mara" } });
+    fireEvent.click(screen.getByRole("button", { name: "Open Relation Linker" }));
+    expect(await screen.findByTestId("relation-linker-modal")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByTestId("relation-linker-modal")).toBeNull();
+  });
 });
 
 describe("AiAssistantDrawer", () => {
