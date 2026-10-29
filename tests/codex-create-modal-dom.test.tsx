@@ -289,4 +289,34 @@ describe("CodexCreateModal DOM interactions", () => {
     );
     expect(presets[0].getAttribute("aria-pressed")).toBe("false");
   });
+  it("labels each scope radio with explicit text and toggles between them", () => {
+    render(
+      React.createElement(CodexCreateModal, {
+        isOpen: true,
+        onClose: vi.fn(),
+        novels: dummyNovels,
+        series: dummySeries,
+        onCreated: vi.fn(),
+      }),
+    );
+
+    const bookRadio = screen.getByLabelText("Book-specific") as HTMLInputElement;
+    const seriesRadio = screen.getByLabelText("Series-wide") as HTMLInputElement;
+    expect(bookRadio.type).toBe("radio");
+    expect(seriesRadio.type).toBe("radio");
+    expect(bookRadio.checked).toBe(true);
+    expect(seriesRadio.checked).toBe(false);
+
+    // Label text lives in its own element rather than as bare text after <input>.
+    expect(bookRadio.nextElementSibling?.textContent).toBe("Book-specific");
+    expect(seriesRadio.nextElementSibling?.textContent).toBe("Series-wide");
+
+    fireEvent.click(seriesRadio);
+    expect(seriesRadio.checked).toBe(true);
+    expect(bookRadio.checked).toBe(false);
+
+    fireEvent.click(bookRadio);
+    expect(bookRadio.checked).toBe(true);
+    expect(seriesRadio.checked).toBe(false);
+  });
 });
