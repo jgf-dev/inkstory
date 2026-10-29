@@ -235,7 +235,7 @@ function ScopeSelector({
             checked={!seriesScoped}
             onChange={() => onScopeChange(false)}
           />
-          Book-specific
+          <span>Book-specific</span>
         </label>
         <label className="flex items-center gap-1.5 text-sm">
           <input
@@ -244,7 +244,7 @@ function ScopeSelector({
             checked={seriesScoped}
             onChange={() => onScopeChange(true)}
           />
-          Series-wide
+          <span>Series-wide</span>
         </label>
       </div>
     </div>
