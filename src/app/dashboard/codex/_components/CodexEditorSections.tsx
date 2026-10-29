@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { a11yClasses } from "@/lib/ui/a11y-classes";
 
 // Alias Components
 export interface CodexAliasItemProps {
@@ -16,7 +17,7 @@ export function CodexAliasItem({ alias, onDelete }: CodexAliasItemProps) {
         type="button"
         onClick={() => onDelete(alias.id)}
         aria-label={`Remove alias ${alias.name}`}
-        className="ml-1 flex min-h-9 min-w-9 items-center justify-center text-ink-500 hover:text-ink-700"
+        className={a11yClasses.iconRemoveButton}
       >
         ×
       </button>
@@ -89,7 +90,7 @@ export function CodexTagItem({ tag, onDelete }: CodexTagItemProps) {
         type="button"
         onClick={() => onDelete(tag.id)}
         aria-label={`Remove tag ${tag.name}`}
-        className="ml-1 flex min-h-9 min-w-9 items-center justify-center text-ink-500 hover:text-ink-700"
+        className={a11yClasses.iconRemoveButton}
       >
         ×
       </button>

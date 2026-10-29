@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { a11yClasses } from "@/lib/ui/a11y-classes";
 
 export function LoginForm() {
   const router = useRouter();
@@ -44,7 +45,7 @@ export function LoginForm() {
           required
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="border-ink-300 mt-1 block w-full rounded-md border px-3 py-2 text-sm focus:border-ink-600"
+          className={a11yClasses.authField}
         />
       </div>
       <div>
@@ -58,7 +59,7 @@ export function LoginForm() {
           minLength={6}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="border-ink-300 mt-1 block w-full rounded-md border px-3 py-2 text-sm focus:border-ink-600"
+          className={a11yClasses.authField}
         />
       </div>
 

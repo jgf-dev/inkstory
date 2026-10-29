@@ -5,6 +5,7 @@ import Link from "next/link";
 import { CodexCreateModal } from "./CodexCreateModal";
 import { CodexEditor } from "./CodexEditor";
 import type { CodexType } from "@/lib/codex/types";
+import { a11yClasses } from "@/lib/ui/a11y-classes";
 
 interface CodexManagerProps {
   initialEntries: any[];
@@ -100,7 +101,7 @@ export function CodexManager({ initialEntries, novels, series }: CodexManagerPro
               placeholder="Search entries..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full rounded-md border border-ink-200 bg-ink-50 px-3 py-2 text-sm text-ink-900 placeholder:text-ink-500 focus:border-ink-600 focus:outline-hidden"
+              className={a11yClasses.codexSearch}
             />
           </div>
 
