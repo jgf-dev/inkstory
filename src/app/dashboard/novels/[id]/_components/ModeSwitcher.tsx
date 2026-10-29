@@ -18,7 +18,7 @@ export interface ModeSwitcherProps {
  * Segmented control with 44px targets; the active mode is announced via
  * aria-pressed.
  */
-export function ModeSwitcher({ mode, onChange }: ModeSwitcherProps) {
+export function ModeSwitcher({ mode, onChange }: Readonly<ModeSwitcherProps>) {
   return (
     <div
       role="group"

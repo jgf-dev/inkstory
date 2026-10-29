@@ -20,7 +20,7 @@ export interface StatusPillProps {
  * Writer Mode status pill (JGF-128): subtle bottom-anchored pill carrying the
  * live word count and save state so the prose column stays chrome-free.
  */
-export function StatusPill({ words, saveState }: StatusPillProps) {
+export function StatusPill({ words, saveState }: Readonly<StatusPillProps>) {
   return (
     <div
       role="status"

@@ -75,6 +75,122 @@ function toAssembledEntry(
   };
 }
 
+function sumTokens(items: BudgetBreakdownItem[]): number {
+  return items.reduce((s, i) => s + i.tokens, 0);
+}
+
+function buildSeedItems(alwaysEntries: CodexEntrySummary[]): BudgetBreakdownItem[] {
+  return [
+    { label: "System prompt & core rules", tokens: estimateWrapperTokens() },
+    ...alwaysEntries.map((e) => ({
+      label: e.name,
+      tokens: estimateFormattedEntryTokens(toAssembledEntry(e, "always")),
+    })),
+  ];
+}
+
+function buildMentionItems(mentionedEntries: CodexEntrySummary[]): BudgetBreakdownItem[] {
+  return mentionedEntries.map((e) => ({
+    label: e.name,
+    tokens: estimateFormattedEntryTokens(toAssembledEntry(e, "mention")),
+  }));
+}
+
+/** 1st-degree relation neighbors of mentioned entries (not already counted). */
+function buildRelationItems(
+  mentionedIds: readonly string[],
+  entries: readonly CodexEntrySummary[],
+  details: ReadonlyMap<string, CodexEntryDetail>,
+  counted: ReadonlySet<string>,
+): BudgetBreakdownItem[] {
+  const relationItems: BudgetBreakdownItem[] = [];
+  const seenNeighbors = new Set<string>();
+  for (const id of mentionedIds) {
+    const detail = details.get(id);
+    if (!detail) continue;
+    const neighborIds = [
+      ...(detail.sourceRelations ?? []).map((r) => r.targetEntryId),
+      ...(detail.targetRelations ?? []).map((r) => r.sourceEntryId),
+    ];
+    for (const neighborId of neighborIds) {
+      if (counted.has(neighborId) || seenNeighbors.has(neighborId)) continue;
+      seenNeighbors.add(neighborId);
+      const neighbor = entries.find((e) => e.id === neighborId);
+      if (!neighbor) continue;
+      relationItems.push({
+        label: neighbor.name,
+        tokens: estimateFormattedEntryTokens(toAssembledEntry(neighbor, "relation")),
+      });
+    }
+  }
+  return relationItems;
+}
+
+/** Progressions applicable at the open scene, for entries already in context. */
+function buildProgressionItems(
+  details: ReadonlyMap<string, CodexEntryDetail>,
+  counted: ReadonlySet<string>,
+  mentionedSet: ReadonlySet<string>,
+  currentSceneIndex: number | null,
+  sceneIndexById: ReadonlyMap<string, number>,
+): BudgetBreakdownItem[] {
+  if (currentSceneIndex === null) return [];
+  const progressionItems: BudgetBreakdownItem[] = [];
+  for (const [entryId, detail] of details) {
+    if (!counted.has(entryId) && !mentionedSet.has(entryId)) continue;
+    for (const p of detail.progressions ?? []) {
+      const sceneIndex = sceneIndexById.get(p.sceneId);
+      if (sceneIndex === undefined || sceneIndex > currentSceneIndex) continue;
+      progressionItems.push({
+        label: `${detail.name} — ${p.mode === "REPLACEMENT" ? "replaces" : "adds"}`,
+        tokens: estimateTokens(p.description ?? ""),
+      });
+    }
+  }
+  return progressionItems;
+}
+
+function deriveBudgetBreakdown(
+  entries: readonly CodexEntrySummary[],
+  details: ReadonlyMap<string, CodexEntryDetail>,
+  mentionedIds: readonly string[],
+  currentSceneIndex: number | null,
+  sceneIndexById: ReadonlyMap<string, number>,
+): Pick<CodexBudgetData, "segments" | "breakdown"> {
+  const mentionedSet = new Set(mentionedIds);
+  const alwaysEntries = entries.filter((e) => e.trackingMode === "ALWAYS");
+  const mentionedEntries = entries.filter(
+    (e) => mentionedSet.has(e.id) && e.trackingMode !== "ALWAYS",
+  );
+  const counted = new Set([...alwaysEntries.map((e) => e.id), ...mentionedSet]);
+
+  const seedItems = buildSeedItems(alwaysEntries);
+  const mentionItems = buildMentionItems(mentionedEntries);
+  const relationItems = buildRelationItems(mentionedIds, entries, details, counted);
+  const progressionItems = buildProgressionItems(
+    details,
+    counted,
+    mentionedSet,
+    currentSceneIndex,
+    sceneIndexById,
+  );
+
+  return {
+    segments: [
+      { id: "seed", tokens: sumTokens(seedItems) },
+      { id: "mentions", tokens: sumTokens(mentionItems) },
+      { id: "relations", tokens: sumTokens(relationItems) },
+      { id: "progressions", tokens: sumTokens(progressionItems) },
+    ],
+    breakdown: {
+      seed: seedItems,
+      mentions: mentionItems,
+      relations: relationItems,
+      progressions: progressionItems,
+    },
+  };
+}
+
 /**
  * Loads the novel's Codex entries plus details for mentioned entries, and
  * derives the Token Budget Bar segments. Mirrors the Context Assembler's
@@ -165,67 +281,13 @@ export function useCodexBudget(
     [fetchDetail],
   );
 
-  return useMemo(() => {
-    const mentionedSet = new Set(mentionedIds);
-    const alwaysEntries = entries.filter((e) => e.trackingMode === "ALWAYS");
-    const mentionedEntries = entries.filter(
-      (e) => mentionedSet.has(e.id) && e.trackingMode !== "ALWAYS",
-    );
+  const derived = useMemo(
+    () => deriveBudgetBreakdown(entries, details, mentionedIds, currentSceneIndex, sceneIndexById),
+    [entries, details, mentionedIds, currentSceneIndex, sceneIndexById],
+  );
 
-    const seedItems: BudgetBreakdownItem[] = [
-      { label: "System prompt & core rules", tokens: estimateWrapperTokens() },
-      ...alwaysEntries.map((e) => ({
-        label: e.name,
-        tokens: estimateFormattedEntryTokens(toAssembledEntry(e, "always")),
-      })),
-    ];
-    const mentionItems: BudgetBreakdownItem[] = mentionedEntries.map((e) => ({
-      label: e.name,
-      tokens: estimateFormattedEntryTokens(toAssembledEntry(e, "mention")),
-    }));
-
-    // 1st-degree relation neighbors of mentioned entries (not already counted).
-    const counted = new Set([...alwaysEntries.map((e) => e.id), ...mentionedSet]);
-    const relationItems: BudgetBreakdownItem[] = [];
-    const seenNeighbors = new Set<string>();
-    for (const id of mentionedSet) {
-      const detail = details.get(id);
-      if (!detail) continue;
-      const neighborIds = [
-        ...(detail.sourceRelations ?? []).map((r) => r.targetEntryId),
-        ...(detail.targetRelations ?? []).map((r) => r.sourceEntryId),
-      ];
-      for (const neighborId of neighborIds) {
-        if (counted.has(neighborId) || seenNeighbors.has(neighborId)) continue;
-        seenNeighbors.add(neighborId);
-        const neighbor = entries.find((e) => e.id === neighborId);
-        if (!neighbor) continue;
-        relationItems.push({
-          label: neighbor.name,
-          tokens: estimateFormattedEntryTokens(toAssembledEntry(neighbor, "relation")),
-        });
-      }
-    }
-
-    // Progressions applicable at the open scene, for entries in context.
-    const progressionItems: BudgetBreakdownItem[] = [];
-    if (currentSceneIndex !== null) {
-      for (const [entryId, detail] of details) {
-        if (!counted.has(entryId) && !mentionedSet.has(entryId)) continue;
-        for (const p of detail.progressions ?? []) {
-          const sceneIndex = sceneIndexById.get(p.sceneId);
-          if (sceneIndex === undefined || sceneIndex > currentSceneIndex) continue;
-          progressionItems.push({
-            label: `${detail.name} — ${p.mode === "REPLACEMENT" ? "replaces" : "adds"}`,
-            tokens: estimateTokens(p.description ?? ""),
-          });
-        }
-      }
-    }
-
-    const sum = (items: BudgetBreakdownItem[]) => items.reduce((s, i) => s + i.tokens, 0);
-
-    return {
+  return useMemo(
+    () => ({
       loading,
       error,
       entries,
@@ -233,28 +295,8 @@ export function useCodexBudget(
       ensureDetail,
       invalidateDetail,
       reload: () => setReloadKey((k) => k + 1),
-      segments: [
-        { id: "seed", tokens: sum(seedItems) },
-        { id: "mentions", tokens: sum(mentionItems) },
-        { id: "relations", tokens: sum(relationItems) },
-        { id: "progressions", tokens: sum(progressionItems) },
-      ],
-      breakdown: {
-        seed: seedItems,
-        mentions: mentionItems,
-        relations: relationItems,
-        progressions: progressionItems,
-      },
-    };
-  }, [
-    entries,
-    details,
-    mentionedIds,
-    currentSceneIndex,
-    sceneIndexById,
-    loading,
-    error,
-    ensureDetail,
-    invalidateDetail,
-  ]);
+      ...derived,
+    }),
+    [loading, error, entries, details, ensureDetail, invalidateDetail, derived],
+  );
 }

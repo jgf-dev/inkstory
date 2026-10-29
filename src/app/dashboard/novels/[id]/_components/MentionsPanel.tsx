@@ -25,7 +25,11 @@ interface MentionGroup {
  * result per entry with occurrence counts so the author can see which codex
  * entries this scene touches at a glance.
  */
-export function MentionsPanel({ detection, scanning, onLinkRelation }: MentionsPanelProps) {
+export function MentionsPanel({
+  detection,
+  scanning,
+  onLinkRelation,
+}: Readonly<MentionsPanelProps>) {
   const groups = useMemo<MentionGroup[]>(() => {
     if (!detection) return [];
     const byEntry = new Map<string, MentionGroup>();

@@ -40,7 +40,7 @@ export function ProgressionTimelineDrawer({
   outline,
   currentSceneId = null,
   onClose,
-}: ProgressionTimelineDrawerProps) {
+}: Readonly<ProgressionTimelineDrawerProps>) {
   const coordinates = useMemo(() => flattenScenesInReadingOrder(outline), [outline]);
   const indexBySceneId = useMemo(
     () => new Map(coordinates.map((c) => [c.sceneId, c.index])),
@@ -118,8 +118,12 @@ export function ProgressionTimelineDrawer({
     <div
       className="fixed inset-0 z-50 flex justify-end bg-black/50 backdrop-blur-xs"
       data-testid="progression-timeline-drawer"
+      role="presentation"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "Escape") onClose();
       }}
     >
       <div
@@ -141,17 +145,20 @@ export function ProgressionTimelineDrawer({
 
         {coordinates.length > 0 && (
           <div className="border-b border-ink-200 px-4 py-3">
-            <label className="block text-xs font-semibold uppercase tracking-wider text-muted">
+            <label
+              htmlFor="progression-plot-coordinate"
+              className="block text-xs font-semibold uppercase tracking-wider text-muted"
+            >
               Plot coordinate
             </label>
             <input
+              id="progression-plot-coordinate"
               type="range"
               min={0}
               max={Math.max(0, coordinates.length - 1)}
               step={1}
               value={sliderIndex}
               onChange={(e) => setSliderIndex(Number(e.target.value))}
-              aria-label="Scene coordinate in reading order"
               aria-valuetext={selectedCoordinate?.label}
               className="mt-2 w-full accent-ink-400"
               data-testid="progression-slider"

@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useMemo, useRef, useState } from "react";
+import { useId, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import { createCodexRelationAction } from "@/lib/codex/actions";
 import {
   RELATION_PREDICATES,
@@ -47,7 +47,7 @@ export function RelationLinkerModal({
   existingRelations = [],
   onClose,
   onSaved,
-}: RelationLinkerModalProps) {
+}: Readonly<RelationLinkerModalProps>) {
   const fieldId = useId();
   const [predicateId, setPredicateId] = useState<RelationPredicateId>("allies_with");
   const [customLabel, setCustomLabel] = useState("");
@@ -85,7 +85,7 @@ export function RelationLinkerModal({
     setHighlighted(0);
   }
 
-  function onTargetKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+  function onTargetKeyDown(e: KeyboardEvent<HTMLInputElement>) {
     if (e.key === "ArrowDown") {
       e.preventDefault();
       setListOpen(true);
@@ -101,7 +101,7 @@ export function RelationLinkerModal({
     }
   }
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
 

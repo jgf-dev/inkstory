@@ -3,6 +3,10 @@
 import { useState } from "react";
 import { nextFixtureBeat, STAGE_FIXTURE_AGENTS, type RehearsalBeat } from "@/lib/stage/fixtures";
 
+function resolveAgentName(agentId: string): string {
+  return STAGE_FIXTURE_AGENTS.find((a) => a.id === agentId)?.name ?? "Agent";
+}
+
 export interface StageConsolePanelProps {
   /** Inserts a rehearsed beat into the active scene prose. */
   onInsertBeat: (text: string) => void;
@@ -18,12 +22,8 @@ interface TranscriptEntry extends RehearsalBeat {
  * into the scene. Until the multi-agent backend lands, beats come from typed
  * fixtures and the panel says so.
  */
-export function StageConsolePanel({ onInsertBeat }: StageConsolePanelProps) {
+export function StageConsolePanel({ onInsertBeat }: Readonly<StageConsolePanelProps>) {
   const [transcript, setTranscript] = useState<TranscriptEntry[]>([]);
-
-  function agentName(agentId: string): string {
-    return STAGE_FIXTURE_AGENTS.find((a) => a.id === agentId)?.name ?? "Agent";
-  }
 
   function runNextBeat() {
     const next = nextFixtureBeat(transcript.at(-1)?.id ?? null);
@@ -55,7 +55,7 @@ export function StageConsolePanel({ onInsertBeat }: StageConsolePanelProps) {
                 className="rounded-lg border border-ink-200 bg-card p-3"
               >
                 <p className="text-[11px] font-semibold uppercase tracking-wide text-muted">
-                  {agentName(entry.agentId)}
+                  {resolveAgentName(entry.agentId)}
                 </p>
                 <p className="prose-canvas mt-1 text-sm leading-6 text-primary">{entry.text}</p>
                 <button

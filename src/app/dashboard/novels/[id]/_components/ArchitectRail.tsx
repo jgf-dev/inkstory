@@ -4,6 +4,12 @@ import { useState } from "react";
 import type { CodexBudgetData } from "./useCodexBudget";
 import { TokenBudgetBar } from "./TokenBudgetBar";
 
+function progressionSummary(count: number): string {
+  if (count <= 0) return "Scene-level overrides in reading order.";
+  const noun = count === 1 ? "progression" : "progressions";
+  return `${count} ${noun} across mentioned entries.`;
+}
+
 export interface ArchitectRailProps {
   budget: CodexBudgetData;
   /** Opens the Relation Linker for the given source entry. */
@@ -17,7 +23,11 @@ export interface ArchitectRailProps {
  * Relation Linker entry point, the Progression Timeline entry point, and the
  * persistent Token Budget Bar.
  */
-export function ArchitectRail({ budget, onOpenLinker, onOpenTimeline }: ArchitectRailProps) {
+export function ArchitectRail({
+  budget,
+  onOpenLinker,
+  onOpenTimeline,
+}: Readonly<ArchitectRailProps>) {
   const [sourceEntryId, setSourceEntryId] = useState("");
 
   const progressionCount = Array.from(budget.details.values()).reduce(
@@ -80,11 +90,7 @@ export function ArchitectRail({ budget, onOpenLinker, onOpenTimeline }: Architec
           >
             Progression Timeline
           </h2>
-          <p className="mt-1 text-[11px] text-muted">
-            {progressionCount > 0
-              ? `${progressionCount} progression${progressionCount === 1 ? "" : "s"} across mentioned entries.`
-              : "Scene-level overrides in reading order."}
-          </p>
+          <p className="mt-1 text-[11px] text-muted">{progressionSummary(progressionCount)}</p>
           <button
             type="button"
             onClick={onOpenTimeline}

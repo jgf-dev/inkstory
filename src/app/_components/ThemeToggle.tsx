@@ -3,6 +3,11 @@
 import { useEffect, useState } from "react";
 import { applyTheme, readStoredTheme, type ThemeName } from "@/lib/ui/preferences";
 
+function themeIcon(theme: ThemeName | null): string {
+  if (theme === null) return "◐";
+  return theme === "dark" ? "☀" : "☾";
+}
+
 /**
  * Light/dark theme toggle ("Parchment Desk" ⇄ "Obsidian Desk"). Reads the
  * bootstrap-applied theme after mount (the attribute is set pre-paint by the
@@ -37,7 +42,7 @@ export function ThemeToggle() {
       data-testid="theme-toggle"
       className="flex min-h-11 min-w-11 items-center justify-center rounded-md border border-ink-200 text-lg text-ink-600 hover:bg-ink-100"
     >
-      <span aria-hidden="true">{theme === null ? "◐" : isDark ? "☀" : "☾"}</span>
+      <span aria-hidden="true">{themeIcon(theme)}</span>
     </button>
   );
 }

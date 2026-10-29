@@ -48,7 +48,7 @@ export function TokenBudgetBar({
   breakdown,
   loading = false,
   error = null,
-}: TokenBudgetBarProps) {
+}: Readonly<TokenBudgetBarProps>) {
   const [openSegment, setOpenSegment] = useState<BudgetSegmentId | null>(null);
 
   const model = computeTokenBudgetBar(segments, maxTokens);
