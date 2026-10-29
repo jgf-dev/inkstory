@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import React from "react";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { CodexCreateModal } from "../src/app/dashboard/codex/_components/CodexCreateModal";
 import * as actions from "../src/lib/codex/actions";
@@ -36,7 +36,9 @@ describe("CodexCreateModal DOM interactions", () => {
     );
 
     const submitBtn = screen.getByRole("button", { name: "Create Entry" });
-    const nameInput = screen.getByPlaceholderText("e.g. Mara Vance, Sunken Archives") as HTMLInputElement;
+    const nameInput = screen.getByPlaceholderText(
+      "e.g. Mara Vance, Sunken Archives",
+    ) as HTMLInputElement;
     nameInput.required = false;
 
     fireEvent.click(submitBtn);
@@ -72,10 +74,14 @@ describe("CodexCreateModal DOM interactions", () => {
     const descInput = screen.getByPlaceholderText("Primary world bible description...");
     fireEvent.change(descInput, { target: { value: "Main character" } });
 
-    const notesInput = screen.getByPlaceholderText("Secret backstory, plot triggers, author reminders...");
+    const notesInput = screen.getByPlaceholderText(
+      "Secret backstory, plot triggers, author reminders...",
+    );
     fireEvent.change(notesInput, { target: { value: "Private notes" } });
 
-    const colorButtons = screen.getAllByRole("button").filter((b) => b.getAttribute("style")?.includes("background-color"));
+    const colorButtons = screen
+      .getAllByRole("button")
+      .filter((b) => b.getAttribute("style")?.includes("background-color"));
     if (colorButtons[1]) {
       fireEvent.click(colorButtons[1]);
     }
@@ -193,7 +199,9 @@ describe("CodexCreateModal DOM interactions", () => {
     const submitBtn = screen.getByRole("button", { name: "Create Entry" });
     fireEvent.click(submitBtn);
 
-    expect(await screen.findByText("Book-scoped entries must be associated with a novel.")).toBeTruthy();
+    expect(
+      await screen.findByText("Book-scoped entries must be associated with a novel."),
+    ).toBeTruthy();
   });
 
   it("shows error if series-scoped entry has no series selected", async () => {
@@ -219,6 +227,66 @@ describe("CodexCreateModal DOM interactions", () => {
     const submitBtn = screen.getByRole("button", { name: "Create Entry" });
     fireEvent.click(submitBtn);
 
-    expect(await screen.findByText("Series-scoped entries must be associated with a series.")).toBeTruthy();
+    expect(
+      await screen.findByText("Series-scoped entries must be associated with a series."),
+    ).toBeTruthy();
+  });
+  it("associates every field label with its control", () => {
+    render(
+      React.createElement(CodexCreateModal, {
+        isOpen: true,
+        onClose: vi.fn(),
+        novels: dummyNovels,
+        series: dummySeries,
+        onCreated: vi.fn(),
+      }),
+    );
+
+    const expectations: Array<[string, string]> = [
+      ["Name *", "INPUT"],
+      ["Type", "SELECT"],
+      ["Tracking Mode", "SELECT"],
+      ["Target Novel *", "SELECT"],
+      ["Aliases (comma separated)", "INPUT"],
+      ["Description", "TEXTAREA"],
+      ["Private Author Notes", "TEXTAREA"],
+    ];
+    const ids = new Set<string>();
+    for (const [label, tag] of expectations) {
+      const control = screen.getByLabelText(label);
+      expect(control.tagName).toBe(tag);
+      expect(control.id).not.toBe("");
+      ids.add(control.id);
+    }
+    expect(ids.size).toBe(expectations.length);
+
+    fireEvent.click(screen.getByLabelText("Series-wide"));
+    const seriesSelect = screen.getByLabelText("Target Series *") as HTMLSelectElement;
+    expect(seriesSelect.tagName).toBe("SELECT");
+    expect(seriesSelect.value).toBe("s-1");
+  });
+
+  it("exposes the color presets as a labelled toggle group", () => {
+    render(
+      React.createElement(CodexCreateModal, {
+        isOpen: true,
+        onClose: vi.fn(),
+        novels: dummyNovels,
+        series: dummySeries,
+        onCreated: vi.fn(),
+      }),
+    );
+
+    const group = screen.getByRole("group", { name: "Color Theme" });
+    const presets = within(group).getAllByRole("button");
+    expect(presets).toHaveLength(7);
+    expect(presets[0].getAttribute("aria-pressed")).toBe("true");
+    expect(presets[1].getAttribute("aria-pressed")).toBe("false");
+
+    fireEvent.click(screen.getByRole("button", { name: "Color #10b981" }));
+    expect(screen.getByRole("button", { name: "Color #10b981" }).getAttribute("aria-pressed")).toBe(
+      "true",
+    );
+    expect(presets[0].getAttribute("aria-pressed")).toBe("false");
   });
 });
