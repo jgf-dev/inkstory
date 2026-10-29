@@ -20,9 +20,9 @@ export async function createSupabaseServerClient() {
         const user = JSON.parse(decodeURIComponent(e2eUserCookie.value));
         return {
           auth: {
-            getUser: async () => ({ data: { user }, error: null }),
-            getSession: async () => ({ data: { session: { user } }, error: null }),
-            signOut: async () => ({ error: null }),
+            getUser: () => Promise.resolve({ data: { user }, error: null }),
+            getSession: () => Promise.resolve({ data: { session: { user } }, error: null }),
+            signOut: () => Promise.resolve({ error: null }),
           },
         } as any;
       } catch {
