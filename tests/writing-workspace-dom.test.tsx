@@ -446,6 +446,51 @@ describe("WritingWorkspace", () => {
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
     expect(screen.queryByTestId("relation-linker-modal")).toBeNull();
   });
+
+  it("opens the manuscript import dialog and refreshes the outline after import (STO-1213)", async () => {
+    const imported = makeOutline();
+    imported.novel.title = "The Glass Tide";
+    const fetchMock = routeFetch((url, init) => {
+      if (url === "/api/scenes/scene-1") return { status: 200, body: { scene: makeScene() } };
+      if (url === "/api/codex/mentions")
+        return { status: 200, body: { matchedEntryIds: [], matches: [] } };
+      if (url === "/api/books/novel-1/import") {
+        const confirmed = (init.body as FormData).get("confirm") === "true";
+        const preview = {
+          title: "The Glass Tide",
+          subtitle: null,
+          totals: { acts: 1, chapters: 1, scenes: 1, words: 2, summaries: 0 },
+          acts: [{ title: "Act One", wordCount: 2, chapters: [] }],
+          warnings: [],
+        };
+        return confirmed
+          ? { status: 201, body: { preview, actIds: ["act-2"], titleApplied: true } }
+          : { status: 200, body: { preview } };
+      }
+      if (url === "/api/novels/novel-1/outline")
+        return { status: 200, body: { outline: imported } };
+      return undefined;
+    });
+
+    render(
+      React.createElement(WritingWorkspace, { outline: makeOutline(), initialSceneId: "scene-1" }),
+    );
+    await screen.findByTestId("scene-editor");
+    fireEvent.click(screen.getByRole("button", { name: "Import" }));
+    expect(await screen.findByTestId("import-manuscript-dialog")).toBeTruthy();
+
+    fireEvent.change(screen.getByLabelText("Manuscript file"), {
+      target: { files: [new File(["# The Glass Tide"], "book.md")] },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Preview" }));
+    await screen.findByTestId("import-preview");
+    fireEvent.click(screen.getByTestId("import-apply-title"));
+    fireEvent.click(screen.getByRole("button", { name: "Confirm import" }));
+
+    await waitFor(() => expect(screen.queryByTestId("import-manuscript-dialog")).toBeNull());
+    expect(fetchMock).toHaveBeenCalledWith("/api/novels/novel-1/outline", expect.anything());
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("The Glass Tide");
+  });
 });
 
 describe("AiAssistantDrawer", () => {

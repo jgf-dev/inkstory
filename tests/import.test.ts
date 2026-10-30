@@ -7,6 +7,7 @@ import { GET as exportRoute } from "../src/app/api/books/[id]/export/route";
 import {
   buildManuscript,
   countWords,
+  detectedTitleUpdate,
   detectFormat,
   docxToHtml,
   htmlToBlocks,
@@ -421,6 +422,22 @@ describe("export → import round-trip (in memory)", () => {
   });
 });
 
+describe("detectedTitleUpdate (STO-1213)", () => {
+  it("returns only the detected, trimmed fields", () => {
+    expect(detectedTitleUpdate({ title: " Book ", subtitle: " Sub " })).toEqual({
+      title: "Book",
+      subtitle: "Sub",
+    });
+    expect(detectedTitleUpdate({ title: "Book", subtitle: null })).toEqual({ title: "Book" });
+    expect(detectedTitleUpdate({ title: null, subtitle: "Sub" })).toEqual({ subtitle: "Sub" });
+  });
+
+  it("returns null when nothing was detected", () => {
+    expect(detectedTitleUpdate({ title: null, subtitle: null })).toBeNull();
+    expect(detectedTitleUpdate({ title: "  ", subtitle: "" })).toBeNull();
+  });
+});
+
 describe("import service + route (database)", { timeout: 30_000 }, () => {
   const runId = crypto.randomUUID();
   const userId = crypto.randomUUID();
@@ -626,6 +643,47 @@ describe("import service + route (database)", { timeout: 30_000 }, () => {
       }
     } finally {
       await db.orm.public.Novel.where({ id: raceNovelId }).delete();
+    }
+  });
+
+  it("applies the detected title and subtitle only when asked (STO-1213)", async () => {
+    const titleNovelId = `test-import-title-${runId}`;
+    await db.orm.public.Novel.create({
+      id: titleNovelId,
+      ownerId: userId,
+      title: "Untitled",
+      updatedAt: Temporal.Now.plainDateTimeISO(),
+    });
+    try {
+      const kept = await post(titleNovelId, { file: mdFile(exportedMd), confirm: "true" });
+      expect(kept.status).toBe(201);
+      expect((await kept.json()).titleApplied).toBe(false);
+      let novel = await db.orm.public.Novel.where({ id: titleNovelId }).first();
+      expect(novel).toMatchObject({ title: "Untitled", subtitle: null });
+
+      const applied = await post(titleNovelId, {
+        file: mdFile(exportedMd),
+        confirm: "true",
+        applyTitle: "true",
+      });
+      expect(applied.status).toBe(201);
+      const body = await applied.json();
+      expect(body.titleApplied).toBe(true);
+      expect(body.actIds).toHaveLength(2);
+      novel = await db.orm.public.Novel.where({ id: titleNovelId }).first();
+      expect(novel).toMatchObject({ title: "The Glass Tide", subtitle: "A Novel" });
+
+      // No detected title: the flag is a no-op and the book keeps its title.
+      const untitled = await post(titleNovelId, {
+        file: mdFile("Just prose, no headings."),
+        confirm: "true",
+        applyTitle: "true",
+      });
+      expect((await untitled.json()).titleApplied).toBe(false);
+      novel = await db.orm.public.Novel.where({ id: titleNovelId }).first();
+      expect(novel?.title).toBe("The Glass Tide");
+    } finally {
+      await db.orm.public.Novel.where({ id: titleNovelId }).delete();
     }
   });
 

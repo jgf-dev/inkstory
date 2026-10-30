@@ -29,7 +29,8 @@ function field(form: FormData, name: string): string | null {
  *
  * Fields: `file` (.docx, .md or .html), optional `format` (md|html|docx),
  * `summaries` (true|false, default true: blockquotes become scene summaries)
- * and `confirm` (true|false, default false).
+ * `confirm` (true|false, default false) and `applyTitle` (true|false, default
+ * false: write the detected title and subtitle to the book on confirm).
  *
  * Without `confirm=true` nothing is written: the response is the structure and
  * word-count preview. With it, the acts are appended to the book and the
@@ -75,6 +76,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const format = detectFormat(name, field(form, "format"));
     const summaries = field(form, "summaries") !== "false";
     const confirm = field(form, "confirm") === "true";
+    const applyTitle = field(form, "applyTitle") === "true";
 
     const manuscript = await parseManuscript(Buffer.from(await file.arrayBuffer()), format, {
       summaries,
@@ -82,7 +84,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     if (!confirm) {
       return Response.json({ preview: previewManuscript(manuscript) }, { status: 200 });
     }
-    const result = await importManuscript(user.id, id, manuscript);
+    const result = await importManuscript(user.id, id, manuscript, { applyTitle });
     return Response.json(result, { status: 201 });
   } catch (err) {
     if (err instanceof ImportError) {

@@ -19,6 +19,7 @@ import { StatusPill } from "./StatusPill";
 import { StageConsolePanel } from "./StageConsolePanel";
 import { ArchitectRail } from "./ArchitectRail";
 import { ProgressionTimelineDrawer } from "./ProgressionTimelineDrawer";
+import { ImportManuscriptDialog } from "./ImportManuscriptDialog";
 import {
   RelationLinkerModal,
   type RelationChipData,
@@ -85,6 +86,7 @@ export function WritingWorkspace({
   const [editorWords, setEditorWords] = useState(0);
   const [timelineOpen, setTimelineOpen] = useState(false);
   const [linkerSource, setLinkerSource] = useState<{ id: string; name: string } | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
 
   const scanTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const activeSceneIdRef = useRef<string | null>(initialSceneId);
@@ -434,6 +436,13 @@ export function WritingWorkspace({
           )}
           <button
             type="button"
+            onClick={() => setImportOpen(true)}
+            className="min-h-11 rounded-md border border-ink-200 px-2.5 py-1.5 text-xs font-medium text-ink-700 hover:bg-ink-50"
+          >
+            Import
+          </button>
+          <button
+            type="button"
             onClick={() => setRightDrawer((v) => (v === "ai" ? null : "ai"))}
             aria-pressed={rightDrawer === "ai"}
             className={`min-h-11 rounded-md px-2.5 py-1.5 text-xs font-medium ${
@@ -599,6 +608,14 @@ export function WritingWorkspace({
         currentSceneId={openSceneId}
         onClose={() => setTimelineOpen(false)}
       />
+      {importOpen && (
+        <ImportManuscriptDialog
+          novelId={novelId}
+          novelTitle={outline.novel.title}
+          onClose={() => setImportOpen(false)}
+          onImported={refreshOutline}
+        />
+      )}
       {linkerSource && (
         <RelationLinkerModal
           isOpen
