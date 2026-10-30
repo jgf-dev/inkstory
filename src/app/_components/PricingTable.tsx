@@ -188,8 +188,8 @@ export function PricingTable({ isAuthenticated }: PricingTableProps) {
           }`}
         >
           <span
-            className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
-              annual ? "translate-x-5.5" : "translate-x-0.5"
+            className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
+              annual ? "translate-x-5" : "translate-x-0"
             }`}
           />
         </button>
@@ -219,7 +219,7 @@ export function PricingTable({ isAuthenticated }: PricingTableProps) {
               key={t.tier}
               className={`relative rounded-xl border p-6 text-left ${
                 t.highlight
-                  ? "border-ink-800 bg-white shadow-md"
+                  ? "border-ink-800 bg-card shadow-md"
                   : "border-ink-200 bg-ink-50 shadow-xs"
               }`}
             >
