@@ -131,3 +131,17 @@ describe("PricingTable rendering", () => {
     expect(html).not.toContain("Manage plan");
   });
 });
+
+describe("PricingTable theme tokens and billing switch", () => {
+  it("uses theme card surfaces and a centered switch thumb", () => {
+    const html = renderToStaticMarkup(
+      React.createElement(PricingTable, { isAuthenticated: false }),
+    );
+    expect(html).toContain("bg-card");
+    expect(html).not.toContain("bg-white shadow-md");
+    expect(html).toContain("left-0.5");
+    expect(html).toContain("translate-x-0");
+    expect(html).toContain('role="switch"');
+    expect(html).toContain('aria-label="Toggle annual billing"');
+  });
+});
