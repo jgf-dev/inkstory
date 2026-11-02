@@ -99,12 +99,14 @@ export function AiAssistantDrawer({
     onInsertText(draft);
     setOutcome(null);
     setDraft("");
+    setError(null);
     setAccepted(true);
   }
 
   function discard() {
     setOutcome(null);
     setDraft("");
+    setError(null);
     setAccepted(false);
   }
 
@@ -247,7 +249,8 @@ export function AiAssistantDrawer({
               <button
                 type="button"
                 onClick={discard}
-                className="rounded px-2 py-1 text-xs font-medium text-ink-500 hover:bg-ink-100"
+                disabled={busy}
+                className="rounded px-2 py-1 text-xs font-medium text-ink-500 hover:bg-ink-100 disabled:opacity-50"
               >
                 Discard
               </button>
