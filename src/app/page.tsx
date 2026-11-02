@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { PricingTable } from "./_components/PricingTable";
+import { ThemeToggle } from "./_components/ThemeToggle";
 
 const FEATURES = [
   {
@@ -84,6 +85,7 @@ export default async function Home() {
           <a href="#faq" className="hidden text-ink-600 hover:text-ink-900 sm:block">
             FAQ
           </a>
+          <ThemeToggle />
           {isAuthenticated ? (
             <Link
               href="/dashboard"
@@ -109,7 +111,7 @@ export default async function Home() {
 
       {/* Hero */}
       <section className="mx-auto max-w-6xl px-6 pt-14 pb-20 text-center">
-        <p className="mb-4 inline-block rounded-full border border-ink-200 bg-white px-3 py-1 text-xs font-medium text-ink-600">
+        <p className="mb-4 inline-block rounded-full border border-ink-200 bg-card px-3 py-1 text-xs font-medium text-ink-600">
           AI-aware story bible for novelists
         </p>
         <h1 className="mx-auto max-w-3xl text-4xl font-semibold leading-tight tracking-tight sm:text-5xl">
@@ -147,7 +149,7 @@ export default async function Home() {
         </div>
 
         {/* Stylized product visual (no binary asset needed) */}
-        <div className="mx-auto mt-12 max-w-4xl overflow-hidden rounded-xl border border-ink-200 bg-white text-left shadow-lg">
+        <div className="mx-auto mt-12 max-w-4xl overflow-hidden rounded-xl border border-ink-200 bg-card text-left shadow-lg">
           <div className="flex items-center gap-1.5 border-b border-ink-200 bg-ink-100 px-4 py-2.5">
             <span className="h-2.5 w-2.5 rounded-full bg-red-400" />
             <span className="h-2.5 w-2.5 rounded-full bg-amber-400" />
@@ -161,15 +163,15 @@ export default async function Home() {
               <p className="text-ink-400 text-[10px] font-semibold tracking-wider uppercase">
                 Story Codex
               </p>
-              <div className="rounded border border-ink-200 bg-white p-2">
+              <div className="rounded border border-ink-200 bg-card p-2">
                 <p className="font-semibold">Mara Vance</p>
                 <p className="text-ink-500">CHARACTER · ALWAYS</p>
               </div>
-              <div className="rounded border border-ink-200 bg-white p-2">
+              <div className="rounded border border-ink-200 bg-card p-2">
                 <p className="font-semibold">Sunken Archives</p>
                 <p className="text-ink-500">LOCATION · DETECTED</p>
               </div>
-              <div className="rounded border border-ink-200 bg-white p-2">
+              <div className="rounded border border-ink-200 bg-card p-2">
                 <p className="font-semibold">The Ashfall Charter</p>
                 <p className="text-ink-500">LORE · ALWAYS</p>
               </div>
@@ -210,7 +212,7 @@ export default async function Home() {
         </p>
         <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {FEATURES.map((f) => (
-            <div key={f.title} className="rounded-xl border border-ink-200 bg-white p-6 shadow-xs">
+            <div key={f.title} className="rounded-xl border border-ink-200 bg-card p-6 shadow-xs">
               <p className="text-2xl" aria-hidden>
                 {f.icon}
               </p>
@@ -237,7 +239,7 @@ export default async function Home() {
         <h2 className="text-center text-3xl font-semibold tracking-tight">Questions, answered</h2>
         <div className="mt-8 space-y-3">
           {FAQS.map((f) => (
-            <details key={f.q} className="rounded-lg border border-ink-200 bg-white p-4 shadow-xs">
+            <details key={f.q} className="rounded-lg border border-ink-200 bg-card p-4 shadow-xs">
               <summary className="cursor-pointer font-medium text-ink-900">{f.q}</summary>
               <p className="text-ink-500 mt-2 text-sm">{f.a}</p>
             </details>
@@ -248,7 +250,7 @@ export default async function Home() {
       {/* Final CTA */}
       <section className="mx-auto max-w-6xl px-6 pt-8 pb-20 text-center">
         <div className="rounded-2xl bg-ink-900 px-8 py-12">
-          <h2 className="text-2xl font-semibold text-white sm:text-3xl">
+          <h2 className="text-2xl font-semibold text-ink-50 sm:text-3xl">
             Your world deserves a memory.
           </h2>
           <p className="text-ink-300 mx-auto mt-3 max-w-xl text-sm">
@@ -256,7 +258,7 @@ export default async function Home() {
           </p>
           <Link
             href={isAuthenticated ? "/dashboard" : "/signup"}
-            className="mt-6 inline-block rounded-md bg-white px-6 py-3 text-sm font-semibold text-ink-900 hover:bg-ink-100"
+            className="mt-6 inline-block rounded-md bg-ink-50 px-6 py-3 text-sm font-semibold text-ink-900 hover:bg-ink-100"
           >
             {isAuthenticated ? "Open InkStory →" : "Start writing free →"}
           </Link>
