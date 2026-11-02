@@ -16,12 +16,13 @@ export class ApiRequestError extends Error {
 
 async function request<T>(url: string, method: string, body?: unknown): Promise<T> {
   let response: Response;
+  // FormData is sent as-is so the browser sets the multipart boundary.
+  const init: RequestInit =
+    body === undefined || body instanceof FormData
+      ? { method, body }
+      : { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) };
   try {
-    response = await fetch(url, {
-      method,
-      headers: body === undefined ? undefined : { "Content-Type": "application/json" },
-      body: body === undefined ? undefined : JSON.stringify(body),
-    });
+    response = await fetch(url, init);
   } catch (err) {
     throw new ApiRequestError(
       `Network error: ${err instanceof Error ? err.message : "request failed"}`,
@@ -59,6 +60,11 @@ export function apiGet<T>(url: string): Promise<T> {
 
 export function apiPost<T>(url: string, body: unknown): Promise<T> {
   return request<T>(url, "POST", body);
+}
+
+/** POSTs multipart/form-data (file uploads). */
+export function apiPostForm<T>(url: string, form: FormData): Promise<T> {
+  return request<T>(url, "POST", form);
 }
 
 export function apiPatch<T>(url: string, body: unknown): Promise<T> {

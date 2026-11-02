@@ -18,17 +18,39 @@ export async function assertNovelOwner(userId: string, novelId: string): Promise
 export interface ImportResult {
   preview: ImportPreview;
   actIds: string[];
+  /** Whether the detected title/subtitle were written to the book (STO-1213). */
+  titleApplied: boolean;
+}
+
+export interface ImportWriteOptions {
+  /**
+   * Apply the manuscript's detected title and subtitle to the book. Only
+   * detected (non-empty) values are written; the rest of the book is kept.
+   */
+  applyTitle?: boolean;
+}
+
+/** Book fields to update from the manuscript, or null when nothing applies. */
+export function detectedTitleUpdate(
+  manuscript: Pick<ImportManuscript, "title" | "subtitle">,
+): { title?: string; subtitle?: string } | null {
+  const title = manuscript.title?.trim();
+  const subtitle = manuscript.subtitle?.trim();
+  if (!title && !subtitle) return null;
+  return { ...(title ? { title } : {}), ...(subtitle ? { subtitle } : {}) };
 }
 
 /**
  * Writes an already-parsed manuscript into a novel the user owns. Imported
  * acts are appended after the novel's existing acts, all inside one
- * transaction.
+ * transaction. With `applyTitle`, the detected title and subtitle are written
+ * to the book in the same transaction.
  */
 export async function importManuscript(
   userId: string,
   novelId: string,
   manuscript: ImportManuscript,
+  options: ImportWriteOptions = {},
 ): Promise<ImportResult> {
   await assertNovelOwner(userId, novelId);
   const preview = previewManuscript(manuscript);
@@ -37,6 +59,7 @@ export async function importManuscript(
   }
 
   const now = nowTimestamp();
+  const titleUpdate = options.applyTitle ? detectedTitleUpdate(manuscript) : null;
 
   // One transaction: a failure part-way leaves nothing behind.
   const actIds = await db.transaction(async (tx) => {
@@ -87,7 +110,10 @@ export async function importManuscript(
         }
       }
     }
+    if (titleUpdate) {
+      await tx.orm.public.Novel.where({ id: novelId }).update({ ...titleUpdate, updatedAt: now });
+    }
     return ids;
   });
-  return { preview, actIds };
+  return { preview, actIds, titleApplied: titleUpdate !== null };
 }
