@@ -167,16 +167,29 @@ export function ImportManuscriptDialog({
     );
   }
 
+  // Number a new act/chapter from the ones already started before this scene,
+  // matching how the server numbers them, not from the scene position.
+  function nextNumber(index: number, key: "act" | "chapter"): number {
+    const scenes = draft?.scenes ?? [];
+    return scenes.slice(0, index).filter((s) => s[key] !== null).length + 1;
+  }
+
   function toggleChapter(index: number, on: boolean) {
     // Dropping a chapter start also drops the act start it carried.
-    updateScene(index, on ? { chapter: `Chapter ${index + 1}` } : { chapter: null, act: null });
+    updateScene(
+      index,
+      on ? { chapter: `Chapter ${nextNumber(index, "chapter")}` } : { chapter: null, act: null },
+    );
   }
 
   function toggleAct(index: number, on: boolean, scene: ImportSceneOverride) {
     updateScene(
       index,
       on
-        ? { act: `Act ${index + 1}`, chapter: scene.chapter ?? `Chapter ${index + 1}` }
+        ? {
+            act: `Act ${nextNumber(index, "act")}`,
+            chapter: scene.chapter ?? `Chapter ${nextNumber(index, "chapter")}`,
+          }
         : { act: null },
     );
   }
