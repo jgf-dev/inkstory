@@ -646,6 +646,57 @@ describe("import service + route (database)", { timeout: 30_000 }, () => {
     }
   });
 
+  it("applies a manual structure override to preview and confirm (STO-1211)", async () => {
+    const overrideNovelId = `test-import-override-${runId}`;
+    await db.orm.public.Novel.create({
+      id: overrideNovelId,
+      ownerId: userId,
+      title: "Override",
+      updatedAt: Temporal.Now.plainDateTimeISO(),
+    });
+    try {
+      const structure = JSON.stringify({
+        scenes: [
+          { title: "Harbor", act: "Part One", chapter: "Arrival" },
+          { title: "Inn", act: null, chapter: "Night" },
+          { title: "Squall", act: null, chapter: null },
+        ],
+      });
+      const previewRes = await post(overrideNovelId, { file: mdFile(exportedMd), structure });
+      expect(previewRes.status).toBe(200);
+      const { preview } = await previewRes.json();
+      expect(preview.totals).toMatchObject({ acts: 1, chapters: 2, scenes: 3, words: 16 });
+      expect(await db.orm.public.Act.where((a) => a.novelId.eq(overrideNovelId)).all()).toEqual([]);
+
+      const res = await post(overrideNovelId, {
+        file: mdFile(exportedMd),
+        structure,
+        confirm: "true",
+      });
+      expect(res.status).toBe(201);
+      const acts = await db.orm.public.Act.where((a) => a.novelId.eq(overrideNovelId)).all();
+      expect(acts.map((a) => a.title)).toEqual(["Part One"]);
+      const chapters = await db.orm.public.Chapter.where((c) => c.actId.eq(acts[0].id)).all();
+      const night = chapters.find((c) => c.title === "Night");
+      expect(chapters.map((c) => c.title).sort()).toEqual(["Arrival", "Night"]);
+      const scenes = await db.orm.public.Scene.where((s) => s.chapterId.eq(night!.id)).all();
+      const squall = scenes.find((s) => s.title === "Squall");
+      expect(scenes.map((s) => s.title).sort()).toEqual(["Inn", "Squall"]);
+      expect(squall).toMatchObject({ position: 1, content: "Rain fell for days." });
+
+      const mismatch = await post(overrideNovelId, {
+        file: mdFile(exportedMd),
+        structure: JSON.stringify({ scenes: [{ title: "x", act: "A", chapter: "C" }] }),
+      });
+      expect(mismatch.status).toBe(400);
+      expect((await mismatch.json()).code).toBe("VALIDATION_FAILED");
+      const bad = await post(overrideNovelId, { file: mdFile(exportedMd), structure: "{" });
+      expect(bad.status).toBe(400);
+    } finally {
+      await db.orm.public.Novel.where({ id: overrideNovelId }).delete();
+    }
+  });
+
   it("applies the detected title and subtitle only when asked (STO-1213)", async () => {
     const titleNovelId = `test-import-title-${runId}`;
     await db.orm.public.Novel.create({
