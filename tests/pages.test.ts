@@ -300,4 +300,30 @@ describe("Pages & Server Components", () => {
       expect(html).toContain("Log in");
     });
   });
+
+  describe("SettingsPage (src/app/dashboard/settings/page.tsx)", () => {
+    it("redirects to /login if user is unauthenticated", async () => {
+      mockGetUser.mockResolvedValue({ data: { user: null }, error: null });
+
+      const { default: SettingsPage } = await import("../src/app/dashboard/settings/page");
+      await expect(SettingsPage()).rejects.toThrow("NEXT_REDIRECT: /login");
+      expect(mockRedirect).toHaveBeenCalledWith("/login");
+    });
+
+    it("renders settings header with user email and back link to /dashboard", async () => {
+      mockGetUser.mockResolvedValue({
+        data: { user: { id: "user-abc", email: "author@inkstory.local" } },
+        error: null,
+      });
+
+      const { default: SettingsPage } = await import("../src/app/dashboard/settings/page");
+      const element = await SettingsPage();
+      const html = renderToStaticMarkup(element);
+
+      expect(html).toContain("Settings");
+      expect(html).toContain("author@inkstory.local");
+      expect(html).toContain('href="/dashboard"');
+      expect(html).toContain("System prompts");
+    });
+  });
 });

@@ -145,4 +145,57 @@ describe("AiAssistantDrawer post-generation controls (STO-1174)", () => {
     await waitFor(() => expect(writeText).toHaveBeenCalledWith("Copy me, edited."));
     await screen.findByText("Copied");
   });
+
+  it("previews the prompt and renders messages, warnings, and allows copying preview", async () => {
+    const writeText = vi.fn(async () => undefined);
+    Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
+
+    stubFetch({
+      status: 200,
+      body: {
+        messages: [
+          { role: "system", content: "You are an author's assistant." },
+          { role: "user", content: "Continue the scene." },
+        ],
+        joined:
+          "--- system ---\nYou are an author's assistant.\n\n--- user ---\nContinue the scene.",
+        unresolved: ["novel.custom"],
+        unknownTokens: ["bad.token"],
+        prompt: {
+          id: "sys-prompt-continuation",
+          name: "Scene continuation (system default)",
+          scope: "SYSTEM_DEFAULT",
+          mode: "continuation",
+        },
+      },
+    });
+
+    setup();
+    fireEvent.click(screen.getByText("Preview prompt"));
+
+    await screen.findByTestId("ai-prompt-preview");
+    expect(
+      screen.getByText(/Preview of “Scene continuation \(system default\)” \(SYSTEM_DEFAULT\)/),
+    ).toBeTruthy();
+    expect(screen.getByText(/Unresolved: novel\.custom, bad\.token/)).toBeTruthy();
+    expect(screen.getByText("You are an author's assistant.")).toBeTruthy();
+    expect(screen.getByText("Continue the scene.")).toBeTruthy();
+
+    const copyButtons = screen.getAllByRole("button", { name: "Copy" });
+    fireEvent.click(copyButtons[0]);
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith("You are an author's assistant."));
+    await screen.findByText("Copied");
+  });
+
+  it("displays error when prompt preview fails", async () => {
+    stubFetch({
+      status: 500,
+      body: { error: "Preview generation failed" },
+    });
+
+    setup();
+    fireEvent.click(screen.getByText("Preview prompt"));
+
+    await screen.findByText("Preview generation failed");
+  });
 });

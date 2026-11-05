@@ -24,6 +24,8 @@ namespace public {
     novels               Novel[]
     codexEntries         CodexEntry[]
     providerCredentials  UserProviderCredential[]
+    prompts              Prompt[]
+    promptComponents     PromptComponent[]
 
     @@index([deletedAt], map: "users_deleted_at_idx")
     @@index([email], map: "users_email_key", unique: true)
@@ -76,6 +78,7 @@ namespace public {
     series       Series?            @relation(fields: [seriesId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "novels_series_id_fkey")
     acts         Act[]
     codexEntries CodexEntry[]
+    prompts      Prompt[]
 
     @@index([ownerId, deletedAt], map: "novels_owner_id_deleted_at_idx")
     @@index([ownerId, position], map: "novels_owner_id_position_idx")
@@ -287,6 +290,82 @@ namespace public {
     ANTHROPIC = "ANTHROPIC"
     OLLAMA = "OLLAMA"
     LMSTUDIO = "LMSTUDIO"
+  }
+
+  // Prompt templates + reusable components (STO-1158). SYSTEM_DEFAULT rows are
+  // seeded read-only; authors Duplicate into their user library.
+  model Prompt {
+    id          String              @id(map: "prompts_pkey")
+    name        String
+    description String?
+    mode        String
+    scope       pg.enum(PromptScope) @default("USER")
+    body        String              @default("")
+    role        pg.enum(PromptRole) @default("SYSTEM")
+    position    Int                 @default(0)
+    isActive    Boolean             @default(true) @map("is_active")
+    ownerId     String?             @map("owner_id")
+    novelId     String?             @map("novel_id")
+    createdAt   Timestamp(3)        @default(now()) @map("created_at")
+    updatedAt   Timestamp(3)        @map("updated_at")
+    deletedAt   Timestamp(3)?       @map("deleted_at")
+
+    owner       User?               @relation(fields: [ownerId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "prompts_owner_id_fkey", index: false)
+    novel       Novel?              @relation(fields: [novelId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "prompts_novel_id_fkey", index: false)
+    components  PromptComponentLink[]
+
+    @@index([ownerId, deletedAt], map: "prompts_owner_id_deleted_at_idx")
+    @@index([novelId, deletedAt], map: "prompts_novel_id_deleted_at_idx")
+    @@index([mode, isActive, deletedAt], map: "prompts_mode_is_active_deleted_at_idx")
+    @@map("prompts")
+  }
+
+  model PromptComponent {
+    id          String              @id(map: "prompt_components_pkey")
+    name        String
+    description String?
+    body        String
+    role        pg.enum(PromptRole) @default("SYSTEM")
+    ownerId     String?             @map("owner_id")
+    createdAt   Timestamp(3)        @default(now()) @map("created_at")
+    updatedAt   Timestamp(3)        @map("updated_at")
+    deletedAt   Timestamp(3)?       @map("deleted_at")
+
+    owner       User?               @relation(fields: [ownerId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "prompt_components_owner_id_fkey", index: false)
+    links       PromptComponentLink[]
+
+    @@index([ownerId, deletedAt], map: "prompt_components_owner_id_deleted_at_idx")
+    @@map("prompt_components")
+  }
+
+  model PromptComponentLink {
+    id          String          @id(map: "prompt_component_links_pkey")
+    promptId    String          @map("prompt_id")
+    componentId String          @map("component_id")
+    position    Int             @default(0)
+    enabled     Boolean         @default(true)
+    createdAt   Timestamp(3)    @default(now()) @map("created_at")
+    updatedAt   Timestamp(3)    @map("updated_at")
+    deletedAt   Timestamp(3)?   @map("deleted_at")
+
+    prompt      Prompt          @relation(fields: [promptId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "prompt_component_links_prompt_id_fkey", index: false)
+    component   PromptComponent @relation(fields: [componentId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "prompt_component_links_component_id_fkey", index: false)
+
+    @@index([promptId, position], map: "prompt_component_links_prompt_id_position_idx")
+    @@index([componentId], map: "prompt_component_links_component_id_idx")
+    @@map("prompt_component_links")
+  }
+
+
+  native_enum PromptRole {
+    SYSTEM = "SYSTEM"
+    USER = "USER"
+  }
+
+  native_enum PromptScope {
+    SYSTEM_DEFAULT = "SYSTEM_DEFAULT"
+    USER = "USER"
+    NOVEL = "NOVEL"
   }
 
   native_enum CodexTrackingMode {

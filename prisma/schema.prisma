@@ -72,6 +72,16 @@ enum AiProvider {
   LMSTUDIO
 }
 
+enum PromptRole {
+  SYSTEM
+  USER
+}
+
+enum PromptScope {
+  SYSTEM_DEFAULT
+  USER
+  NOVEL
+}
 
 // ─── User ────────────────────────────────────────────────────────────────────
 //
@@ -91,6 +101,8 @@ model User {
   novels              Novel[]
   codexEntries        CodexEntry[]
   providerCredentials UserProviderCredential[]
+  prompts             Prompt[]
+  promptComponents    PromptComponent[]
 
   @@index([deletedAt])
   @@map("users")
@@ -142,6 +154,7 @@ model Novel {
 
   acts         Act[]
   codexEntries CodexEntry[]
+  prompts      Prompt[]
 
   @@index([ownerId, deletedAt])
   @@index([seriesId])
@@ -395,3 +408,75 @@ model UserProviderCredential {
   @@map("user_provider_credentials")
 }
 
+// ─── Prompt Model (STO-1158) ─────────────────────────────────────────────────
+//
+// Template + ordered component composition for generation modes. SYSTEM_DEFAULT
+// rows are seeded read-only; authors Duplicate to their library. Variable
+// catalog is a frozen closed set (see src/lib/prompts/catalog.ts).
+
+model Prompt {
+  id          String      @id @default(cuid())
+  name        String
+  description String?     @db.Text
+  mode        String
+  scope       PromptScope @default(USER)
+  body        String      @default("") @db.Text
+  role        PromptRole  @default(SYSTEM)
+  position    Int         @default(0)
+  isActive    Boolean     @default(true) @map("is_active")
+
+  ownerId     String?     @map("owner_id")
+  owner       User?       @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  novelId     String?     @map("novel_id")
+  novel       Novel?      @relation(fields: [novelId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+  deletedAt   DateTime?   @map("deleted_at")
+
+  components  PromptComponentLink[]
+
+  @@index([ownerId, deletedAt])
+  @@index([novelId, deletedAt])
+  @@index([mode, isActive, deletedAt])
+  @@map("prompts")
+}
+
+model PromptComponent {
+  id          String     @id @default(cuid())
+  name        String
+  description String?    @db.Text
+  body        String     @db.Text
+  role        PromptRole @default(SYSTEM)
+
+  ownerId     String?    @map("owner_id")
+  owner       User?      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+  deletedAt   DateTime?  @map("deleted_at")
+
+  links       PromptComponentLink[]
+
+  @@index([ownerId, deletedAt])
+  @@map("prompt_components")
+}
+
+model PromptComponentLink {
+  id          String @id @default(cuid())
+  promptId    String @map("prompt_id")
+  prompt      Prompt @relation(fields: [promptId], references: [id], onDelete: Cascade)
+  componentId String @map("component_id")
+  component   PromptComponent @relation(fields: [componentId], references: [id], onDelete: Cascade)
+  position    Int    @default(0)
+  enabled     Boolean @default(true)
+
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  deletedAt   DateTime? @map("deleted_at")
+
+  @@index([promptId, position])
+  @@index([componentId])
+  @@map("prompt_component_links")
+}

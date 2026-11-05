@@ -9,6 +9,8 @@
  * copy it into any LLM — no spend can occur without explicit configuration.
  */
 
+import { renderDefaultScenePrompt } from "@/lib/prompts/render";
+
 export const DEFAULT_AI_MODEL = "anthropic/claude-sonnet-4.6";
 export const DEFAULT_AI_GATEWAY_BASE_URL = "https://ai-gateway.vercel.sh/v1";
 
@@ -79,64 +81,21 @@ export interface BuildScenePromptInput {
   maxContentChars?: number;
 }
 
-/** How much of the scene prose is replayed to the model (cost guard). */
-const DEFAULT_MAX_CONTENT_CHARS = 8000;
-
 /**
  * Builds the chat messages for a scene generation request. Pure so prompt
  * construction is unit-testable without any network access.
+ *
+ * @deprecated Prefer `renderResolvedScenePrompt` / `renderDefaultScenePrompt`
+ * from `@/lib/prompts` (STO-1158). This wrapper keeps the historical signature
+ * and delegates to the shared renderer + SYSTEM_DEFAULT templates.
  */
 export function buildSceneMessages(input: BuildScenePromptInput): ChatMessage[] {
-  const maxChars = input.maxContentChars ?? DEFAULT_MAX_CONTENT_CHARS;
-  const prose =
-    input.sceneContent.length > maxChars
-      ? `[…earlier text omitted…]\n${input.sceneContent.slice(-maxChars)}`
-      : input.sceneContent;
-
-  const system = [
-    "You are a skilled fiction co-writer embedded in InkStory, a novel-writing workspace.",
-    `Story: ${input.novelTitle} — ${input.chapterTitle} / ${input.sceneTitle}.`,
-    `Write in ${input.povLabel.toLowerCase()} and ${input.tenseLabel.toLowerCase()} tense.`,
-    "Continue the author's voice: match tone, diction, and pacing already present in the scene.",
-    "Story bible entries that apply to this scene are provided below. Respect their facts and current state; never contradict them.",
-    "Return prose only — no headings, no commentary, no markdown fences.",
-    "",
-    // Already wrapped in <codex_context><story_bible> by formatAssembledContext.
-    input.codexPrompt,
-  ].join("\n");
-
-  const beatLine = input.beatText?.trim()
-    ? `Beat to realize:\n"""\n${input.beatText.trim()}\n"""\n`
-    : "";
-
-  const user =
-    input.mode === "continuation"
-      ? [
-          "Continue this scene from exactly where it leaves off, writing roughly 150–400 words of prose that flow naturally from the final line.",
-          "",
-          beatLine,
-          "Scene so far:",
-          '"""',
-          prose,
-          '"""',
-        ]
-          .filter(Boolean)
-          .join("\n")
-      : [
-          "Expand the beat below into full scene prose (roughly 150–400 words). Ground it in the scene context already established.",
-          "",
-          beatLine,
-          input.summary ? `Scene summary:\n"""\n${input.summary}\n"""\n` : "",
-          prose ? `Existing scene prose:\n"""\n${prose}\n"""` : "",
-        ]
-          .filter(Boolean)
-          .join("\n");
-
-  return [
-    { role: "system", content: system },
-    { role: "user", content: user },
-  ];
+  const rendered = renderDefaultScenePrompt(input);
+  return rendered.messages;
 }
+
+/** Re-export for callers that still reference the old constant. */
+export const DEFAULT_MAX_CONTENT_CHARS_FOR_PROMPT = 8000;
 
 export interface GenerateTextOptions {
   messages: ChatMessage[];
