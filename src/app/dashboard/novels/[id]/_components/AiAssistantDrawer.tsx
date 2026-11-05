@@ -49,6 +49,9 @@ export function AiAssistantDrawer({
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
+  /** Author-editable copy of the latest generation (STO-1174). */
+  const [draft, setDraft] = useState("");
+  const [accepted, setAccepted] = useState(false);
 
   async function generate() {
     setBusy(true);
@@ -59,6 +62,8 @@ export function AiAssistantDrawer({
         { sceneId, mode, beatText: beatText || undefined, content },
       );
       setOutcome({ kind: "generated", result: { text: res.text, model: res.model } });
+      setDraft(res.text);
+      setAccepted(false);
     } catch (err) {
       if (err instanceof ApiRequestError) {
         if (err.status === 503 && err.code === "AI_NOT_CONFIGURED") {
@@ -88,6 +93,24 @@ export function AiAssistantDrawer({
       setError("Copy failed — select the text manually.");
     }
   }
+
+  function accept() {
+    if (!draft.trim()) return;
+    onInsertText(draft);
+    setOutcome(null);
+    setDraft("");
+    setError(null);
+    setAccepted(true);
+  }
+
+  function discard() {
+    setOutcome(null);
+    setDraft("");
+    setError(null);
+    setAccepted(false);
+  }
+
+  const edited = outcome?.kind === "generated" && draft !== outcome.result.text;
 
   const promptPreview: PromptPreview | null =
     outcome?.kind === "not-configured" ? outcome.prompt : null;
@@ -165,29 +188,71 @@ export function AiAssistantDrawer({
           </p>
         )}
 
+        {accepted && !outcome && (
+          <p
+            data-testid="ai-accepted"
+            role="status"
+            className="rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800"
+          >
+            Added to the scene. Generate again for another passage.
+          </p>
+        )}
+
         {outcome?.kind === "generated" && (
           <div data-testid="ai-result" className="space-y-2">
-            <p className="text-ink-400 text-[11px]">Generated with {outcome.result.model}</p>
-            <textarea
-              value={outcome.result.text}
-              readOnly
-              rows={10}
-              className="border-ink-300 w-full rounded-md border bg-ink-50 px-2 py-1.5 font-serif text-sm text-ink-900"
-            />
-            <div className="flex gap-2">
+            <p className="text-ink-400 text-[11px]">
+              Generated with {outcome.result.model}
+              {edited ? " · edited" : ""}
+            </p>
+            <label className="block">
+              <span className="sr-only">Generated prose (editable)</span>
+              <textarea
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                rows={10}
+                className="border-ink-300 w-full rounded-md border bg-ink-50 px-2 py-1.5 font-serif text-sm text-ink-900"
+              />
+            </label>
+            <div className="flex flex-wrap gap-2">
               <button
                 type="button"
-                onClick={() => void copy(outcome.result.text, "result")}
+                onClick={accept}
+                disabled={busy || !draft.trim()}
+                className="rounded bg-ink-800 px-2 py-1 text-xs font-medium text-ink-50 hover:bg-ink-900 disabled:opacity-50"
+              >
+                Accept &amp; append
+              </button>
+              <button
+                type="button"
+                onClick={() => void generate()}
+                disabled={busy}
+                className="rounded border border-ink-300 px-2 py-1 text-xs font-medium text-ink-700 hover:bg-ink-50 disabled:opacity-50"
+              >
+                {busy ? "Regenerating…" : "Regenerate"}
+              </button>
+              {edited && (
+                <button
+                  type="button"
+                  onClick={() => setDraft(outcome.result.text)}
+                  className="rounded border border-ink-300 px-2 py-1 text-xs font-medium text-ink-700 hover:bg-ink-50"
+                >
+                  Revert edits
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => void copy(draft, "result")}
                 className="rounded border border-ink-300 px-2 py-1 text-xs font-medium text-ink-700 hover:bg-ink-50"
               >
                 {copied === "result" ? "Copied" : "Copy"}
               </button>
               <button
                 type="button"
-                onClick={() => onInsertText(outcome.result.text)}
-                className="rounded bg-ink-800 px-2 py-1 text-xs font-medium text-ink-50 hover:bg-ink-900"
+                onClick={discard}
+                disabled={busy}
+                className="rounded px-2 py-1 text-xs font-medium text-ink-500 hover:bg-ink-100 disabled:opacity-50"
               >
-                Append to scene
+                Discard
               </button>
             </div>
           </div>
