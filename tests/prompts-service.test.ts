@@ -118,6 +118,73 @@ describe("prompt service resolution + read-only (STO-1158)", { timeout: 30_000 }
     expect(updated.name).toBe("Edited copy");
     await softDeletePrompt(userId, copy.id);
   });
+
+  it("rejects creating prompts with SYSTEM_DEFAULT or invalid scope", async () => {
+    await expect(
+      createPrompt(userId, {
+        name: "Forbidden System",
+        mode: "continuation",
+        scope: "SYSTEM_DEFAULT" as any,
+      }),
+    ).rejects.toMatchObject({
+      code: "VALIDATION_FAILED",
+      status: 400,
+    });
+
+    await expect(
+      createPrompt(userId, {
+        name: "Invalid Scope",
+        mode: "continuation",
+        scope: "NON_EXISTENT_SCOPE" as any,
+      }),
+    ).rejects.toMatchObject({
+      code: "VALIDATION_FAILED",
+      status: 400,
+    });
+  });
+
+  it("repairs partially seeded or damaged SYSTEM_DEFAULT prompts", async () => {
+    const linkId = "sys-prompt-continuation-link-0";
+    const now = Temporal.Now.plainDateTimeISO();
+    // Simulate accidental link deletion
+    await db.orm.public.PromptComponentLink.where({ id: linkId }).update({
+      deletedAt: now,
+      enabled: false,
+      updatedAt: now,
+    });
+
+    // ensureSystemDefaultPrompts must heal it
+    await ensureSystemDefaultPrompts();
+
+    const link = await db.orm.public.PromptComponentLink.where({ id: linkId }).first();
+    expect(link).not.toBeNull();
+    expect(link?.deletedAt).toBeNull();
+    expect(link?.enabled).toBe(true);
+  });
+
+  it("rolls back atomically in transaction if updatePrompt link update fails", async () => {
+    const prompt = await createPrompt(userId, {
+      name: "Original Name",
+      mode: "continuation",
+    });
+
+    // Attempt update with invalid componentId
+    await expect(
+      updatePrompt(userId, prompt.id, {
+        name: "Should Not Persist",
+        componentIds: ["non-existent-comp-id"],
+      }),
+    ).rejects.toMatchObject({
+      code: "NOT_FOUND",
+      status: 404,
+    });
+
+    // Verify row was NOT modified
+    const current = await getPrompt(userId, prompt.id);
+    expect(current.name).toBe("Original Name");
+
+    await softDeletePrompt(userId, prompt.id);
+  });
 });
 
 describe("prompt component CRUD (STO-1158)", { timeout: 30_000 }, () => {
@@ -213,6 +280,56 @@ describe("prompt component CRUD (STO-1158)", { timeout: 30_000 }, () => {
     expect(b.status).toBe(400);
     const c = handlePromptApiError(new Error("boom"));
     expect(c.status).toBe(500);
+  });
+
+  it("validates component input and permissions", async () => {
+    const { createComponent, updateComponent, softDeleteComponent } =
+      await import("../src/lib/prompts");
+
+    await expect(createComponent(userId, { name: "", body: "body" })).rejects.toMatchObject({
+      code: "VALIDATION_FAILED",
+      status: 400,
+    });
+    await expect(
+      createComponent(userId, { name: "Name", body: null as any }),
+    ).rejects.toMatchObject({
+      code: "VALIDATION_FAILED",
+      status: 400,
+    });
+
+    await expect(updateComponent(userId, "non-existent-comp", { name: "x" })).rejects.toMatchObject(
+      {
+        code: "NOT_FOUND",
+        status: 404,
+      },
+    );
+    await expect(softDeleteComponent(userId, "non-existent-comp")).rejects.toMatchObject({
+      code: "NOT_FOUND",
+      status: 404,
+    });
+  });
+
+  it("reuses user owned components when duplicating a user prompt", async () => {
+    const {
+      createComponent,
+      createPrompt,
+      duplicatePromptToLibrary,
+      softDeletePrompt,
+      softDeleteComponent,
+    } = await import("../src/lib/prompts");
+    const comp = await createComponent(userId, { name: "User Comp", body: "User Comp Body" });
+    const userPrompt = await createPrompt(userId, {
+      name: "User Prompt With Own Comp",
+      mode: "continuation",
+      componentIds: [comp.id],
+    });
+
+    const duplicate = await duplicatePromptToLibrary(userId, userPrompt.id);
+    expect(duplicate.components?.[0]?.componentId).toBe(comp.id);
+
+    await softDeletePrompt(userId, duplicate.id);
+    await softDeletePrompt(userId, userPrompt.id);
+    await softDeleteComponent(userId, comp.id);
   });
 });
 

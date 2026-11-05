@@ -6,7 +6,7 @@
  */
 
 import { Temporal } from "temporal-polyfill";
-import { db } from "@/lib/prisma";
+import { db, type DbClient } from "@/lib/prisma";
 import type { GenerationMode } from "@/lib/ai/generate";
 import { GENERATION_MODES } from "@/lib/ai/generate";
 import { SYSTEM_DEFAULT_SEED } from "./defaults";
@@ -138,6 +138,8 @@ function assertMode(mode: string): void {
   }
 }
 
+type DbHandle = DbClient | Parameters<Parameters<DbClient["transaction"]>[0]>[0];
+
 async function assertNovelOwned(userId: string, novelId: string): Promise<void> {
   const novel = await db.orm.public.Novel.where({ id: novelId }).first();
   if (!novel || novel.deletedAt !== null || novel.ownerId !== userId) {
@@ -145,16 +147,35 @@ async function assertNovelOwned(userId: string, novelId: string): Promise<void> 
   }
 }
 
-async function loadPromptRow(id: string): Promise<PromptRow | null> {
-  const row = (await db.orm.public.Prompt.where({ id }).first()) as PromptRow | null;
+async function loadPromptRow(id: string, client: DbHandle = db): Promise<PromptRow | null> {
+  const row = (await client.orm.public.Prompt.where({ id }).first()) as PromptRow | null;
   if (!row || row.deletedAt) return null;
   return row;
 }
 
-async function loadComponentRow(id: string): Promise<ComponentRow | null> {
-  const row = (await db.orm.public.PromptComponent.where({ id }).first()) as ComponentRow | null;
+async function loadComponentRow(id: string, client: DbHandle = db): Promise<ComponentRow | null> {
+  const row = (await client.orm.public.PromptComponent.where({
+    id,
+  }).first()) as ComponentRow | null;
   if (!row || row.deletedAt) return null;
   return row;
+}
+
+async function validateComponentIds(
+  userId: string,
+  componentIds: string[],
+  client: DbHandle = db,
+): Promise<void> {
+  for (const componentId of componentIds) {
+    const component = await loadComponentRow(componentId, client);
+    if (!component) {
+      throw new PromptError(`Component not found: ${componentId}`, "NOT_FOUND", 404);
+    }
+    // User library components (owner = user) or system (owner null) may be linked.
+    if (component.ownerId !== null && component.ownerId !== userId) {
+      throw new PromptError(`Component not found: ${componentId}`, "NOT_FOUND", 404);
+    }
+  }
 }
 
 function assertCanReadPrompt(userId: string, row: PromptRow): void {
@@ -176,66 +197,122 @@ function assertCanWritePrompt(userId: string, row: PromptRow): void {
   }
 }
 
-/** Idempotent seed of SYSTEM_DEFAULT prompts for continuation + beat_expansion. */
+/** Idempotent seed of SYSTEM_DEFAULT prompts for continuation + beat_expansion (self-healing). */
 export async function ensureSystemDefaultPrompts(): Promise<void> {
   const now = Temporal.Now.plainDateTimeISO();
   for (const seed of SYSTEM_DEFAULT_SEED) {
-    const existing = await loadPromptRow(seed.id);
-    if (existing) continue;
-
-    await db.orm.public.Prompt.create({
+    const existingPrompt = (await db.orm.public.Prompt.where({
       id: seed.id,
-      name: seed.name,
-      description: seed.description,
-      mode: seed.mode,
-      scope: "SYSTEM_DEFAULT",
-      body: "",
-      role: "SYSTEM",
-      position: 0,
-      isActive: true,
-      ownerId: null,
-      novelId: null,
-      updatedAt: now,
-    });
+    }).first()) as PromptRow | null;
+    if (!existingPrompt) {
+      await db.orm.public.Prompt.create({
+        id: seed.id,
+        name: seed.name,
+        description: seed.description,
+        mode: seed.mode,
+        scope: "SYSTEM_DEFAULT",
+        body: "",
+        role: "SYSTEM",
+        position: 0,
+        isActive: true,
+        ownerId: null,
+        novelId: null,
+        updatedAt: now,
+      });
+    } else if (existingPrompt.deletedAt) {
+      await db.orm.public.Prompt.where({ id: seed.id }).update({
+        deletedAt: null,
+        isActive: true,
+        updatedAt: now,
+      });
+    }
 
     const systemComponentId = `${seed.id}-system`;
     const userComponentId = `${seed.id}-user`;
 
-    await db.orm.public.PromptComponent.create({
+    const existingSys = (await db.orm.public.PromptComponent.where({
       id: systemComponentId,
-      name: `${seed.name} — system`,
-      description: null,
-      body: seed.systemBody,
-      role: "SYSTEM",
-      ownerId: null,
-      updatedAt: now,
-    });
-    await db.orm.public.PromptComponent.create({
-      id: userComponentId,
-      name: `${seed.name} — user`,
-      description: null,
-      body: seed.userBody,
-      role: "USER",
-      ownerId: null,
-      updatedAt: now,
-    });
+    }).first()) as ComponentRow | null;
+    if (!existingSys) {
+      await db.orm.public.PromptComponent.create({
+        id: systemComponentId,
+        name: `${seed.name} — system`,
+        description: null,
+        body: seed.systemBody,
+        role: "SYSTEM",
+        ownerId: null,
+        updatedAt: now,
+      });
+    } else if (existingSys.deletedAt) {
+      await db.orm.public.PromptComponent.where({ id: systemComponentId }).update({
+        deletedAt: null,
+        updatedAt: now,
+      });
+    }
 
-    await db.orm.public.PromptComponentLink.create({
-      id: `${seed.id}-link-0`,
-      promptId: seed.id,
-      componentId: systemComponentId,
-      position: 0,
-      enabled: true,
-      updatedAt: now,
-    });
-    await db.orm.public.PromptComponentLink.create({
-      id: `${seed.id}-link-1`,
-      promptId: seed.id,
-      componentId: userComponentId,
-      position: 1,
-      enabled: true,
-      updatedAt: now,
-    });
+    const existingUser = (await db.orm.public.PromptComponent.where({
+      id: userComponentId,
+    }).first()) as ComponentRow | null;
+    if (!existingUser) {
+      await db.orm.public.PromptComponent.create({
+        id: userComponentId,
+        name: `${seed.name} — user`,
+        description: null,
+        body: seed.userBody,
+        role: "USER",
+        ownerId: null,
+        updatedAt: now,
+      });
+    } else if (existingUser.deletedAt) {
+      await db.orm.public.PromptComponent.where({ id: userComponentId }).update({
+        deletedAt: null,
+        updatedAt: now,
+      });
+    }
+
+    const link0Id = `${seed.id}-link-0`;
+    const link0 = (await db.orm.public.PromptComponentLink.where({
+      id: link0Id,
+    }).first()) as LinkRow | null;
+    if (!link0) {
+      await db.orm.public.PromptComponentLink.create({
+        id: link0Id,
+        promptId: seed.id,
+        componentId: systemComponentId,
+        position: 0,
+        enabled: true,
+        updatedAt: now,
+      });
+    } else if (link0.deletedAt || !link0.enabled || link0.position !== 0) {
+      await db.orm.public.PromptComponentLink.where({ id: link0Id }).update({
+        deletedAt: null,
+        enabled: true,
+        position: 0,
+        updatedAt: now,
+      });
+    }
+
+    const link1Id = `${seed.id}-link-1`;
+    const link1 = (await db.orm.public.PromptComponentLink.where({
+      id: link1Id,
+    }).first()) as LinkRow | null;
+    if (!link1) {
+      await db.orm.public.PromptComponentLink.create({
+        id: link1Id,
+        promptId: seed.id,
+        componentId: userComponentId,
+        position: 1,
+        enabled: true,
+        updatedAt: now,
+      });
+    } else if (link1.deletedAt || !link1.enabled || link1.position !== 1) {
+      await db.orm.public.PromptComponentLink.where({ id: link1Id }).update({
+        deletedAt: null,
+        enabled: true,
+        position: 1,
+        updatedAt: now,
+      });
+    }
   }
 }
 
@@ -322,7 +399,22 @@ export async function createPrompt(userId: string, input: CreatePromptInput): Pr
   const name = input.name?.trim();
   if (!name) throw new PromptError("name is required", "VALIDATION_FAILED", 400);
 
-  let scope: PromptScopeName = input.scope ?? "USER";
+  if ((input.scope as string) === "SYSTEM_DEFAULT") {
+    throw new PromptError("Cannot create a SYSTEM_DEFAULT prompt", "VALIDATION_FAILED", 400);
+  }
+
+  let scope: PromptScopeName = "USER";
+  if (input.scope) {
+    if (input.scope !== "USER" && input.scope !== "NOVEL") {
+      throw new PromptError(
+        `Invalid prompt scope: ${String(input.scope)}`,
+        "VALIDATION_FAILED",
+        400,
+      );
+    }
+    scope = input.scope;
+  }
+
   let novelId: string | null = null;
   if (input.novelId) {
     await assertNovelOwned(userId, input.novelId);
@@ -333,25 +425,32 @@ export async function createPrompt(userId: string, input: CreatePromptInput): Pr
     throw new PromptError("novelId is required for NOVEL scope", "VALIDATION_FAILED", 400);
   }
 
-  const now = Temporal.Now.plainDateTimeISO();
-  const created = (await db.orm.public.Prompt.create({
-    id: crypto.randomUUID(),
-    name,
-    description: input.description ?? null,
-    mode: input.mode,
-    scope,
-    body: input.body ?? "",
-    role: input.role ?? "SYSTEM",
-    position: input.position ?? 0,
-    isActive: input.isActive ?? true,
-    ownerId: userId,
-    novelId,
-    updatedAt: now,
-  })) as PromptRow;
-
   if (input.componentIds?.length) {
-    await replaceLinks(created.id, userId, input.componentIds);
+    await validateComponentIds(userId, input.componentIds);
   }
+
+  const now = Temporal.Now.plainDateTimeISO();
+  const created = await db.transaction(async (tx) => {
+    const row = (await tx.orm.public.Prompt.create({
+      id: crypto.randomUUID(),
+      name,
+      description: input.description ?? null,
+      mode: input.mode,
+      scope,
+      body: input.body ?? "",
+      role: input.role ?? "SYSTEM",
+      position: input.position ?? 0,
+      isActive: input.isActive ?? true,
+      ownerId: userId,
+      novelId,
+      updatedAt: now,
+    })) as PromptRow;
+
+    if (input.componentIds?.length) {
+      await replaceLinks(row.id, userId, input.componentIds, tx);
+    }
+    return row;
+  });
 
   return toPromptDto(created);
 }
@@ -365,20 +464,27 @@ export async function updatePrompt(
   if (!row) throw new PromptError("Prompt not found", "NOT_FOUND", 404);
   assertCanWritePrompt(userId, row);
 
-  const now = Temporal.Now.plainDateTimeISO();
-  const updated = (await db.orm.public.Prompt.where({ id: promptId }).update({
-    ...(input.name !== undefined ? { name: input.name.trim() } : {}),
-    ...(input.description !== undefined ? { description: input.description } : {}),
-    ...(input.body !== undefined ? { body: input.body } : {}),
-    ...(input.role !== undefined ? { role: input.role } : {}),
-    ...(input.position !== undefined ? { position: input.position } : {}),
-    ...(input.isActive !== undefined ? { isActive: input.isActive } : {}),
-    updatedAt: now,
-  })) as PromptRow;
-
   if (input.componentIds) {
-    await replaceLinks(promptId, userId, input.componentIds);
+    await validateComponentIds(userId, input.componentIds);
   }
+
+  const now = Temporal.Now.plainDateTimeISO();
+  const updated = await db.transaction(async (tx) => {
+    const promptRow = (await tx.orm.public.Prompt.where({ id: promptId }).update({
+      ...(input.name !== undefined ? { name: input.name.trim() } : {}),
+      ...(input.description !== undefined ? { description: input.description } : {}),
+      ...(input.body !== undefined ? { body: input.body } : {}),
+      ...(input.role !== undefined ? { role: input.role } : {}),
+      ...(input.position !== undefined ? { position: input.position } : {}),
+      ...(input.isActive !== undefined ? { isActive: input.isActive } : {}),
+      updatedAt: now,
+    })) as PromptRow;
+
+    if (input.componentIds) {
+      await replaceLinks(promptId, userId, input.componentIds, tx);
+    }
+    return promptRow;
+  });
 
   return toPromptDto(updated);
 }
@@ -395,13 +501,16 @@ async function replaceLinks(
   promptId: string,
   userId: string,
   componentIds: string[],
+  client: DbHandle = db,
 ): Promise<void> {
   const now = Temporal.Now.plainDateTimeISO();
-  const existing = (await db.orm.public.PromptComponentLink.where((l) => l.promptId.eq(promptId))
+  const existing = (await client.orm.public.PromptComponentLink.where((l) =>
+    l.promptId.eq(promptId),
+  )
     .where((l) => l.deletedAt.isNull())
     .all()) as LinkRow[];
   for (const link of existing) {
-    await db.orm.public.PromptComponentLink.where({ id: link.id }).update({
+    await client.orm.public.PromptComponentLink.where({ id: link.id }).update({
       deletedAt: now,
       updatedAt: now,
     });
@@ -409,7 +518,7 @@ async function replaceLinks(
 
   for (let i = 0; i < componentIds.length; i++) {
     const componentId = componentIds[i];
-    const component = await loadComponentRow(componentId);
+    const component = await loadComponentRow(componentId, client);
     if (!component) {
       throw new PromptError(`Component not found: ${componentId}`, "NOT_FOUND", 404);
     }
@@ -417,7 +526,7 @@ async function replaceLinks(
     if (component.ownerId !== null && component.ownerId !== userId) {
       throw new PromptError(`Component not found: ${componentId}`, "NOT_FOUND", 404);
     }
-    await db.orm.public.PromptComponentLink.create({
+    await client.orm.public.PromptComponentLink.create({
       id: crypto.randomUUID(),
       promptId,
       componentId,
@@ -437,46 +546,49 @@ export async function duplicatePromptToLibrary(
   const source = await getPrompt(userId, promptId);
   const now = Temporal.Now.plainDateTimeISO();
 
-  const created = (await db.orm.public.Prompt.create({
-    id: crypto.randomUUID(),
-    name: `${source.name} (copy)`,
-    description: source.description,
-    mode: source.mode,
-    scope: "USER",
-    body: source.body,
-    role: source.role,
-    position: source.position,
-    isActive: true,
-    ownerId: userId,
-    novelId: null,
-    updatedAt: now,
-  })) as PromptRow;
-
-  const componentIds: string[] = [];
-  for (const link of source.components ?? []) {
-    const src = link.component;
-    if (!src) continue;
-    // Copy system components into the user library; reuse own components.
-    if (src.ownerId === userId) {
-      componentIds.push(src.id);
-      continue;
-    }
-    const copy = (await db.orm.public.PromptComponent.create({
+  const createdId = await db.transaction(async (tx) => {
+    const created = (await tx.orm.public.Prompt.create({
       id: crypto.randomUUID(),
-      name: src.name,
-      description: src.description,
-      body: src.body,
-      role: src.role,
+      name: `${source.name} (copy)`,
+      description: source.description,
+      mode: source.mode,
+      scope: "USER",
+      body: source.body,
+      role: source.role,
+      position: source.position,
+      isActive: true,
       ownerId: userId,
+      novelId: null,
       updatedAt: now,
-    })) as ComponentRow;
-    componentIds.push(copy.id);
-  }
-  if (componentIds.length) {
-    await replaceLinks(created.id, userId, componentIds);
-  }
+    })) as PromptRow;
 
-  return getPrompt(userId, created.id);
+    const componentIds: string[] = [];
+    for (const link of source.components ?? []) {
+      const src = link.component;
+      if (!src) continue;
+      // Copy system components into the user library; reuse own components.
+      if (src.ownerId === userId) {
+        componentIds.push(src.id);
+        continue;
+      }
+      const copy = (await tx.orm.public.PromptComponent.create({
+        id: crypto.randomUUID(),
+        name: src.name,
+        description: src.description,
+        body: src.body,
+        role: src.role,
+        ownerId: userId,
+        updatedAt: now,
+      })) as ComponentRow;
+      componentIds.push(copy.id);
+    }
+    if (componentIds.length) {
+      await replaceLinks(created.id, userId, componentIds, tx);
+    }
+    return created.id;
+  });
+
+  return getPrompt(userId, createdId);
 }
 
 export async function listComponents(userId: string): Promise<PromptComponentDto[]> {

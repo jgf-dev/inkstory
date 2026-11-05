@@ -122,4 +122,17 @@ describe("renderDefaultScenePrompt parity with historical prompts", () => {
     expect(rendered.messages[0].content).toContain("B");
     expect(rendered.messages[1].content).toBe("C");
   });
+
+  it("treats null bindings as unresolved", () => {
+    const result = interpolate("{{scene.summary}}", { "scene.summary": null as any });
+    expect(result.text).toBe("{{scene.summary}}");
+    expect(result.unresolved).toContain("scene.summary");
+  });
+
+  it("checks catalog tokens and emptyBindings", async () => {
+    const { isPromptVariableToken, emptyBindings } = await import("../src/lib/prompts/catalog");
+    expect(isPromptVariableToken("novel.title")).toBe(true);
+    expect(isPromptVariableToken("invalid.token")).toBe(false);
+    expect(emptyBindings()["novel.title"]).toBe("");
+  });
 });
