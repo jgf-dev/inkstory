@@ -10,6 +10,7 @@ export default {
   theme: {
     extend: {
       fontFamily: {
+        sans: ["Inter", "ui-sans-serif", "system-ui", "sans-serif"],
         serif: ["Georgia", "Cambria", "Times New Roman", "serif"],
       },
     },
