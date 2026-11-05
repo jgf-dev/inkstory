@@ -152,6 +152,46 @@ describe("Writing Service (outline, scenes, attachments)", { timeout: 30_000 }, 
     await moveOutlineNode(userId, novelId, { kind: "act", id: secondActId, direction: "down" });
   });
 
+  it("moves an outline node to an absolute sibling index in one step", async () => {
+    const third = await createOutlineNode(userId, novelId, { kind: "act", title: "Act III" });
+    const thirdId = (third.node as { id: string }).id;
+
+    let outline = await getNovelOutline(userId, novelId);
+    expect(outline.acts.map((a) => a.title)).toEqual(["Act I", "Act II", "Act III"]);
+
+    const moved = await moveOutlineNode(userId, novelId, {
+      kind: "act",
+      id: thirdId,
+      toIndex: 0,
+    });
+    expect(moved.moved).toBe(true);
+    outline = await getNovelOutline(userId, novelId);
+    expect(outline.acts.map((a) => a.title)).toEqual(["Act III", "Act I", "Act II"]);
+    expect(outline.acts.map((a) => a.position)).toEqual([0, 1, 2]);
+
+    const noop = await moveOutlineNode(userId, novelId, {
+      kind: "act",
+      id: thirdId,
+      toIndex: 0,
+    });
+    expect(noop.moved).toBe(false);
+
+    await expect(moveOutlineNode(userId, novelId, { kind: "act", id: thirdId })).rejects.toThrow(
+      /exactly one of direction or toIndex/,
+    );
+
+    // Clean up the extra act so later tests see the original two.
+    await deleteOutlineNode(userId, novelId, "act", thirdId);
+    // Restore Act I first if needed
+    outline = await getNovelOutline(userId, novelId);
+    if (outline.acts[0].title !== "Act I") {
+      const actI = outline.acts.find((a) => a.title === "Act I");
+      if (actI) {
+        await moveOutlineNode(userId, novelId, { kind: "act", id: actI.id, toIndex: 0 });
+      }
+    }
+  });
+
   it("computes act positions per novel, not across novels", async () => {
     const ts = await now();
     const novelA = `ws-pos-a-${runId}`;

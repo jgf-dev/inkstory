@@ -199,7 +199,10 @@ export interface CreateOutlineNodeInput {
 export interface MoveOutlineNodeInput {
   kind: OutlineKind;
   id: string;
-  direction: "up" | "down";
+  /** Adjacent swap. Provide exactly one of `direction` or `toIndex`. */
+  direction?: "up" | "down";
+  /** Absolute sibling index after the move (0-based). Prefer this for drag-drop. */
+  toIndex?: number;
 }
 
 export interface RenameOutlineNodeInput {
@@ -419,12 +422,26 @@ export async function renameOutlineNode(
   return { id: node.id, kind: input.kind, title };
 }
 
-/** Swaps an outline node's position with its adjacent sibling. */
+/**
+ * Reorders an outline node among its siblings.
+ * - `direction`: swap with the adjacent sibling (button controls).
+ * - `toIndex`: move to an absolute sibling index in one lock (drag-drop).
+ * Provide exactly one of the two.
+ */
 export async function moveOutlineNode(
   userId: string,
   novelId: string,
   input: MoveOutlineNodeInput,
 ) {
+  const hasDirection = input.direction !== undefined;
+  const hasToIndex = input.toIndex !== undefined;
+  if (hasDirection === hasToIndex) {
+    throw new CodexError("Provide exactly one of direction or toIndex", "VALIDATION_FAILED", 422);
+  }
+  if (hasToIndex && (!Number.isInteger(input.toIndex) || (input.toIndex as number) < 0)) {
+    throw new CodexError("toIndex must be a non-negative integer", "VALIDATION_FAILED", 422);
+  }
+
   const node = await loadOutlineNode(userId, novelId, input.kind, input.id);
 
   // Positions are read only after the lock, so a concurrent import or
@@ -437,6 +454,25 @@ export async function moveOutlineNode(
     if (index === -1) {
       throw new CodexError("Outline node not found", "NOT_FOUND", 404);
     }
+
+    if (hasToIndex) {
+      let toIndex = input.toIndex as number;
+      if (toIndex >= siblings.length) {
+        toIndex = siblings.length - 1;
+      }
+      if (toIndex === index) {
+        return false;
+      }
+      const [item] = siblings.splice(index, 1);
+      siblings.splice(toIndex, 0, item);
+      for (let i = 0; i < siblings.length; i++) {
+        if (siblings[i].position !== i) {
+          await updateOutlineNodeRow(input.kind, siblings[i].id, { position: i }, tx.orm);
+        }
+      }
+      return true;
+    }
+
     const targetIndex = input.direction === "up" ? index - 1 : index + 1;
     if (targetIndex < 0 || targetIndex >= siblings.length) {
       return false;

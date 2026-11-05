@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import React from "react";
-import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, createEvent, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { Outliner } from "../src/app/dashboard/novels/[id]/_components/Outliner";
 import { SceneEditor } from "../src/app/dashboard/novels/[id]/_components/SceneEditor";
@@ -133,6 +133,7 @@ describe("Outliner interactions", () => {
       onCreateNode: vi.fn(),
       onRenameNode: vi.fn(),
       onMoveNode: vi.fn(),
+      onReorderNode: vi.fn(),
       onDeleteNode: vi.fn(),
       ...overrides,
     };
@@ -159,6 +160,83 @@ describe("Outliner interactions", () => {
     expect(screen.getByText("Empty chapter")).toBeTruthy();
     expect(screen.getByText("No chapters")).toBeTruthy();
     expect(screen.getByText(/1 scene ·/)).toBeTruthy();
+  });
+
+  it("reorders siblings via drag-and-drop onto another row", () => {
+    const p = setup();
+    const handle = screen.getByTestId("outline-drag-scene-scene-2");
+    const target = screen.getByTestId("outline-row-scene-scene-1");
+
+    const store: Record<string, string> = {};
+    const dataTransfer = {
+      effectAllowed: "move",
+      dropEffect: "move",
+      setData: (type: string, value: string) => {
+        store[type] = value;
+      },
+      getData: (type: string) => store[type] ?? "",
+      types: [] as string[],
+    };
+
+    act(() => {
+      const start = createEvent.dragStart(handle);
+      Object.defineProperty(start, "dataTransfer", { value: dataTransfer });
+      fireEvent(handle, start);
+    });
+
+    expect(store["application/x-inkstory-outline"] || store["text/plain"]).toContain("scene-2");
+
+    const rect = {
+      top: 100,
+      height: 40,
+      bottom: 140,
+      left: 0,
+      right: 100,
+      width: 100,
+      x: 0,
+      y: 100,
+      toJSON() {},
+    };
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue(rect as DOMRect);
+
+    act(() => {
+      const over = createEvent.dragOver(target);
+      Object.defineProperty(over, "dataTransfer", { value: dataTransfer });
+      Object.defineProperty(over, "clientY", { value: 110 });
+      fireEvent(target, over);
+
+      const drop = createEvent.drop(target);
+      Object.defineProperty(drop, "dataTransfer", { value: dataTransfer });
+      Object.defineProperty(drop, "clientY", { value: 110 });
+      fireEvent(target, drop);
+    });
+
+    expect(p.onReorderNode).toHaveBeenCalledWith("scene", "scene-2", 0);
+  });
+
+  it("ignores cross-parent drops", () => {
+    const p = setup();
+    const handle = screen.getByTestId("outline-drag-scene-scene-1");
+    const target = screen.getByTestId("outline-row-act-act-2");
+    const store: Record<string, string> = {};
+    const dataTransfer = {
+      effectAllowed: "move",
+      dropEffect: "move",
+      setData: (type: string, value: string) => {
+        store[type] = value;
+      },
+      getData: (type: string) => store[type] ?? "",
+    };
+    act(() => {
+      const start = createEvent.dragStart(handle);
+      Object.defineProperty(start, "dataTransfer", { value: dataTransfer });
+      fireEvent(handle, start);
+      const drop = createEvent.drop(target);
+      Object.defineProperty(drop, "dataTransfer", { value: dataTransfer });
+      Object.defineProperty(drop, "clientY", { value: 10 });
+      fireEvent(target, drop);
+    });
+    expect(p.onReorderNode).not.toHaveBeenCalled();
   });
 
   it("renames a scene inline with Enter and ignores blank titles", () => {
