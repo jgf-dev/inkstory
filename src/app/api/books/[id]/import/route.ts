@@ -4,9 +4,11 @@ import {
   assertNovelOwner,
   detectFormat,
   importManuscript,
+  applyStructureOverride,
   ImportError,
   MAX_IMPORT_BYTES,
   parseManuscript,
+  parseStructureOverride,
   previewManuscript,
   readBodyWithLimit,
 } from "@/lib/import";
@@ -30,7 +32,9 @@ function field(form: FormData, name: string): string | null {
  * Fields: `file` (.docx, .md or .html), optional `format` (md|html|docx),
  * `summaries` (true|false, default true: blockquotes become scene summaries)
  * `confirm` (true|false, default false) and `applyTitle` (true|false, default
- * false: write the detected title and subtitle to the book on confirm).
+ * false: write the detected title and subtitle to the book on confirm) and
+ * `structure` (optional JSON manual override, STO-1211: regroups and renames
+ * the detected scenes into acts and chapters; applies to preview and confirm).
  *
  * Without `confirm=true` nothing is written: the response is the structure and
  * word-count preview. With it, the acts are appended to the book and the
@@ -77,10 +81,12 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const summaries = field(form, "summaries") !== "false";
     const confirm = field(form, "confirm") === "true";
     const applyTitle = field(form, "applyTitle") === "true";
+    const override = parseStructureOverride(field(form, "structure"));
 
-    const manuscript = await parseManuscript(Buffer.from(await file.arrayBuffer()), format, {
+    const parsed = await parseManuscript(Buffer.from(await file.arrayBuffer()), format, {
       summaries,
     });
+    const manuscript = override ? applyStructureOverride(parsed, override) : parsed;
     if (!confirm) {
       return Response.json({ preview: previewManuscript(manuscript) }, { status: 200 });
     }
