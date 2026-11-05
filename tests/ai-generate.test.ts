@@ -14,6 +14,8 @@ import { CodexError } from "../src/lib/codex/errors";
 import * as entitlements from "../src/lib/billing/entitlements";
 import { PLANS } from "../src/lib/billing/plans";
 import * as tokenBudgeter from "../src/lib/codex/token-budgeter";
+import * as prompts from "../src/lib/prompts";
+import { renderDefaultScenePrompt } from "../src/lib/prompts";
 
 const mockGetUser = vi.fn();
 vi.mock("../src/lib/supabase/server", () => ({
@@ -192,6 +194,28 @@ describe("AI generation (scene continuation / beat expansion)", () => {
         data: { user: { id: "ai-user", email: "ai@inkstory.local" } },
       });
       vi.spyOn(entitlements, "getEntitlements").mockResolvedValue(PLANS.FREE);
+      vi.spyOn(prompts, "renderResolvedScenePrompt").mockImplementation(
+        async (_userId, _novelId, input) => {
+          const rendered = renderDefaultScenePrompt(input);
+          return {
+            ...rendered,
+            prompt: {
+              id: "sys-prompt-continuation",
+              name: "Scene continuation (system default)",
+              description: null,
+              mode: String(input.mode),
+              scope: "SYSTEM_DEFAULT",
+              body: "",
+              role: "SYSTEM",
+              position: 0,
+              isActive: true,
+              ownerId: null,
+              novelId: null,
+              updatedAt: "now",
+            },
+          };
+        },
+      );
       vi.unstubAllEnvs();
       vi.stubEnv("AI_GATEWAY_API_KEY", "");
     });

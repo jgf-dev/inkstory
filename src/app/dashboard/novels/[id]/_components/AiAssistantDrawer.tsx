@@ -22,9 +22,18 @@ interface GenerateSuccess {
   model: string;
 }
 
+interface PreviewResult {
+  messages: Array<{ role: "system" | "user"; content: string }>;
+  joined: string;
+  unresolved: string[];
+  unknownTokens: string[];
+  prompt: { id: string; name: string; scope: string; mode: string };
+}
+
 type GenerateOutcome =
   | { kind: "generated"; result: GenerateSuccess }
-  | { kind: "not-configured"; prompt: PromptPreview; message: string };
+  | { kind: "not-configured"; prompt: PromptPreview; message: string }
+  | { kind: "preview"; result: PreviewResult };
 
 const MODE_LABELS: Record<GenerationMode, string> = {
   continuation: "Continue scene",
@@ -78,6 +87,29 @@ export function AiAssistantDrawer({
         }
       } else {
         setError("Generation failed");
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function preview() {
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await apiPost<PreviewResult>("/api/ai/preview", {
+        sceneId,
+        mode,
+        beatText: beatText || undefined,
+        content,
+      });
+      setOutcome({ kind: "preview", result: res });
+      setAccepted(false);
+    } catch (err) {
+      if (err instanceof ApiRequestError) {
+        setError(err.message);
+      } else {
+        setError("Preview failed");
       }
     } finally {
       setBusy(false);
@@ -166,14 +198,24 @@ export function AiAssistantDrawer({
           />
         </label>
 
-        <button
-          type="button"
-          onClick={() => void generate()}
-          disabled={busy}
-          className="w-full rounded-md bg-ink-800 px-3 py-2 text-sm font-medium text-ink-50 shadow-xs hover:bg-ink-900 disabled:opacity-50"
-        >
-          {busy ? "Generating…" : "Generate"}
-        </button>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => void preview()}
+            disabled={busy}
+            className="flex-1 rounded-md border border-ink-300 bg-white px-3 py-2 text-sm font-medium text-ink-800 hover:bg-ink-50 disabled:opacity-50"
+          >
+            {busy ? "Working…" : "Preview prompt"}
+          </button>
+          <button
+            type="button"
+            onClick={() => void generate()}
+            disabled={busy}
+            className="flex-1 rounded-md bg-ink-800 px-3 py-2 text-sm font-medium text-ink-50 shadow-xs hover:bg-ink-900 disabled:opacity-50"
+          >
+            {busy ? "Generating…" : "Generate"}
+          </button>
+        </div>
 
         <p className="text-ink-400 text-[11px]">
           Uses the assembled story bible (token-budgeted) plus your scene. The saved scene content
@@ -255,6 +297,47 @@ export function AiAssistantDrawer({
                 Discard
               </button>
             </div>
+          </div>
+        )}
+
+        {outcome?.kind === "preview" && (
+          <div data-testid="ai-prompt-preview" className="space-y-2">
+            <p className="text-ink-400 text-[11px]">
+              Preview of “{outcome.result.prompt.name}” ({outcome.result.prompt.scope}) — exact
+              messages Generate will send.
+            </p>
+            {(outcome.result.unresolved.length > 0 || outcome.result.unknownTokens.length > 0) && (
+              <p className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                Unresolved:{" "}
+                {[...outcome.result.unresolved, ...outcome.result.unknownTokens].join(", ") ||
+                  "none"}
+              </p>
+            )}
+            {outcome.result.messages.map((m, i) => (
+              <div key={`${m.role}-${i}`}>
+                <div className="mb-1 flex items-center justify-between">
+                  <span className="text-ink-500 text-[11px] font-semibold uppercase">
+                    {m.role} message
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => void copy(m.content, `preview-${m.role}-${i}`)}
+                    className="rounded border border-ink-300 px-2 py-0.5 text-[11px] font-medium text-ink-700 hover:bg-ink-50"
+                  >
+                    {copied === `preview-${m.role}-${i}` ? "Copied" : "Copy"}
+                  </button>
+                </div>
+                <pre className="border-ink-200 max-h-60 overflow-y-auto rounded border bg-ink-50 p-2 text-[11px] whitespace-pre-wrap text-ink-700">
+                  {m.content}
+                </pre>
+              </div>
+            ))}
+            <details className="text-[11px] text-ink-500">
+              <summary className="cursor-pointer">Joined debug string</summary>
+              <pre className="border-ink-200 mt-1 max-h-40 overflow-y-auto rounded border bg-ink-50 p-2 whitespace-pre-wrap">
+                {outcome.result.joined}
+              </pre>
+            </details>
           </div>
         )}
 

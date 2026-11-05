@@ -9,12 +9,12 @@ import { getSceneForEditor } from "@/lib/writing/service";
 import { POV_LABELS, TENSE_LABELS } from "@/lib/writing/meta";
 import {
   AiError,
-  buildSceneMessages,
   generateText,
   handleAiApiError,
   isGenerationMode,
   MAX_OUTPUT_TOKENS,
 } from "@/lib/ai/generate";
+import { PromptError, handlePromptApiError, renderResolvedScenePrompt } from "@/lib/prompts";
 
 export const dynamic = "force-dynamic";
 
@@ -94,15 +94,12 @@ export async function POST(request: NextRequest) {
 
     const prose = body.content !== undefined ? body.content : scene.content;
 
-    // Context assembly is owned by #92's assembleCodexContextForScene; the
-    // generation flow only budgets and renders it into the prompt block.
     const assembled = await assembleCodexContextForScene(user.id, {
       sceneId: scene.id,
       novelId: scene.novelId,
       beatText: body.beatText || scene.summary || undefined,
       recentProse: prose || undefined,
     });
-    // Cap the prompt context at the user's tier ceiling (STO-1210).
     const { maxContextTokens } = await getEntitlements(user.id);
     const prompt = formatAssembledContext(
       applyTokenBudget(assembled, {
@@ -110,7 +107,7 @@ export async function POST(request: NextRequest) {
       }),
     );
 
-    const messages = buildSceneMessages({
+    const rendered = await renderResolvedScenePrompt(user.id, scene.novelId, {
       mode: body.mode,
       novelTitle: scene.novelTitle,
       chapterTitle: scene.chapterTitle,
@@ -123,12 +120,24 @@ export async function POST(request: NextRequest) {
       codexPrompt: prompt,
     });
 
+    if (rendered.unresolved.length || rendered.unknownTokens.length) {
+      throw new PromptError(
+        `Prompt has unresolved variables: ${[...rendered.unresolved, ...rendered.unknownTokens].join(", ")}`,
+        "UNRESOLVED_VARS",
+        422,
+      );
+    }
+
+    const messages = rendered.messages;
+
     if (!process.env.AI_GATEWAY_API_KEY) {
       return Response.json(
         {
           error: "AI generation is not configured on this deployment (missing AI_GATEWAY_API_KEY)",
           code: "AI_NOT_CONFIGURED",
-          prompt: { system: messages[0].content, user: messages[1].content },
+          prompt: { system: messages[0]?.content ?? "", user: messages[1]?.content ?? "" },
+          messages,
+          joined: rendered.joined,
         },
         { status: 503 },
       );
@@ -143,6 +152,9 @@ export async function POST(request: NextRequest) {
   } catch (err) {
     if (err instanceof AiError) {
       return handleAiApiError(err);
+    }
+    if (err instanceof PromptError) {
+      return handlePromptApiError(err);
     }
     return handleCodexApiError(err);
   }
