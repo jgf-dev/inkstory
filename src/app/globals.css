@@ -121,6 +121,12 @@ body {
   font-family: var(--font-prose-active);
 }
 
+/* Prose reading surfaces outside the editor (JGF-115): landing display
+   headings and reading previews use the default prose font. */
+.prose-reading {
+  font-family: var(--font-prose);
+}
+
 /* Visible focus ring on interactive elements in both themes (WCAG 2.4.7). */
 :where(a, button, input, select, textarea, [tabindex]):focus-visible {
   outline: 2px solid var(--border-strong);

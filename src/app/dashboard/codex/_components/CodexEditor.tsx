@@ -19,6 +19,8 @@ import { RelationEditorModal } from "./RelationEditorModal";
 import { RelationLinkerModal, type RelationChipData } from "./RelationLinkerModal";
 import type { ProgressionDraft } from "./ProgressionEditorModal";
 import { ProgressionEditorModal } from "./ProgressionEditorModal";
+import { a11yClasses } from "@/lib/ui/a11y-classes";
+import { CodexLabeledSelect } from "./CodexLabeledSelect";
 
 interface CodexEditorProps {
   entryId: string;
@@ -509,52 +511,30 @@ export function CodexEditor({
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="mt-1 w-full rounded-md border border-ink-200 bg-ink-100 p-2 text-sm focus:border-ink-400 focus:outline-hidden"
+              className={a11yClasses.codexEditorField}
             />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label
-                className="block text-xs font-semibold uppercase tracking-wider text-ink-600"
-                htmlFor={`${fieldId}-type`}
-              >
-                Type
-              </label>
-              <select
-                id={`${fieldId}-type`}
-                value={type}
-                onChange={(e) => setType(e.target.value as CodexType)}
-                className="mt-1 w-full rounded-md border border-ink-200 bg-ink-100 p-2 text-sm focus:border-ink-400 focus:outline-hidden"
-              >
-                {CODEX_TYPES.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <CodexLabeledSelect
+              id={`${fieldId}-type`}
+              label="Type"
+              value={type}
+              onChange={(e) => setType(e.target.value as CodexType)}
+              options={CODEX_TYPES}
+              className={a11yClasses.codexEditorField}
+              labelClassName="block text-xs font-semibold uppercase tracking-wider text-ink-600"
+            />
 
-            <div>
-              <label
-                className="block text-xs font-semibold uppercase tracking-wider text-ink-600"
-                htmlFor={`${fieldId}-tracking-mode`}
-              >
-                Tracking Mode
-              </label>
-              <select
-                id={`${fieldId}-tracking-mode`}
-                value={trackingMode}
-                onChange={(e) => setTrackingMode(e.target.value as CodexTrackingMode)}
-                className="mt-1 w-full rounded-md border border-ink-200 bg-ink-100 p-2 text-sm focus:border-ink-400 focus:outline-hidden"
-              >
-                {TRACKING_MODES.map((m) => (
-                  <option key={m} value={m}>
-                    {m}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <CodexLabeledSelect
+              id={`${fieldId}-tracking-mode`}
+              label="Tracking Mode"
+              value={trackingMode}
+              onChange={(e) => setTrackingMode(e.target.value as CodexTrackingMode)}
+              options={TRACKING_MODES}
+              className={a11yClasses.codexEditorField}
+              labelClassName="block text-xs font-semibold uppercase tracking-wider text-ink-600"
+            />
           </div>
 
           <div>
@@ -569,7 +549,7 @@ export function CodexEditor({
               rows={4}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className="mt-1 w-full rounded-md border border-ink-200 bg-ink-100 p-2 text-sm focus:border-ink-400 focus:outline-hidden"
+              className={a11yClasses.codexEditorField}
             />
           </div>
 
@@ -585,7 +565,7 @@ export function CodexEditor({
               rows={3}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              className="mt-1 w-full rounded-md border border-ink-200 bg-ink-100 p-2 text-sm focus:border-ink-400 focus:outline-hidden"
+              className={a11yClasses.codexEditorField}
             />
           </div>
 
@@ -607,7 +587,7 @@ export function CodexEditor({
                     onChange={(e) => updateFieldRow(index, { key: e.target.value })}
                     placeholder="Field name (e.g. Age)"
                     aria-label={`Custom field ${index + 1} name`}
-                    className="w-2/5 rounded border border-ink-200 bg-ink-100 px-2 py-1 text-xs focus:border-ink-400 focus:outline-hidden"
+                    className={`w-2/5 ${a11yClasses.codexCompactField}`}
                   />
                   <input
                     type="text"
@@ -615,7 +595,7 @@ export function CodexEditor({
                     onChange={(e) => updateFieldRow(index, { value: e.target.value })}
                     placeholder="Value"
                     aria-label={`Custom field ${index + 1} value`}
-                    className="w-full rounded border border-ink-200 bg-ink-100 px-2 py-1 text-xs focus:border-ink-400 focus:outline-hidden"
+                    className={`w-full ${a11yClasses.codexCompactField}`}
                   />
                   <button
                     type="button"
