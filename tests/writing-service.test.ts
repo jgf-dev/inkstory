@@ -180,6 +180,20 @@ describe("Writing Service (outline, scenes, attachments)", { timeout: 30_000 }, 
       /exactly one of direction or toIndex/,
     );
 
+    await expect(
+      moveOutlineNode(userId, novelId, { kind: "act", id: thirdId, toIndex: -1 }),
+    ).rejects.toThrow(/toIndex must be a non-negative integer/);
+
+    // Clamping to end: toIndex 999 moves Act III back to index 2
+    const clamped = await moveOutlineNode(userId, novelId, {
+      kind: "act",
+      id: thirdId,
+      toIndex: 999,
+    });
+    expect(clamped.moved).toBe(true);
+    outline = await getNovelOutline(userId, novelId);
+    expect(outline.acts.map((a) => a.title)).toEqual(["Act I", "Act II", "Act III"]);
+
     // Clean up the extra act so later tests see the original two.
     await deleteOutlineNode(userId, novelId, "act", thirdId);
     // Restore Act I first if needed

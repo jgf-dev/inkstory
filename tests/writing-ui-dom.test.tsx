@@ -239,6 +239,198 @@ describe("Outliner interactions", () => {
     expect(p.onReorderNode).not.toHaveBeenCalled();
   });
 
+  it("reorders acts and chapters via drag-and-drop, including 'after' drops", () => {
+    const p = setup();
+    const store: Record<string, string> = {};
+    const dataTransfer = {
+      effectAllowed: "move",
+      dropEffect: "move",
+      setData: (type: string, value: string) => {
+        store[type] = value;
+      },
+      getData: (type: string) => store[type] ?? "",
+      types: [] as string[],
+    };
+    const rect = {
+      top: 100,
+      height: 40,
+      bottom: 140,
+      left: 0,
+      right: 100,
+      width: 100,
+      x: 0,
+      y: 100,
+      toJSON() {},
+    };
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue(rect as DOMRect);
+
+    // Act reorder: act-2 dragged before act-1
+    const actHandle = screen.getByTestId("outline-drag-act-act-2");
+    const actTarget = screen.getByTestId("outline-row-act-act-1");
+    act(() => {
+      const start = createEvent.dragStart(actHandle);
+      Object.defineProperty(start, "dataTransfer", { value: dataTransfer });
+      fireEvent(actHandle, start);
+    });
+
+    act(() => {
+      const over = createEvent.dragOver(actTarget);
+      Object.defineProperty(over, "dataTransfer", { value: dataTransfer });
+      Object.defineProperty(over, "clientY", { value: 110 }); // "before"
+      fireEvent(actTarget, over);
+    });
+    expect(actTarget.className).toContain("border-t-2");
+
+    act(() => {
+      const drop = createEvent.drop(actTarget);
+      Object.defineProperty(drop, "dataTransfer", { value: dataTransfer });
+      Object.defineProperty(drop, "clientY", { value: 110 });
+      fireEvent(actTarget, drop);
+    });
+    expect(p.onReorderNode).toHaveBeenCalledWith("act", "act-2", 0);
+
+    // Chapter reorder: chapter-1 dragged after chapter-2
+    const chapHandle = screen.getByTestId("outline-drag-chapter-chapter-1");
+    const chapTarget = screen.getByTestId("outline-row-chapter-chapter-2");
+    act(() => {
+      const start = createEvent.dragStart(chapHandle);
+      Object.defineProperty(start, "dataTransfer", { value: dataTransfer });
+      fireEvent(chapHandle, start);
+    });
+
+    act(() => {
+      const over = createEvent.dragOver(chapTarget);
+      Object.defineProperty(over, "dataTransfer", { value: dataTransfer });
+      Object.defineProperty(over, "clientY", { value: 135 }); // > 120 -> "after"
+      fireEvent(chapTarget, over);
+    });
+    expect(chapTarget.className).toContain("border-b-2");
+
+    act(() => {
+      const drop = createEvent.drop(chapTarget);
+      Object.defineProperty(drop, "dataTransfer", { value: dataTransfer });
+      Object.defineProperty(drop, "clientY", { value: 135 });
+      fireEvent(chapTarget, drop);
+    });
+    expect(p.onReorderNode).toHaveBeenCalledWith("chapter", "chapter-1", 1);
+  });
+
+  it("handles drag edge cases: busy prevention, self-target, drag leave, fallback drag, and no-op drop", () => {
+    setup({ busy: true });
+    const handle = screen.getByTestId("outline-drag-scene-scene-1");
+    const dataTransfer = {
+      effectAllowed: "move",
+      dropEffect: "move",
+      setData: vi.fn(),
+      getData: () => "",
+      types: [] as string[],
+    };
+    act(() => {
+      const start = createEvent.dragStart(handle);
+      Object.defineProperty(start, "dataTransfer", { value: dataTransfer });
+      fireEvent(handle, start);
+    });
+    expect(dataTransfer.setData).not.toHaveBeenCalled();
+
+    cleanup();
+    const p2 = setup({ busy: false });
+    const handle2 = screen.getByTestId("outline-drag-scene-scene-1");
+    const target2 = screen.getByTestId("outline-row-scene-scene-1");
+    const actHandle = screen.getByTestId("outline-drag-act-act-2");
+    const actTarget = screen.getByTestId("outline-row-act-act-1");
+    const chapHandle = screen.getByTestId("outline-drag-chapter-chapter-2");
+    const chapTarget = screen.getByTestId("outline-row-chapter-chapter-1");
+    const scene2Target = screen.getByTestId("outline-row-scene-scene-2");
+
+    const store: Record<string, string> = {};
+    const dt2 = {
+      effectAllowed: "move",
+      dropEffect: "move",
+      setData: (t: string, v: string) => {
+        store[t] = v;
+      },
+      getData: (t: string) => store[t] ?? "",
+      types: [] as string[],
+    };
+    const emptyDt = {
+      effectAllowed: "move",
+      dropEffect: "move",
+      setData: vi.fn(),
+      getData: () => "",
+      types: [] as string[],
+    };
+
+    const rect = {
+      top: 100,
+      height: 40,
+      bottom: 140,
+      left: 0,
+      right: 100,
+      width: 100,
+      x: 0,
+      y: 100,
+      toJSON() {},
+    };
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue(rect as DOMRect);
+
+    act(() => {
+      // 1. Act drag leave test
+      const actStart = createEvent.dragStart(actHandle);
+      Object.defineProperty(actStart, "dataTransfer", { value: dt2 });
+      fireEvent(actHandle, actStart);
+      const actOver = createEvent.dragOver(actTarget);
+      Object.defineProperty(actOver, "dataTransfer", { value: dt2 });
+      Object.defineProperty(actOver, "clientY", { value: 110 });
+      fireEvent(actTarget, actOver);
+      fireEvent.dragLeave(actTarget);
+      fireEvent.dragEnd(actHandle);
+
+      // 2. Chapter drag leave test
+      const chapStart = createEvent.dragStart(chapHandle);
+      Object.defineProperty(chapStart, "dataTransfer", { value: dt2 });
+      fireEvent(chapHandle, chapStart);
+      const chapOver = createEvent.dragOver(chapTarget);
+      Object.defineProperty(chapOver, "dataTransfer", { value: dt2 });
+      Object.defineProperty(chapOver, "clientY", { value: 110 });
+      fireEvent(chapTarget, chapOver);
+      fireEvent.dragLeave(chapTarget);
+      fireEvent.dragEnd(chapHandle);
+
+      // 3. Scene drag with fallback getData (empty) hitting in-memory dragging state
+      const start = createEvent.dragStart(handle2);
+      Object.defineProperty(start, "dataTransfer", { value: dt2 });
+      fireEvent(handle2, start);
+    });
+
+    act(() => {
+      const overSelf = createEvent.dragOver(target2);
+      Object.defineProperty(overSelf, "dataTransfer", { value: dt2 });
+      fireEvent(target2, overSelf);
+
+      fireEvent.dragLeave(target2);
+
+      // Drag over sibling with nextTo === payload.index (scene-1 over scene-2 top half)
+      const overNoOp = createEvent.dragOver(scene2Target);
+      Object.defineProperty(overNoOp, "dataTransfer", { value: dt2 });
+      Object.defineProperty(overNoOp, "clientY", { value: 110 });
+      fireEvent(scene2Target, overNoOp);
+
+      // No-op drop: scene-1 dropped before scene-2 results in toIndex === 0 === payload.index
+      const dropNoOp = createEvent.drop(scene2Target);
+      Object.defineProperty(dropNoOp, "dataTransfer", { value: emptyDt });
+      Object.defineProperty(dropNoOp, "clientY", { value: 110 });
+      fireEvent(scene2Target, dropNoOp);
+
+      // Drop on self
+      const dropSelf = createEvent.drop(target2);
+      Object.defineProperty(dropSelf, "dataTransfer", { value: dt2 });
+      fireEvent(target2, dropSelf);
+
+      fireEvent.dragEnd(handle2);
+    });
+    expect(p2.onReorderNode).not.toHaveBeenCalled();
+  });
+
   it("renames a scene inline with Enter and ignores blank titles", () => {
     const p = setup();
     fireEvent.click(screen.getByLabelText("Rename The Quay"));

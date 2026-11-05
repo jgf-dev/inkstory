@@ -5,6 +5,7 @@ import { isPovValue, isTenseValue, type PovValue, type TenseValue } from "./meta
 import { toEpochMs, toIsoString } from "./dates";
 import { countWords } from "./word-count";
 import { lockNovelStructure, type DbTransaction } from "./novel-lock";
+import { applySiblingReorder } from "./sibling-reorder";
 
 function nowTimestamp(): Temporal.PlainDateTime {
   return Temporal.Now.plainDateTimeISO();
@@ -463,11 +464,10 @@ export async function moveOutlineNode(
       if (toIndex === index) {
         return false;
       }
-      const [item] = siblings.splice(index, 1);
-      siblings.splice(toIndex, 0, item);
-      for (let i = 0; i < siblings.length; i++) {
-        if (siblings[i].position !== i) {
-          await updateOutlineNodeRow(input.kind, siblings[i].id, { position: i }, tx.orm);
+      const reordered = applySiblingReorder(siblings, index, toIndex);
+      for (let i = 0; i < reordered.length; i++) {
+        if (reordered[i].position !== i) {
+          await updateOutlineNodeRow(input.kind, reordered[i].id, { position: i }, tx.orm);
         }
       }
       return true;
