@@ -48,6 +48,10 @@
       "model": "StripeWebhookEvent",
       "namespace": "public"
     },
+    "user_provider_credentials": {
+      "model": "UserProviderCredential",
+      "namespace": "public"
+    },
     "users": {
       "model": "User",
       "namespace": "public"
@@ -1859,6 +1863,21 @@
                   "namespace": "public"
                 }
               },
+              "providerCredentials": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "ownerId"
+                  ]
+                },
+                "to": {
+                  "model": "UserProviderCredential",
+                  "namespace": "public"
+                }
+              },
               "series": {
                 "cardinality": "1:N",
                 "on": {
@@ -1917,6 +1936,196 @@
               "namespaceId": "public",
               "table": "users"
             }
+          },
+          "UserProviderCredential": {
+            "fields": {
+              "authTag": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/bytea@1",
+                  "kind": "scalar"
+                }
+              },
+              "baseUrl": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "ciphertext": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/bytea@1",
+                  "kind": "scalar"
+                }
+              },
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamp-temporal@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "defaultModel": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "defaultTemp": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/float8@1",
+                  "kind": "scalar"
+                }
+              },
+              "deletedAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamp-temporal@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "iv": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/bytea@1",
+                  "kind": "scalar"
+                }
+              },
+              "keyHint": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "keyVersion": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "label": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "ownerId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "provider": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/enum@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "typeName": "AiProvider"
+                  }
+                }
+              },
+              "updatedAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamp-temporal@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              }
+            },
+            "relations": {
+              "owner": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "ownerId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "User",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "authTag": {
+                  "column": "auth_tag"
+                },
+                "baseUrl": {
+                  "column": "base_url"
+                },
+                "ciphertext": {
+                  "column": "ciphertext"
+                },
+                "createdAt": {
+                  "column": "created_at"
+                },
+                "defaultModel": {
+                  "column": "default_model"
+                },
+                "defaultTemp": {
+                  "column": "default_temp"
+                },
+                "deletedAt": {
+                  "column": "deleted_at"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "iv": {
+                  "column": "iv"
+                },
+                "keyHint": {
+                  "column": "key_hint"
+                },
+                "keyVersion": {
+                  "column": "key_version"
+                },
+                "label": {
+                  "column": "label"
+                },
+                "ownerId": {
+                  "column": "owner_id"
+                },
+                "provider": {
+                  "column": "provider"
+                },
+                "updatedAt": {
+                  "column": "updated_at"
+                }
+              },
+              "namespaceId": "public",
+              "table": "user_provider_credentials"
+            }
           }
         }
       }
@@ -1927,6 +2136,17 @@
       "public": {
         "entries": {
           "native_enum": {
+            "AiProvider": {
+              "kind": "postgres-enum",
+              "members": [
+                "OPENROUTER",
+                "OPENAI",
+                "ANTHROPIC",
+                "OLLAMA",
+                "LMSTUDIO"
+              ],
+              "typeName": "AiProvider"
+            },
             "CodexTrackingMode": {
               "kind": "postgres-enum",
               "members": [
@@ -3401,6 +3621,162 @@
                 }
               ]
             },
+            "user_provider_credentials": {
+              "columns": {
+                "auth_tag": {
+                  "codecId": "pg/bytea@1",
+                  "dataType": "pg/bytea",
+                  "nullable": true
+                },
+                "base_url": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                },
+                "ciphertext": {
+                  "codecId": "pg/bytea@1",
+                  "dataType": "pg/bytea",
+                  "nullable": true
+                },
+                "created_at": {
+                  "codecId": "pg/timestamp-temporal@1",
+                  "dataType": "pg/timestamp",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "default_model": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                },
+                "default_temp": {
+                  "codecId": "pg/float8@1",
+                  "dataType": "pg/float8",
+                  "nullable": true
+                },
+                "deleted_at": {
+                  "codecId": "pg/timestamp-temporal@1",
+                  "dataType": "pg/timestamp",
+                  "nullable": true,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "id": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "iv": {
+                  "codecId": "pg/bytea@1",
+                  "dataType": "pg/bytea",
+                  "nullable": true
+                },
+                "key_hint": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                },
+                "key_version": {
+                  "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
+                  "default": {
+                    "kind": "literal",
+                    "value": 1
+                  },
+                  "nullable": false
+                },
+                "label": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "default": {
+                    "kind": "literal",
+                    "value": "default"
+                  },
+                  "nullable": false
+                },
+                "owner_id": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "provider": {
+                  "codecId": "pg/enum@1",
+                  "dataType": "pg/enum",
+                  "nullable": false,
+                  "typeParams": {
+                    "typeName": "AiProvider"
+                  },
+                  "valueSet": {
+                    "entityKind": "valueSet",
+                    "entityName": "AiProvider",
+                    "namespaceId": "public",
+                    "plane": "storage"
+                  }
+                },
+                "updated_at": {
+                  "codecId": "pg/timestamp-temporal@1",
+                  "dataType": "pg/timestamp",
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "foreignKeys": [
+                {
+                  "name": "user_provider_credentials_owner_id_fkey",
+                  "onDelete": "cascade",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "owner_id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "user_provider_credentials"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "users"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "owner_id",
+                    "deleted_at"
+                  ],
+                  "name": "user_provider_credentials_owner_id_deleted_at_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "owner_id",
+                    "provider",
+                    "deleted_at"
+                  ],
+                  "name": "user_provider_credentials_owner_provider_deleted_at_idx",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ],
+                "name": "user_provider_credentials_pkey"
+              },
+              "uniques": []
+            },
             "users": {
               "columns": {
                 "avatar_url": {
@@ -3531,6 +3907,16 @@
             }
           },
           "valueSet": {
+            "AiProvider": {
+              "kind": "valueSet",
+              "values": [
+                "OPENROUTER",
+                "OPENAI",
+                "ANTHROPIC",
+                "OLLAMA",
+                "LMSTUDIO"
+              ]
+            },
             "CodexTrackingMode": {
               "kind": "valueSet",
               "values": [
@@ -3589,7 +3975,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "6e639adc88c2d46ad62783db4fc0feaaca5660864afae3f4b743e7a5d19d7f58"
+    "storageHash": "c1b01d30a51059f8497fbe5eae105ad4f1c21e5fc343878f440e9e7721691140"
   },
   "capabilities": {
     "postgres": {

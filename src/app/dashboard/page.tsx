@@ -55,7 +55,15 @@ export default async function DashboardPage() {
           <h1 className="text-3xl font-semibold">Dashboard</h1>
           <p className="text-ink-500 text-sm">{user.email}</p>
         </div>
-        <LogoutButton />
+        <div className="flex items-center gap-3">
+          <Link
+            href={"/dashboard/settings" as Route}
+            className="text-ink-700 text-sm font-medium underline"
+          >
+            Settings
+          </Link>
+          <LogoutButton />
+        </div>
       </header>
 
       <section className="grid gap-4 sm:grid-cols-3">
