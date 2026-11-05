@@ -323,7 +323,7 @@ describe("WritingWorkspace", () => {
     fireEvent.click(screen.getByText("AI Assistant", { selector: "button" }));
     fireEvent.click(screen.getByText("Generate"));
     await screen.findByTestId("ai-result");
-    fireEvent.click(screen.getByText("Append to scene"));
+    fireEvent.click(screen.getByText("Accept & append"));
     expect((screen.getByLabelText("Scene text") as HTMLTextAreaElement).value).toContain(
       "The tide turned.",
     );
@@ -523,7 +523,7 @@ describe("AiAssistantDrawer", () => {
       await vi.advanceTimersByTimeAsync(1600);
     });
     expect(screen.getByText("Copy")).toBeTruthy();
-    fireEvent.click(screen.getByText("Append to scene"));
+    fireEvent.click(screen.getByText("Accept & append"));
     expect(p.onInsertText).toHaveBeenCalledWith("Out");
     fireEvent.click(screen.getByText("Continue scene"));
     expect(screen.getByText("Beat hint (optional)")).toBeTruthy();
