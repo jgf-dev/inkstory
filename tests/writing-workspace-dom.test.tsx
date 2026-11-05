@@ -1,6 +1,14 @@
 // @vitest-environment happy-dom
 import React from "react";
-import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  createEvent,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { WritingWorkspace } from "../src/app/dashboard/novels/[id]/_components/WritingWorkspace";
 import { AiAssistantDrawer } from "../src/app/dashboard/novels/[id]/_components/AiAssistantDrawer";
@@ -266,6 +274,72 @@ describe("WritingWorkspace", () => {
     expect(screen.getByTestId("scene-editor")).toBeTruthy();
   });
 
+  it("reorders outline siblings via drag-and-drop in WritingWorkspace", async () => {
+    const calls: Array<[string, string, any]> = [];
+    routeFetch((url, init) => {
+      calls.push([init?.method ?? "GET", url, init?.body ? JSON.parse(init.body) : undefined]);
+      if (url === "/api/scenes/scene-1") return { status: 200, body: { scene: makeScene() } };
+      if (url === "/api/novels/novel-1/outline" && init?.method === "GET")
+        return { status: 200, body: { outline: makeOutline() } };
+      if (url.startsWith("/api/novels/novel-1/outline"))
+        return { status: 200, body: { ok: true, moved: { id: "scene-2", moved: true } } };
+      return undefined;
+    });
+
+    render(
+      React.createElement(WritingWorkspace, { outline: makeOutline(), initialSceneId: "scene-1" }),
+    );
+    await screen.findByTestId("scene-editor");
+
+    const handle = screen.getByTestId("outline-drag-scene-scene-2");
+    const target = screen.getByTestId("outline-row-scene-scene-1");
+    const store: Record<string, string> = {};
+    const dataTransfer = {
+      effectAllowed: "move",
+      dropEffect: "move",
+      setData: (t: string, v: string) => {
+        store[t] = v;
+      },
+      getData: (t: string) => store[t] ?? "",
+      types: [] as string[],
+    };
+
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue({
+      top: 100,
+      height: 40,
+      bottom: 140,
+      left: 0,
+      right: 100,
+      width: 100,
+      x: 0,
+      y: 100,
+      toJSON() {},
+    } as DOMRect);
+
+    act(() => {
+      const start = createEvent.dragStart(handle);
+      Object.defineProperty(start, "dataTransfer", { value: dataTransfer });
+      fireEvent(handle, start);
+
+      const drop = createEvent.drop(target);
+      Object.defineProperty(drop, "dataTransfer", { value: dataTransfer });
+      Object.defineProperty(drop, "clientY", { value: 110 });
+      fireEvent(target, drop);
+    });
+
+    await waitFor(() =>
+      expect(
+        calls.some(
+          (c) =>
+            c[0] === "PATCH" &&
+            c[2]?.kind === "scene" &&
+            c[2]?.id === "scene-2" &&
+            c[2]?.toIndex === 0,
+        ),
+      ).toBe(true),
+    );
+  });
+
   it("reports failures for outline mutations", async () => {
     routeFetch((url, init) => {
       if (init.method === "GET") return { status: 200, body: { outline: makeOutline() } };
@@ -294,6 +368,41 @@ describe("WritingWorkspace", () => {
     expect(await screen.findByText("Failed to delete")).toBeTruthy();
     fireEvent.click(screen.getByText("+ Act"));
     expect(await screen.findByText("Failed to create node")).toBeTruthy();
+
+    // Reorder failure
+    const handle = screen.getByTestId("outline-drag-scene-scene-2");
+    const target = screen.getByTestId("outline-row-scene-scene-1");
+    const store: Record<string, string> = {};
+    const dataTransfer = {
+      effectAllowed: "move",
+      dropEffect: "move",
+      setData: (t: string, v: string) => {
+        store[t] = v;
+      },
+      getData: (t: string) => store[t] ?? "",
+      types: [] as string[],
+    };
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue({
+      top: 100,
+      height: 40,
+      bottom: 140,
+      left: 0,
+      right: 100,
+      width: 100,
+      x: 0,
+      y: 100,
+      toJSON() {},
+    } as DOMRect);
+    act(() => {
+      const start = createEvent.dragStart(handle);
+      Object.defineProperty(start, "dataTransfer", { value: dataTransfer });
+      fireEvent(handle, start);
+      const drop = createEvent.drop(target);
+      Object.defineProperty(drop, "dataTransfer", { value: dataTransfer });
+      Object.defineProperty(drop, "clientY", { value: 110 });
+      fireEvent(target, drop);
+    });
+    expect(await screen.findByText("Failed to reorder")).toBeTruthy();
   });
 
   it("rolls saved word counts into the outline and appends AI text", async () => {

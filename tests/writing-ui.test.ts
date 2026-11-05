@@ -87,6 +87,7 @@ describe("Writing Surface UI (launch phase 3)", { timeout: 20_000 }, () => {
           onCreateNode: () => {},
           onRenameNode: () => {},
           onMoveNode: () => {},
+          onReorderNode: () => {},
           onDeleteNode: () => {},
         }),
       );
@@ -115,6 +116,7 @@ describe("Writing Surface UI (launch phase 3)", { timeout: 20_000 }, () => {
           onCreateNode: () => {},
           onRenameNode: () => {},
           onMoveNode: () => {},
+          onReorderNode: () => {},
           onDeleteNode: () => {},
         }),
       );

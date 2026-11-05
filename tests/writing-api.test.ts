@@ -137,6 +137,46 @@ describe("Writing REST Route Handlers", () => {
       expect(res.status).toBe(400);
     });
 
+    it("reorders via toIndex on PATCH", async () => {
+      vi.spyOn(writingService, "moveOutlineNode").mockResolvedValueOnce({
+        id: "scene-1",
+        kind: "scene",
+        moved: true,
+      } as any);
+      const req = new NextRequest(`http://localhost:3000/api/novels/${novelId}/outline`, {
+        method: "PATCH",
+        body: JSON.stringify({ kind: "scene", id: "scene-1", toIndex: 2 }),
+      });
+      const res = await patchOutline(req, { params: Promise.resolve({ id: novelId }) });
+      expect(res.status).toBe(200);
+      expect(writingService.moveOutlineNode).toHaveBeenCalledWith(userId, novelId, {
+        kind: "scene",
+        id: "scene-1",
+        direction: undefined,
+        toIndex: 2,
+      });
+    });
+
+    it("rejects PATCH with both direction and toIndex", async () => {
+      const req = new NextRequest(`http://localhost:3000/api/novels/${novelId}/outline`, {
+        method: "PATCH",
+        body: JSON.stringify({ kind: "scene", id: "scene-1", direction: "up", toIndex: 0 }),
+      });
+      const res = await patchOutline(req, { params: Promise.resolve({ id: novelId }) });
+      expect(res.status).toBe(400);
+    });
+
+    it("rejects PATCH with invalid toIndex", async () => {
+      for (const invalid of [-1, 1.5, "0"]) {
+        const req = new NextRequest(`http://localhost:3000/api/novels/${novelId}/outline`, {
+          method: "PATCH",
+          body: JSON.stringify({ kind: "scene", id: "scene-1", toIndex: invalid }),
+        });
+        const res = await patchOutline(req, { params: Promise.resolve({ id: novelId }) });
+        expect(res.status).toBe(400);
+      }
+    });
+
     it("soft-deletes via DELETE with kind and nodeId", async () => {
       vi.spyOn(writingService, "deleteOutlineNode").mockResolvedValueOnce({
         id: "scene-1",

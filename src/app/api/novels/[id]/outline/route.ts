@@ -25,6 +25,7 @@ interface OutlinePatchInput {
   id?: string;
   title?: string;
   direction?: "up" | "down";
+  toIndex?: number;
 }
 
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -87,8 +88,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 }
 
 /**
- * Outline node maintenance: rename (title) and/or reorder (direction) a
- * single node. Node ownership is always verified against the novel path.
+ * Outline node maintenance: rename (title) and/or reorder (direction or
+ * toIndex) a single node. Node ownership is always verified against the novel path.
  */
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -116,9 +117,27 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         { status: 400 },
       );
     }
-    if (body.title === undefined && body.direction === undefined) {
+    if (
+      body.toIndex !== undefined &&
+      (typeof body.toIndex !== "number" || !Number.isInteger(body.toIndex) || body.toIndex < 0)
+    ) {
       return Response.json(
-        { error: "Nothing to update: provide title or direction", code: "VALIDATION_FAILED" },
+        { error: "toIndex must be a non-negative integer", code: "VALIDATION_FAILED" },
+        { status: 400 },
+      );
+    }
+    if (body.direction !== undefined && body.toIndex !== undefined) {
+      return Response.json(
+        { error: "Provide only one of direction or toIndex", code: "VALIDATION_FAILED" },
+        { status: 400 },
+      );
+    }
+    if (body.title === undefined && body.direction === undefined && body.toIndex === undefined) {
+      return Response.json(
+        {
+          error: "Nothing to update: provide title, direction, or toIndex",
+          code: "VALIDATION_FAILED",
+        },
         { status: 400 },
       );
     }
@@ -130,11 +149,12 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       const input: RenameOutlineNodeInput = { kind: body.kind, id: body.id, title: body.title };
       renamed = await renameOutlineNode(user.id, id, input);
     }
-    if (body.direction !== undefined) {
+    if (body.direction !== undefined || body.toIndex !== undefined) {
       const input: MoveOutlineNodeInput = {
         kind: body.kind,
         id: body.id,
         direction: body.direction,
+        toIndex: body.toIndex,
       };
       moved = await moveOutlineNode(user.id, id, input);
     }
