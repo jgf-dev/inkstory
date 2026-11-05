@@ -13,6 +13,7 @@ config({ path: ".env", override: false });
 
 import "temporal-polyfill/full/global";
 import { Temporal } from "temporal-polyfill";
+import { ensureSystemDefaultPrompts } from "../src/lib/prompts/service";
 import postgres from "@prisma/orm-postgres/runtime";
 import type { Contract } from "./contract.d";
 import contractJson from "./contract.json" with { type: "json" };
@@ -340,6 +341,7 @@ async function main() {
     },
     update: maraProgression,
   });
+  await ensureSystemDefaultPrompts();
 
   console.log("✅ Seeded:", {
     user: user.email,
