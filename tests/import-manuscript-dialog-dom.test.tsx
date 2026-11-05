@@ -211,3 +211,163 @@ describe("ImportManuscriptDialog (STO-1213)", () => {
     expect(onClose).toHaveBeenCalled();
   });
 });
+
+describe("ImportManuscriptDialog structure override (STO-1211)", () => {
+  const regrouped = makePreview({
+    totals: { acts: 2, chapters: 2, scenes: 2, words: 1, summaries: 1 },
+    acts: [
+      {
+        title: "Part One",
+        wordCount: 1,
+        chapters: [
+          {
+            title: "Arrival",
+            wordCount: 1,
+            scenes: [{ title: "Dock", wordCount: 1, hasSummary: true }],
+          },
+        ],
+      },
+      {
+        title: "Act 2",
+        wordCount: 0,
+        chapters: [
+          {
+            title: "Chapter 2",
+            wordCount: 0,
+            scenes: [{ title: "Inn", wordCount: 0, hasSummary: false }],
+          },
+        ],
+      },
+    ],
+  });
+
+  async function openEditor() {
+    chooseFile();
+    fireEvent.click(screen.getByRole("button", { name: "Preview" }));
+    await screen.findByTestId("import-preview");
+    fireEvent.click(screen.getByRole("button", { name: "Adjust structure" }));
+    return screen.getByTestId("import-structure-editor");
+  }
+
+  const box = (name: string, index: number) =>
+    screen.getAllByRole("checkbox", { name })[index] as HTMLInputElement;
+  const text = (label: string) => screen.getByLabelText(label) as HTMLInputElement;
+
+  it("edits, applies and confirms an override", async () => {
+    const calls = stubFetch(
+      { status: 200, body: { preview: makePreview() } },
+      { status: 200, body: { preview: regrouped } },
+      { status: 201, body: { preview: regrouped, actIds: ["a1", "a2"], titleApplied: false } },
+    );
+    const { onClose } = setup();
+    await openEditor();
+
+    // The first scene always starts an act and a chapter.
+    expect(box("New act", 0).checked).toBe(true);
+    expect(box("New act", 0).disabled).toBe(true);
+    expect(box("New chapter", 1).checked).toBe(false);
+    expect(
+      (screen.getByRole("button", { name: "Confirm import" }) as HTMLButtonElement).disabled,
+    ).toBe(true);
+
+    fireEvent.change(text("Act title at scene 1"), { target: { value: "Part One" } });
+    fireEvent.change(text("Scene 1 title"), { target: { value: "Dock" } });
+    // Starting an act also starts a chapter.
+    fireEvent.click(box("New act", 1));
+    expect(box("New chapter", 1).checked).toBe(true);
+    expect(text("Act title at scene 2").value).toBe("Act 2");
+    expect(text("Chapter title at scene 2").value).toBe("Chapter 2");
+
+    fireEvent.click(screen.getByRole("button", { name: "Apply structure" }));
+    await screen.findByText("Part One");
+    expect(screen.queryByTestId("import-structure-editor")).toBeNull();
+    expect(JSON.parse(formFields(calls[1].form).structure)).toEqual({
+      scenes: [
+        { title: "Dock", act: "Part One", chapter: "Arrival" },
+        { title: "Inn", act: "Act 2", chapter: "Chapter 2" },
+      ],
+    });
+    expect(formFields(calls[1].form).confirm).toBeUndefined();
+    expect(screen.getByTestId("import-totals").textContent).toContain("2 acts");
+
+    fireEvent.click(screen.getByRole("button", { name: "Confirm import" }));
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+    expect(formFields(calls[2].form)).toMatchObject({
+      confirm: "true",
+      structure: formFields(calls[1].form).structure,
+    });
+  });
+
+  it("blocks blank titles, unlinks an act from a dropped chapter and discards edits", async () => {
+    stubFetch({ status: 200, body: { preview: makePreview() } });
+    setup();
+    await openEditor();
+
+    fireEvent.change(text("Scene 2 title"), { target: { value: " " } });
+    expect(screen.getByTestId("import-structure-blank")).toBeTruthy();
+    expect(
+      (screen.getByRole("button", { name: "Apply structure" }) as HTMLButtonElement).disabled,
+    ).toBe(true);
+    fireEvent.change(text("Scene 2 title"), { target: { value: "Inn" } });
+    expect(screen.queryByTestId("import-structure-blank")).toBeNull();
+
+    fireEvent.click(box("New chapter", 1));
+    expect(text("Chapter title at scene 2").value).toBe("Chapter 2");
+    fireEvent.click(box("New act", 1));
+    fireEvent.click(box("New act", 1));
+    expect(screen.queryByLabelText("Act title at scene 2")).toBeNull();
+    fireEvent.click(box("New act", 1));
+    // Dropping the chapter start drops the act start with it.
+    fireEvent.click(box("New chapter", 1));
+    expect(box("New act", 1).checked).toBe(false);
+    expect(screen.queryByLabelText("Chapter title at scene 2")).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Discard changes" }));
+    expect(screen.queryByTestId("import-structure-editor")).toBeNull();
+    expect(
+      (screen.getByRole("button", { name: "Confirm import" }) as HTMLButtonElement).disabled,
+    ).toBe(false);
+    expect(screen.queryByRole("button", { name: "Use detected structure" })).toBeNull();
+  });
+
+  it("reports a rejected override and can return to the detected structure", async () => {
+    const calls = stubFetch(
+      { status: 200, body: { preview: makePreview() } },
+      { status: 400, body: { error: "Preview the file again." } },
+      { status: 200, body: { preview: regrouped } },
+      { status: 201, body: { preview: makePreview(), actIds: ["a1"], titleApplied: false } },
+    );
+    const { onClose } = setup();
+    await openEditor();
+    fireEvent.click(screen.getByRole("button", { name: "Apply structure" }));
+    expect((await screen.findByRole("alert")).textContent).toContain("Preview the file again");
+    expect(screen.getByTestId("import-structure-editor")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Apply structure" }));
+    await screen.findByText("Part One");
+    fireEvent.click(screen.getByRole("button", { name: "Use detected structure" }));
+    expect(screen.getByText("Act One")).toBeTruthy();
+    expect(screen.queryByText("Part One")).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Confirm import" }));
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+    expect(formFields(calls[3].form).structure).toBeUndefined();
+  });
+
+  it("offers no override for an empty preview", async () => {
+    stubFetch({
+      status: 200,
+      body: {
+        preview: makePreview({
+          totals: { acts: 0, chapters: 0, scenes: 0, words: 0, summaries: 0 },
+          acts: [],
+        }),
+      },
+    });
+    setup();
+    chooseFile();
+    fireEvent.click(screen.getByRole("button", { name: "Preview" }));
+    await screen.findByTestId("import-preview");
+    expect(screen.queryByRole("button", { name: "Adjust structure" })).toBeNull();
+  });
+});
