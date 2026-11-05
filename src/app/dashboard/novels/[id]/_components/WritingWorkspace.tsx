@@ -251,6 +251,18 @@ export function WritingWorkspace({
     }
   }
 
+  async function reorderNode(kind: OutlineKind, id: string, toIndex: number) {
+    setBusy(true);
+    try {
+      await apiPatch(`/api/novels/${novelId}/outline`, { kind, id, toIndex });
+      await refreshOutline();
+    } catch (err) {
+      setSceneError(err instanceof ApiRequestError ? err.message : "Failed to reorder");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function deleteNode(kind: OutlineKind, id: string, title: string) {
     const confirmed =
       kind === "scene"
@@ -340,6 +352,7 @@ export function WritingWorkspace({
           onCreateNode={(kind, parentId) => void createNode(kind, parentId)}
           onRenameNode={(kind, id, title) => void renameNode(kind, id, title)}
           onMoveNode={(kind, id, direction) => void moveNode(kind, id, direction)}
+          onReorderNode={(kind, id, toIndex) => void reorderNode(kind, id, toIndex)}
           onDeleteNode={(kind, id, title) => void deleteNode(kind, id, title)}
         />
         <MentionsPanel detection={detection} scanning={scanning} onLinkRelation={openLinker} />
