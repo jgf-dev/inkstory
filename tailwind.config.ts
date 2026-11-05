@@ -3,7 +3,8 @@ import type { Config } from "tailwindcss";
 /**
  * Color tokens live in `src/app/globals.css` as CSS variables (registered via
  * `@theme inline`) so the dark "Obsidian Desk" theme can invert the same ramp
- * at runtime. This config only carries the legacy prose serif stack.
+ * at runtime. This config only carries the font stacks: the Inter `sans`
+ * stack used for UI text and the legacy prose `serif` stack.
  */
 export default {
   content: ["./src/**/*.{ts,tsx}"],

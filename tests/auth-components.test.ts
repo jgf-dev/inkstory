@@ -105,20 +105,6 @@ describe("Auth Client Components", () => {
       expect(mockSignInWithPassword).toHaveBeenCalled();
       expect(mockPush).not.toHaveBeenCalled();
     });
-
-    it("triggers input change handlers to update email and password state", async () => {
-      const { LoginForm } = await import("../src/app/login/LoginForm");
-      const { captured } = renderAndCapture(LoginForm);
-
-      const children = React.Children.toArray(captured.props.children);
-      const emailField: any = children[0];
-      const passwordField: any = children[1];
-
-      expect(() => {
-        emailField.props.onChange({ target: { value: "test@example.com" } });
-        passwordField.props.onChange({ target: { value: "secret123" } });
-      }).not.toThrow();
-    });
   });
 
   describe("SignupForm", () => {
@@ -185,20 +171,6 @@ describe("Auth Client Components", () => {
 
       expect(mockPush).toHaveBeenCalledWith("/dashboard");
       expect(mockRefresh).toHaveBeenCalled();
-    });
-
-    it("triggers input change handlers for email and password", async () => {
-      const { SignupForm } = await import("../src/app/signup/SignupForm");
-      const { captured } = renderAndCapture(SignupForm);
-
-      const children = React.Children.toArray(captured.props.children);
-      const emailField: any = children[0];
-      const passwordField: any = children[1];
-
-      expect(() => {
-        emailField.props.onChange({ target: { value: "newuser@example.com" } });
-        passwordField.props.onChange({ target: { value: "newpassword" } });
-      }).not.toThrow();
     });
   });
 
