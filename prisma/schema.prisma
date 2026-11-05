@@ -64,6 +64,14 @@ enum ProgressionMode {
   REPLACEMENT
 }
 
+enum AiProvider {
+  OPENROUTER
+  OPENAI
+  ANTHROPIC
+  OLLAMA
+  LMSTUDIO
+}
+
 enum PromptRole {
   SYSTEM
   USER
@@ -89,11 +97,12 @@ model User {
   updatedAt DateTime  @updatedAt @map("updated_at")
   deletedAt DateTime? @map("deleted_at")
 
-  series           Series[]
-  novels           Novel[]
-  codexEntries     CodexEntry[]
-  prompts          Prompt[]
-  promptComponents PromptComponent[]
+  series              Series[]
+  novels              Novel[]
+  codexEntries        CodexEntry[]
+  providerCredentials UserProviderCredential[]
+  prompts             Prompt[]
+  promptComponents    PromptComponent[]
 
   @@index([deletedAt])
   @@map("users")
@@ -364,6 +373,39 @@ model CodexProgression {
   @@index([sceneId, deletedAt])
   @@index([sceneId, position])
   @@map("codex_progressions")
+}
+
+// ─── User Provider Credential (STO-1178 BYOK) ────────────────────────────────
+//
+// AES-256-GCM envelope encryption with BYOK_ENCRYPTION_KEY. Soft-delete-safe
+// uniqueness (ownerId, provider, label) WHERE deleted_at IS NULL is enforced
+// in the service layer (partial unique parked for STO-1168).
+
+model UserProviderCredential {
+  id         String     @id @default(cuid())
+  ownerId    String     @map("owner_id")
+  owner      User       @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  provider   AiProvider
+  label      String     @default("default")
+
+  ciphertext Bytes?
+  iv         Bytes?
+  authTag    Bytes?     @map("auth_tag")
+  keyHint    String?    @map("key_hint")
+  keyVersion Int        @default(1) @map("key_version")
+
+  baseUrl      String?  @map("base_url")
+  defaultModel String?  @map("default_model")
+  defaultTemp  Float?   @map("default_temp")
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  @@index([ownerId, deletedAt])
+  @@index([ownerId, provider, deletedAt])
+  @@map("user_provider_credentials")
 }
 
 // ─── Prompt Model (STO-1158) ─────────────────────────────────────────────────

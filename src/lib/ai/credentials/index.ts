@@ -1,0 +1,32 @@
+export {
+  AI_PROVIDERS,
+  assertNoSecretFields,
+  createProviderFromCredential,
+  getCredential,
+  handleCredentialApiError,
+  isAiProviderName,
+  listCredentials,
+  parseCredentialInput,
+  patchCredential,
+  providerIdFromName,
+  providerNameFromId,
+  resolveProviderConfig,
+  SECRET_FIELD_NAMES,
+  softDeleteCredential,
+  upsertCredential,
+  validateCredentialFields,
+  CredentialError,
+  type AiProviderName,
+  type CredentialDto,
+  type PatchCredentialInput,
+  type UpsertCredentialInput,
+} from "./service";
+export { getAuthenticatedUser } from "./auth";
+export {
+  ByokCryptoError,
+  decryptSecret,
+  encryptSecret,
+  keyHintFrom,
+  loadEncryptionKey,
+  type EncryptedPayload,
+} from "./crypto";

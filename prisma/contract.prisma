@@ -20,11 +20,12 @@ namespace public {
     subscriptionStatus   String?             @map("subscription_status")
     currentPeriodEnd     Timestamp(3)?       @map("current_period_end")
 
-    series           Series[]
-    novels           Novel[]
-    codexEntries     CodexEntry[]
-    prompts          Prompt[]
-    promptComponents PromptComponent[]
+    series               Series[]
+    novels               Novel[]
+    codexEntries         CodexEntry[]
+    providerCredentials  UserProviderCredential[]
+    prompts              Prompt[]
+    promptComponents     PromptComponent[]
 
     @@index([deletedAt], map: "users_deleted_at_idx")
     @@index([email], map: "users_email_key", unique: true)
@@ -252,6 +253,44 @@ namespace public {
     @@map("codex_progressions")
   }
 
+
+  // BYOK encrypted provider credentials (STO-1178). Ciphertext is AES-256-GCM
+  // with BYOK_ENCRYPTION_KEY; APIs never return ciphertext/iv/authTag/plaintext.
+  model UserProviderCredential {
+    id           String           @id(map: "user_provider_credentials_pkey")
+    ownerId      String           @map("owner_id")
+    provider     pg.enum(AiProvider)
+    label        String           @default("default")
+
+    ciphertext   Bytes?
+    iv           Bytes?
+    authTag      Bytes?           @map("auth_tag")
+    keyHint      String?          @map("key_hint")
+    keyVersion   Int              @default(1) @map("key_version")
+
+    baseUrl      String?          @map("base_url")
+    defaultModel String?          @map("default_model")
+    defaultTemp  Float?           @map("default_temp")
+
+    createdAt    Timestamp(3)     @default(now()) @map("created_at")
+    updatedAt    Timestamp(3)     @map("updated_at")
+    deletedAt    Timestamp(3)?    @map("deleted_at")
+
+    owner        User             @relation(fields: [ownerId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "user_provider_credentials_owner_id_fkey", index: false)
+
+    @@index([ownerId, deletedAt], map: "user_provider_credentials_owner_id_deleted_at_idx")
+    @@index([ownerId, provider, deletedAt], map: "user_provider_credentials_owner_provider_deleted_at_idx")
+    @@map("user_provider_credentials")
+  }
+
+
+  native_enum AiProvider {
+    OPENROUTER = "OPENROUTER"
+    OPENAI = "OPENAI"
+    ANTHROPIC = "ANTHROPIC"
+    OLLAMA = "OLLAMA"
+    LMSTUDIO = "LMSTUDIO"
+  }
 
   // Prompt templates + reusable components (STO-1158). SYSTEM_DEFAULT rows are
   // seeded read-only; authors Duplicate into their user library.

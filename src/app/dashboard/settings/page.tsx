@@ -2,6 +2,7 @@ import type { Route } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { ByokCredentialsPanel } from "./_components/ByokCredentialsPanel";
 import { SystemPromptsPanel } from "./_components/SystemPromptsPanel";
 
 export default async function SettingsPage() {
@@ -26,6 +27,7 @@ export default async function SettingsPage() {
         </Link>
       </header>
 
+      <ByokCredentialsPanel />
       <SystemPromptsPanel />
     </main>
   );
