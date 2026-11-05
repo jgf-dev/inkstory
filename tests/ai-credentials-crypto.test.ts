@@ -71,9 +71,10 @@ describe("BYOK crypto (STO-1178)", () => {
     }
   });
 
-  it("keyHintFrom returns last 4 chars", () => {
+  it("keyHintFrom returns last 4 chars and handles edge cases", () => {
     expect(keyHintFrom("sk-abcdefgh")).toBe("efgh");
     expect(keyHintFrom("  ab  ")).toBe("ab");
     expect(keyHintFrom("")).toBeNull();
+    expect(keyHintFrom("    ")).toBeNull();
   });
 });

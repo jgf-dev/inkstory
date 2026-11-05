@@ -160,6 +160,46 @@ export function handleCredentialApiError(err: unknown): Response {
   return Response.json({ error: "Internal server error" }, { status: 500 });
 }
 
+export function validateCredentialFields(body: Record<string, unknown>): string | null {
+  if (body.label !== undefined && typeof body.label !== "string") {
+    return "label must be a string";
+  }
+  if (body.apiKey !== undefined && body.apiKey !== null && typeof body.apiKey !== "string") {
+    return "apiKey must be a string";
+  }
+  if (body.baseUrl !== undefined && body.baseUrl !== null && typeof body.baseUrl !== "string") {
+    return "baseUrl must be a string";
+  }
+  return null;
+}
+
+export function parseCredentialInput(body: Record<string, unknown>): {
+  label?: string;
+  apiKey?: string | null;
+  baseUrl?: string | null;
+  defaultModel?: string | null;
+  defaultTemp?: number | null;
+} {
+  return {
+    label: typeof body.label === "string" ? body.label : undefined,
+    apiKey: typeof body.apiKey === "string" ? body.apiKey : body.apiKey === null ? null : undefined,
+    baseUrl:
+      typeof body.baseUrl === "string" ? body.baseUrl : body.baseUrl === null ? null : undefined,
+    defaultModel:
+      typeof body.defaultModel === "string"
+        ? body.defaultModel
+        : body.defaultModel === null
+          ? null
+          : undefined,
+    defaultTemp:
+      typeof body.defaultTemp === "number"
+        ? body.defaultTemp
+        : body.defaultTemp === null
+          ? null
+          : undefined,
+  };
+}
+
 async function findActiveByOwnerProviderLabel(
   ownerId: string,
   provider: AiProviderName,
@@ -311,7 +351,7 @@ export async function upsertCredential(
       const updated = (await tx.orm.public.UserProviderCredential.where({
         id: existing.id,
       }).update({
-        ...(keyFields ?? {}),
+        ...keyFields,
         ...(baseUrl !== undefined ? { baseUrl } : {}),
         ...(input.defaultModel !== undefined ? { defaultModel: input.defaultModel } : {}),
         ...(input.defaultTemp !== undefined ? { defaultTemp: input.defaultTemp } : {}),
@@ -498,7 +538,11 @@ export async function resolveProviderConfig(
       return { provider: "lmstudio", apiKey, baseUrl };
     default: {
       const _exhaustive: never = providerId;
-      throw new CredentialError(`Unsupported provider: ${_exhaustive}`, "VALIDATION_FAILED", 400);
+      throw new CredentialError(
+        `Unsupported provider: ${String(_exhaustive)}`,
+        "VALIDATION_FAILED",
+        400,
+      );
     }
   }
 }

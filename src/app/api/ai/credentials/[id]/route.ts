@@ -1,10 +1,12 @@
 import { NextRequest } from "next/server";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
+  getAuthenticatedUser,
   getCredential,
   handleCredentialApiError,
+  parseCredentialInput,
   patchCredential,
   softDeleteCredential,
+  validateCredentialFields,
 } from "@/lib/ai/credentials";
 
 export const dynamic = "force-dynamic";
@@ -16,11 +18,7 @@ export const dynamic = "force-dynamic";
  */
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const supabase = await createSupabaseServerClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
+    const user = await getAuthenticatedUser();
     if (!user) {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -35,23 +33,13 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const supabase = await createSupabaseServerClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
+    const user = await getAuthenticatedUser();
     if (!user) {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const { id } = await params;
-    const body = (await request.json()) as {
-      label?: unknown;
-      apiKey?: unknown;
-      baseUrl?: unknown;
-      defaultModel?: unknown;
-      defaultTemp?: unknown;
-    };
+    const body = (await request.json()) as Record<string, unknown>;
 
     if (
       body.label === undefined &&
@@ -66,38 +54,12 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       );
     }
 
-    if (body.label !== undefined && typeof body.label !== "string") {
-      return Response.json(
-        { error: "label must be a string", code: "VALIDATION_FAILED" },
-        { status: 400 },
-      );
-    }
-    if (body.apiKey !== undefined && body.apiKey !== null && typeof body.apiKey !== "string") {
-      return Response.json(
-        { error: "apiKey must be a string", code: "VALIDATION_FAILED" },
-        { status: 400 },
-      );
+    const validationError = validateCredentialFields(body);
+    if (validationError) {
+      return Response.json({ error: validationError, code: "VALIDATION_FAILED" }, { status: 400 });
     }
 
-    const credential = await patchCredential(user.id, id, {
-      label: typeof body.label === "string" ? body.label : undefined,
-      apiKey:
-        typeof body.apiKey === "string" ? body.apiKey : body.apiKey === null ? null : undefined,
-      baseUrl:
-        typeof body.baseUrl === "string" ? body.baseUrl : body.baseUrl === null ? null : undefined,
-      defaultModel:
-        typeof body.defaultModel === "string"
-          ? body.defaultModel
-          : body.defaultModel === null
-            ? null
-            : undefined,
-      defaultTemp:
-        typeof body.defaultTemp === "number"
-          ? body.defaultTemp
-          : body.defaultTemp === null
-            ? null
-            : undefined,
-    });
+    const credential = await patchCredential(user.id, id, parseCredentialInput(body));
 
     return Response.json({ credential });
   } catch (err) {
@@ -110,11 +72,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const supabase = await createSupabaseServerClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
+    const user = await getAuthenticatedUser();
     if (!user) {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }

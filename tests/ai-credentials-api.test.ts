@@ -139,5 +139,92 @@ describe("BYOK credentials API (STO-1178)", { timeout: 20_000 }, () => {
     mockGetUser.mockResolvedValue({ data: { user: null } });
     const res = await listPutGet();
     expect(res.status).toBe(401);
+
+    const putRes = await PUT(
+      new NextRequest("http://localhost:3000/api/ai/credentials", {
+        method: "PUT",
+        body: JSON.stringify({ provider: "OPENROUTER" }),
+      }),
+    );
+    expect(putRes.status).toBe(401);
+
+    const getRes = await getOne(
+      new NextRequest("http://localhost:3000/api/ai/credentials/test-id"),
+      { params: Promise.resolve({ id: "test-id" }) },
+    );
+    expect(getRes.status).toBe(401);
+
+    const patchRes = await PATCH(
+      new NextRequest("http://localhost:3000/api/ai/credentials/test-id", {
+        method: "PATCH",
+        body: JSON.stringify({ label: "test" }),
+      }),
+      { params: Promise.resolve({ id: "test-id" }) },
+    );
+    expect(patchRes.status).toBe(401);
+
+    const delRes = await DELETE(
+      new NextRequest("http://localhost:3000/api/ai/credentials/test-id"),
+      { params: Promise.resolve({ id: "test-id" }) },
+    );
+    expect(delRes.status).toBe(401);
+  });
+
+  it("validates request bodies and returns 400 for bad input", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: userId, email: "a@b.c" } } });
+
+    // Invalid provider
+    const badProviderRes = await PUT(
+      new NextRequest("http://localhost:3000/api/ai/credentials", {
+        method: "PUT",
+        body: JSON.stringify({ provider: "INVALID" }),
+      }),
+    );
+    expect(badProviderRes.status).toBe(400);
+
+    // Bad field types on PUT
+    const badLabelRes = await PUT(
+      new NextRequest("http://localhost:3000/api/ai/credentials", {
+        method: "PUT",
+        body: JSON.stringify({ provider: "OPENROUTER", label: 123 }),
+      }),
+    );
+    expect(badLabelRes.status).toBe(400);
+
+    const badKeyRes = await PUT(
+      new NextRequest("http://localhost:3000/api/ai/credentials", {
+        method: "PUT",
+        body: JSON.stringify({ provider: "OPENROUTER", apiKey: 123 }),
+      }),
+    );
+    expect(badKeyRes.status).toBe(400);
+
+    const badBaseRes = await PUT(
+      new NextRequest("http://localhost:3000/api/ai/credentials", {
+        method: "PUT",
+        body: JSON.stringify({ provider: "OPENROUTER", baseUrl: 123 }),
+      }),
+    );
+    expect(badBaseRes.status).toBe(400);
+
+    // Empty body on PATCH
+    const emptyPatchRes = await PATCH(
+      new NextRequest("http://localhost:3000/api/ai/credentials/test-id", {
+        method: "PATCH",
+        body: JSON.stringify({}),
+      }),
+      { params: Promise.resolve({ id: "test-id" }) },
+    );
+    expect(emptyPatchRes.status).toBe(400);
+
+    // Bad field types on PATCH
+    const badPatchRes = await PATCH(
+      new NextRequest("http://localhost:3000/api/ai/credentials/test-id", {
+        method: "PATCH",
+        body: JSON.stringify({ label: 456 }),
+      }),
+      { params: Promise.resolve({ id: "test-id" }) },
+    );
+    expect(badPatchRes.status).toBe(400);
   });
 });

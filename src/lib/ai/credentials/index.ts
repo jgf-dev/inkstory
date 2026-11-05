@@ -6,6 +6,7 @@ export {
   handleCredentialApiError,
   isAiProviderName,
   listCredentials,
+  parseCredentialInput,
   patchCredential,
   providerIdFromName,
   providerNameFromId,
@@ -13,12 +14,14 @@ export {
   SECRET_FIELD_NAMES,
   softDeleteCredential,
   upsertCredential,
+  validateCredentialFields,
   CredentialError,
   type AiProviderName,
   type CredentialDto,
   type PatchCredentialInput,
   type UpsertCredentialInput,
 } from "./service";
+export { getAuthenticatedUser } from "./auth";
 export {
   ByokCryptoError,
   decryptSecret,
