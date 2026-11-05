@@ -53,6 +53,24 @@ describe("BYOK crypto (STO-1178)", () => {
     expect(loadEncryptionKey(TEST_KEY_B64)).toHaveLength(32);
   });
 
+  it("loadEncryptionKey rejects malformed base64 with KEY_INVALID", () => {
+    const cases = [
+      "not-valid-base64!!!",
+      "====",
+      "abc", // wrong length / padding
+      Buffer.alloc(32, 1).toString("base64").slice(0, -1), // truncated
+    ];
+    for (const bad of cases) {
+      try {
+        loadEncryptionKey(bad);
+        throw new Error(`expected KEY_INVALID for ${JSON.stringify(bad)}`);
+      } catch (err) {
+        expect(err).toBeInstanceOf(ByokCryptoError);
+        expect((err as ByokCryptoError).code).toBe("KEY_INVALID");
+      }
+    }
+  });
+
   it("keyHintFrom returns last 4 chars", () => {
     expect(keyHintFrom("sk-abcdefgh")).toBe("efgh");
     expect(keyHintFrom("  ab  ")).toBe("ab");

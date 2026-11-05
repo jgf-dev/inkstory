@@ -11,6 +11,9 @@ const ALGORITHM = "aes-256-gcm";
 const IV_LENGTH = 12; // 96-bit nonce recommended for GCM
 const KEY_LENGTH = 32;
 
+/** Strict base64: alphabet + optional padding; rejects whitespace / junk. */
+const STRICT_BASE64_RE = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/;
+
 export class ByokCryptoError extends Error {
   constructor(
     message: string,
@@ -26,10 +29,14 @@ export function loadEncryptionKey(raw = process.env.BYOK_ENCRYPTION_KEY): Buffer
   if (!raw || !raw.trim()) {
     throw new ByokCryptoError("BYOK_ENCRYPTION_KEY is not configured", "KEY_MISSING");
   }
-  let key: Buffer;
-  try {
-    key = Buffer.from(raw.trim(), "base64");
-  } catch {
+  const trimmed = raw.trim();
+  // Buffer.from(..., "base64") does not throw on malformed input — validate first.
+  if (!STRICT_BASE64_RE.test(trimmed)) {
+    throw new ByokCryptoError("BYOK_ENCRYPTION_KEY must be valid base64", "KEY_INVALID");
+  }
+  const key = Buffer.from(trimmed, "base64");
+  // Round-trip rejects non-canonical padding / alphabet tricks Node still decodes.
+  if (key.toString("base64") !== trimmed) {
     throw new ByokCryptoError("BYOK_ENCRYPTION_KEY must be valid base64", "KEY_INVALID");
   }
   if (key.length !== KEY_LENGTH) {

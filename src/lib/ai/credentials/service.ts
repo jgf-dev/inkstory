@@ -2,9 +2,10 @@
  * BYOK credential CRUD + resolveProviderConfig (STO-1178).
  *
  * Ownership is enforced via ownerId. Soft-delete-safe uniqueness on
- * (ownerId, provider, label) is checked in the service (partial unique
- * indexes parked for STO-1168). Decrypt happens only here when building
- * a ProviderConfig — never in API response DTOs.
+ * (ownerId, provider, label) is enforced in the service via an advisory
+ * xact lock around find+insert/update (partial unique indexes parked for
+ * STO-1168). Decrypt happens only here when building a ProviderConfig —
+ * never in API response DTOs.
  */
 
 import { Temporal } from "temporal-polyfill";
@@ -202,6 +203,30 @@ export interface UpsertCredentialInput {
   defaultTemp?: number | null;
 }
 
+function credentialUpsertLockKey(ownerId: string, provider: AiProviderName, label: string): string {
+  return `byok-credential:${ownerId}:${provider}:${label}`;
+}
+
+function prepareEncryptedKey(apiKey: string): {
+  ciphertext: Uint8Array;
+  iv: Uint8Array;
+  authTag: Uint8Array;
+  keyHint: string | null;
+} {
+  try {
+    const enc = encryptSecret(apiKey);
+    return {
+      ciphertext: enc.ciphertext,
+      iv: enc.iv,
+      authTag: enc.authTag,
+      keyHint: keyHintFrom(apiKey),
+    };
+  } catch (err) {
+    if (err instanceof ByokCryptoError) throw err;
+    throw new CredentialError("Failed to encrypt API key", "CRYPTO_ERROR", 500);
+  }
+}
+
 export async function upsertCredential(
   ownerId: string,
   input: UpsertCredentialInput,
@@ -216,27 +241,30 @@ export async function upsertCredential(
 
   const providerId = providerIdFromName(input.provider);
   const local = isLocalProvider(providerId);
-  const apiKey = input.apiKey?.trim() ?? "";
+  const apiKeyProvided = input.apiKey !== undefined;
+  const apiKey = apiKeyProvided ? (input.apiKey?.trim() ?? "") : undefined;
 
-  if (!local && !apiKey) {
-    throw new CredentialError("apiKey is required for this provider", "VALIDATION_FAILED", 400);
-  }
-
-  let ciphertext: Uint8Array | null = null;
-  let iv: Uint8Array | null = null;
-  let authTag: Uint8Array | null = null;
-  let keyHint: string | null = null;
-
-  if (apiKey) {
-    try {
-      const enc = encryptSecret(apiKey);
-      ciphertext = enc.ciphertext;
-      iv = enc.iv;
-      authTag = enc.authTag;
-      keyHint = keyHintFrom(apiKey);
-    } catch (err) {
-      if (err instanceof ByokCryptoError) throw err;
-      throw new CredentialError("Failed to encrypt API key", "CRYPTO_ERROR", 500);
+  // Encrypt outside the lock so we hold the advisory lock briefly.
+  let keyFields:
+    | {
+        ciphertext: Uint8Array | null;
+        iv: Uint8Array | null;
+        authTag: Uint8Array | null;
+        keyHint: string | null;
+        keyVersion: number;
+      }
+    | undefined;
+  if (apiKeyProvided) {
+    if (apiKey) {
+      keyFields = { ...prepareEncryptedKey(apiKey), keyVersion: 1 };
+    } else {
+      keyFields = {
+        ciphertext: null,
+        iv: null,
+        authTag: null,
+        keyHint: null,
+        keyVersion: 1,
+      };
     }
   }
 
@@ -248,42 +276,72 @@ export async function upsertCredential(
         : input.baseUrl.trim();
 
   const now = Temporal.Now.plainDateTimeISO();
-  const existing = await findActiveByOwnerProviderLabel(ownerId, input.provider, label);
 
-  if (existing) {
-    const updated = (await db.orm.public.UserProviderCredential.where({
-      id: existing.id,
-    }).update({
-      ciphertext,
-      iv,
-      authTag,
-      keyHint,
-      keyVersion: 1,
-      ...(baseUrl !== undefined ? { baseUrl } : {}),
-      ...(input.defaultModel !== undefined ? { defaultModel: input.defaultModel } : {}),
-      ...(input.defaultTemp !== undefined ? { defaultTemp: input.defaultTemp } : {}),
+  // Soft-delete-safe uniqueness is parked for STO-1168; serialize concurrent
+  // upserts for the same (owner, provider, label) with an advisory xact lock
+  // (same pattern as novel structure writes).
+  return db.transaction(async (tx) => {
+    await tx.execute(
+      db.raw
+        .sql`SELECT pg_advisory_xact_lock(hashtext(${credentialUpsertLockKey(ownerId, input.provider, label)}))`
+        .affectedCount()
+        .build(),
+    );
+
+    const existingRows = await tx.orm.public.UserProviderCredential.where((c) =>
+      c.ownerId.eq(ownerId),
+    )
+      .where((c) => c.provider.eq(input.provider))
+      .where((c) => c.label.eq(label))
+      .where((c) => c.deletedAt.isNull())
+      .all();
+    const existing = (existingRows[0] as CredentialRow | undefined) ?? null;
+
+    if (existing) {
+      if (apiKeyProvided) {
+        if (!local && !apiKey) {
+          throw new CredentialError(
+            "apiKey cannot be cleared for this provider",
+            "VALIDATION_FAILED",
+            400,
+          );
+        }
+      }
+
+      const updated = (await tx.orm.public.UserProviderCredential.where({
+        id: existing.id,
+      }).update({
+        ...(keyFields ?? {}),
+        ...(baseUrl !== undefined ? { baseUrl } : {}),
+        ...(input.defaultModel !== undefined ? { defaultModel: input.defaultModel } : {}),
+        ...(input.defaultTemp !== undefined ? { defaultTemp: input.defaultTemp } : {}),
+        updatedAt: now,
+      })) as CredentialRow;
+      return toDto(updated);
+    }
+
+    if (!local && !apiKey) {
+      throw new CredentialError("apiKey is required for this provider", "VALIDATION_FAILED", 400);
+    }
+
+    const created = (await tx.orm.public.UserProviderCredential.create({
+      id: crypto.randomUUID(),
+      ownerId,
+      provider: input.provider,
+      label,
+      ciphertext: keyFields?.ciphertext ?? null,
+      iv: keyFields?.iv ?? null,
+      authTag: keyFields?.authTag ?? null,
+      keyHint: keyFields?.keyHint ?? null,
+      keyVersion: keyFields?.keyVersion ?? 1,
+      baseUrl: baseUrl ?? null,
+      defaultModel: input.defaultModel ?? null,
+      defaultTemp: input.defaultTemp ?? null,
       updatedAt: now,
     })) as CredentialRow;
-    return toDto(updated);
-  }
 
-  const created = (await db.orm.public.UserProviderCredential.create({
-    id: crypto.randomUUID(),
-    ownerId,
-    provider: input.provider,
-    label,
-    ciphertext,
-    iv,
-    authTag,
-    keyHint,
-    keyVersion: 1,
-    baseUrl: baseUrl ?? null,
-    defaultModel: input.defaultModel ?? null,
-    defaultTemp: input.defaultTemp ?? null,
-    updatedAt: now,
-  })) as CredentialRow;
-
-  return toDto(created);
+    return toDto(created);
+  });
 }
 
 export interface PatchCredentialInput {
@@ -342,12 +400,7 @@ export async function patchCredential(
       );
     }
     if (apiKey) {
-      const enc = encryptSecret(apiKey);
-      updates.ciphertext = enc.ciphertext;
-      updates.iv = enc.iv;
-      updates.authTag = enc.authTag;
-      updates.keyHint = keyHintFrom(apiKey);
-      updates.keyVersion = 1;
+      Object.assign(updates, prepareEncryptedKey(apiKey), { keyVersion: 1 });
     } else {
       updates.ciphertext = null;
       updates.iv = null;

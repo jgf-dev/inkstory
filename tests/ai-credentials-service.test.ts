@@ -123,4 +123,52 @@ describe("BYOK credentials service (STO-1178)", { timeout: 20_000 }, () => {
       CredentialError,
     );
   });
+
+  it("upsert update omits key fields when apiKey is not sent", async () => {
+    const created = await upsertCredential(userId, {
+      provider: "OLLAMA",
+      label: "local",
+      apiKey: "ollama-optional-key-zz99",
+      baseUrl: "http://127.0.0.1:11434/v1",
+    });
+    expect(created.hasKey).toBe(true);
+    expect(created.keyHint).toBe("zz99");
+
+    const updated = await upsertCredential(userId, {
+      provider: "OLLAMA",
+      label: "local",
+      baseUrl: "http://127.0.0.1:11435/v1",
+    });
+    expect(updated.id).toBe(created.id);
+    expect(updated.baseUrl).toBe("http://127.0.0.1:11435/v1");
+    expect(updated.hasKey).toBe(true);
+    expect(updated.keyHint).toBe("zz99");
+
+    const raw = await db.orm.public.UserProviderCredential.where({ id: created.id }).first();
+    expect(raw?.ciphertext).toBeTruthy();
+    expect(raw?.iv).toBeTruthy();
+    expect(raw?.authTag).toBeTruthy();
+  });
+
+  it("upsert serializes concurrent creates for the same label", async () => {
+    const results = await Promise.all([
+      upsertCredential(userId, {
+        provider: "OPENROUTER",
+        label: "race",
+        apiKey: "sk-or-race-aaaa",
+      }),
+      upsertCredential(userId, {
+        provider: "OPENROUTER",
+        label: "race",
+        apiKey: "sk-or-race-bbbb",
+      }),
+    ]);
+    expect(results[0].id).toBe(results[1].id);
+    const active = await db.orm.public.UserProviderCredential.where((c) => c.ownerId.eq(userId))
+      .where((c) => c.provider.eq("OPENROUTER"))
+      .where((c) => c.label.eq("race"))
+      .where((c) => c.deletedAt.isNull())
+      .all();
+    expect(active).toHaveLength(1);
+  });
 });
