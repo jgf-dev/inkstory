@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vite-plus/test";
 import {
+  appendPlainTextToDoc,
   createEditorExtensions,
   docForEditor,
   docFromPlainText,
@@ -93,6 +94,20 @@ describe("writing/tiptap helpers", () => {
     expect(isSceneRevisionReasonValue("nope")).toBe(false);
   });
 
+  it("appends plain insert without flattening existing marks", () => {
+    const rich = {
+      type: "doc" as const,
+      content: [
+        {
+          type: "paragraph",
+          content: [{ type: "text", text: "Hello", marks: [{ type: "bold" }] }],
+        },
+      ],
+    };
+    const next = appendPlainTextToDoc(rich, "AI line");
+    expect(next.content?.[0]).toEqual(rich.content[0]);
+    expect(plainTextFromDoc(next)).toBe("Hello\n\nAI line");
+  });
   it("exposes a shared extension list including highlight", () => {
     const extensions = createEditorExtensions();
     expect(extensions.length).toBeGreaterThanOrEqual(2);

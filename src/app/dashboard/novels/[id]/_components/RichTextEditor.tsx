@@ -54,13 +54,21 @@ export function RichTextEditor(props: RichTextEditorProps) {
     },
   });
 
-  // External plain inserts (AI drawer) / restore: when plainContent changes
-  // without a matching doc from the last onChange, reset the editor.
+  // External plain inserts (AI drawer) / restore: when the parent doc or plain
+  // extract drifts from the editor, reset. Plain-only equality is not enough —
+  // identical text with different marks must still apply.
   useEffect(() => {
     if (!editor) return;
-    const currentPlain = plainTextFromDoc(editor.getJSON());
-    if (currentPlain === props.plainContent) return;
-    editor.commands.setContent(docForEditor(props.contentDoc, props.plainContent) as JSONContent, {
+    const currentJson = editor.getJSON() as TiptapDoc;
+    const currentPlain = plainTextFromDoc(currentJson);
+    const targetDoc = docForEditor(props.contentDoc, props.plainContent);
+    if (
+      currentPlain === props.plainContent &&
+      JSON.stringify(currentJson) === JSON.stringify(targetDoc)
+    ) {
+      return;
+    }
+    editor.commands.setContent(targetDoc as JSONContent, {
       emitUpdate: false,
     });
   }, [editor, props.plainContent, props.contentDoc]);

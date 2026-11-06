@@ -182,3 +182,21 @@ export function docForEditor(contentDoc: unknown, plainContent: string): TiptapD
   if (normalized) return normalized;
   return docFromPlainText(plainContent ?? "");
 }
+
+/** Append plain insert text as new paragraphs without flattening existing marks. */
+export function appendPlainTextToDoc(doc: TiptapDoc | null, plainInsert: string): TiptapDoc {
+  const base = doc ?? docFromPlainText("");
+  const inserted = docFromPlainText(plainInsert);
+  const baseContent = [...(base.content ?? [])];
+  while (
+    baseContent.length > 0 &&
+    baseContent[baseContent.length - 1]?.type === "paragraph" &&
+    !baseContent[baseContent.length - 1].content?.length
+  ) {
+    baseContent.pop();
+  }
+  return {
+    type: "doc",
+    content: [...baseContent, ...(inserted.content ?? [])],
+  };
+}

@@ -66,7 +66,7 @@ describe("RichTextEditor", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByTestId("rich-text-editor")).toBeTruthy();
+      expect(screen.getByLabelText("Scene text").textContent).toContain("Second draft");
     });
   });
 });

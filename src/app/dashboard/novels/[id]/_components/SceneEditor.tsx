@@ -6,7 +6,12 @@ import { POV_LABELS, POV_VALUES, TENSE_LABELS, TENSE_VALUES } from "@/lib/writin
 import type { PovValue, TenseValue } from "@/lib/writing/meta";
 import { countWords, formatWordCount } from "@/lib/writing/word-count";
 import { clearDraft, isDraftRecoverable, loadDraft, saveDraft } from "@/lib/writing/draft";
-import { docFromPlainText, plainTextFromDoc, type TiptapDoc } from "@/lib/writing/tiptap";
+import {
+  appendPlainTextToDoc,
+  docFromPlainText,
+  plainTextFromDoc,
+  type TiptapDoc,
+} from "@/lib/writing/tiptap";
 import { apiGet, apiPatch, apiPost, ApiRequestError } from "./api";
 import { RichTextEditor } from "./RichTextEditor";
 
@@ -85,6 +90,7 @@ export function SceneEditor(props: SceneEditorProps) {
   const [restoreOffer, setRestoreOffer] = useState<{
     savedAt: number;
     content: string;
+    contentDoc?: TiptapDoc | null;
     title: string;
     summary: string;
     pov?: PovValue;
@@ -106,6 +112,7 @@ export function SceneEditor(props: SceneEditorProps) {
       setRestoreOffer({
         savedAt: draft!.savedAt,
         content: draft!.content,
+        contentDoc: draft!.contentDoc,
         title: draft!.title,
         summary: draft!.summary,
         pov: draft!.pov,
@@ -214,6 +221,7 @@ export function SceneEditor(props: SceneEditorProps) {
           sceneId: scene.id,
           title: currentRef.current.title,
           content: currentRef.current.content,
+          contentDoc: currentRef.current.contentDoc,
           summary: currentRef.current.summary,
           pov: currentRef.current.pov,
           tense: currentRef.current.tense,
@@ -231,6 +239,7 @@ export function SceneEditor(props: SceneEditorProps) {
         sceneId: scene.id,
         title: currentRef.current.title,
         content: currentRef.current.content,
+        contentDoc: currentRef.current.contentDoc,
         summary: currentRef.current.summary,
         pov: currentRef.current.pov,
         tense: currentRef.current.tense,
@@ -263,6 +272,7 @@ export function SceneEditor(props: SceneEditorProps) {
       sceneId: scene.id,
       title: current.title,
       content: current.content,
+      contentDoc: current.contentDoc,
       summary: current.summary,
       pov: current.pov,
       tense: current.tense,
@@ -285,14 +295,12 @@ export function SceneEditor(props: SceneEditorProps) {
       return;
     }
     appliedInsertSeqRef.current = props.insertRequest.seq;
-    setContent((prev) => {
-      const separator = prev && !prev.endsWith("\n") ? "\n\n" : prev ? "\n\n" : "";
-      const next = prev
-        ? `${prev}${separator}${props.insertRequest!.text}`
-        : props.insertRequest!.text;
-      setContentDoc(docFromPlainText(next));
-      return next;
-    });
+    const insertText = props.insertRequest.text;
+    const snap = currentRef.current;
+    const baseDoc = snap.contentDoc ?? docFromPlainText(snap.content);
+    const nextDoc = appendPlainTextToDoc(baseDoc, insertText);
+    setContentDoc(nextDoc);
+    setContent(plainTextFromDoc(nextDoc));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props.insertRequest?.seq]);
 
@@ -308,7 +316,7 @@ export function SceneEditor(props: SceneEditorProps) {
     if (!restoreOffer) return;
     setTitle(restoreOffer.title);
     setContent(restoreOffer.content);
-    setContentDoc(docFromPlainText(restoreOffer.content));
+    setContentDoc(restoreOffer.contentDoc ?? docFromPlainText(restoreOffer.content));
     setSummary(restoreOffer.summary);
     if (restoreOffer.pov !== undefined) setPov(restoreOffer.pov);
     if (restoreOffer.tense !== undefined) setTense(restoreOffer.tense);
