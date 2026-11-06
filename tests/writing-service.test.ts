@@ -6,10 +6,14 @@ import {
   deleteOutlineNode,
   getNovelOutline,
   getSceneForEditor,
+  getSceneRevision,
+  listSceneRevisions,
   moveOutlineNode,
   renameOutlineNode,
+  restoreSceneRevision,
   updateScene,
 } from "../src/lib/writing/service";
+import { plainTextFromDoc } from "../src/lib/writing/tiptap";
 import { countWords } from "../src/lib/writing/word-count";
 
 describe("Writing Service (outline, scenes, attachments)", { timeout: 30_000 }, () => {
@@ -282,6 +286,8 @@ describe("Writing Service (outline, scenes, attachments)", { timeout: 30_000 }, 
     expect(editor.chapterTitle).toBe("Chapter One");
     expect(editor.pov).toBe("THIRD_LIMITED");
     expect(typeof editor.updatedAt).toBe("string");
+    expect(editor.contentFormat).toBe("PLAIN");
+    expect(editor.contentDoc).toBeNull();
 
     await expect(getSceneForEditor(otherUserId, sceneId)).rejects.toThrow(/do not have access/);
   });
@@ -308,6 +314,86 @@ describe("Writing Service (outline, scenes, attachments)", { timeout: 30_000 }, 
     await expect(updateScene(otherUserId, sceneId, { content: "hijack" })).rejects.toThrow(
       /do not have access/,
     );
+  });
+
+  it("dual-writes contentDoc and creates revision snapshots", async () => {
+    const doc = {
+      type: "doc",
+      content: [
+        {
+          type: "paragraph",
+          content: [{ type: "text", text: "Rich prose for the quay.", marks: [{ type: "bold" }] }],
+        },
+      ],
+    };
+    const updated = await updateScene(userId, sceneId, {
+      contentDoc: doc,
+      revisionReason: "MANUAL",
+    });
+    expect(updated.contentFormat).toBe("TIPTAP_JSON");
+    expect(updated.content).toBe("Rich prose for the quay.");
+    expect(updated.wordCount).toBe(countWords("Rich prose for the quay."));
+    expect(updated.contentDoc).toEqual(doc);
+
+    const revisions = await listSceneRevisions(userId, sceneId);
+    expect(revisions.length).toBeGreaterThanOrEqual(1);
+    expect(revisions[0].reason).toBe("MANUAL");
+    expect(revisions[0].title).toBe("Storm Climb");
+
+    // Mismatched content + contentDoc is rejected.
+    await expect(
+      updateScene(userId, sceneId, {
+        contentDoc: doc,
+        content: "totally different",
+      }),
+    ).rejects.toThrow(/does not match/);
+
+    // Plain-only patch after TIPTAP_JSON wraps into a doc.
+    const plain = await updateScene(userId, sceneId, {
+      content: "Plain overwrite after rich.",
+      revisionReason: "MANUAL",
+    });
+    expect(plain.contentFormat).toBe("TIPTAP_JSON");
+    expect(plain.content).toBe("Plain overwrite after rich.");
+    expect(plainTextFromDoc(plain.contentDoc)).toBe("Plain overwrite after rich.");
+  });
+
+  it("loads a single revision detail", async () => {
+    const revisions = await listSceneRevisions(userId, sceneId, 5);
+    expect(revisions.length).toBeGreaterThan(0);
+    const detail = await getSceneRevision(userId, sceneId, revisions[0].id);
+    expect(detail.id).toBe(revisions[0].id);
+    expect(typeof detail.content).toBe("string");
+    await expect(getSceneRevision(userId, sceneId, "no-such")).rejects.toThrow(/not found/);
+  });
+
+  it("restores a revision after snapshotting the live scene", async () => {
+    // Ensure at least one content revision exists to restore.
+    const before = await updateScene(userId, sceneId, {
+      content: "Version A alpha",
+      revisionReason: "MANUAL",
+    });
+    expect(before.content).toBe("Version A alpha");
+
+    const mid = await updateScene(userId, sceneId, {
+      content: "Version B beta",
+      revisionReason: "MANUAL",
+    });
+    expect(mid.content).toBe("Version B beta");
+
+    const revisions = await listSceneRevisions(userId, sceneId, 10);
+    // Newest snapshot is the pre-B state (Version A) created when saving B.
+    const target = revisions.find((r) => r.contentPreview.includes("Version A"));
+    expect(target).toBeTruthy();
+
+    const restored = await restoreSceneRevision(userId, sceneId, target!.id);
+    expect(restored.content).toBe("Version A alpha");
+
+    const after = await listSceneRevisions(userId, sceneId, 10);
+    expect(after.some((r) => r.reason === "RESTORE")).toBe(true);
+
+    await expect(listSceneRevisions(otherUserId, sceneId)).rejects.toThrow(/do not have access/);
+    await expect(restoreSceneRevision(userId, sceneId, "missing-rev")).rejects.toThrow(/not found/);
   });
 
   it("soft-deletes scenes, cascading chapters and acts", async () => {

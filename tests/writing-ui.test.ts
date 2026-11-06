@@ -3,6 +3,12 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { Outliner } from "../src/app/dashboard/novels/[id]/_components/Outliner";
 import { SceneEditor } from "../src/app/dashboard/novels/[id]/_components/SceneEditor";
+
+vi.mock("../src/app/dashboard/novels/[id]/_components/RichTextEditor", () => ({
+  RichTextEditor: (props: { plainContent: string }) =>
+    React.createElement("div", { "aria-label": "Scene text" }, props.plainContent),
+}));
+
 import { MentionsPanel } from "../src/app/dashboard/novels/[id]/_components/MentionsPanel";
 import { AiAssistantDrawer } from "../src/app/dashboard/novels/[id]/_components/AiAssistantDrawer";
 import { WritingWorkspace } from "../src/app/dashboard/novels/[id]/_components/WritingWorkspace";
@@ -130,6 +136,8 @@ describe("Writing Surface UI (launch phase 3)", { timeout: 20_000 }, () => {
       id: "scene-1",
       title: "The Quay",
       content: "Mara reached the quay at dawn.",
+      contentDoc: null,
+      contentFormat: "PLAIN" as const,
       summary: "Arrival",
       label: null,
       pov: "THIRD_LIMITED" as const,

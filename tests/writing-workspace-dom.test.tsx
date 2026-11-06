@@ -14,6 +14,30 @@ import { WritingWorkspace } from "../src/app/dashboard/novels/[id]/_components/W
 import { AiAssistantDrawer } from "../src/app/dashboard/novels/[id]/_components/AiAssistantDrawer";
 import type { NovelOutline } from "../src/lib/writing/service";
 
+vi.mock("../src/app/dashboard/novels/[id]/_components/RichTextEditor", () => ({
+  RichTextEditor: (props: {
+    plainContent: string;
+    onChange: (next: { content: string; contentDoc: unknown }) => void;
+    onKeyDown?: (e: React.KeyboardEvent) => void;
+  }) =>
+    React.createElement("textarea", {
+      "aria-label": "Scene text",
+      "data-testid": "scene-text",
+      value: props.plainContent,
+      onChange: (e: any) =>
+        props.onChange({
+          content: e.target.value,
+          contentDoc: {
+            type: "doc",
+            content: e.target.value
+              ? [{ type: "paragraph", content: [{ type: "text", text: e.target.value }] }]
+              : [{ type: "paragraph" }],
+          },
+        }),
+      onKeyDown: props.onKeyDown,
+    }),
+}));
+
 vi.mock("next/link", () => ({
   default: ({ href, children, ...rest }: any) =>
     React.createElement("a", { href, ...rest }, children),
@@ -49,6 +73,8 @@ function makeScene(id = "scene-1", content = "Mara reached the quay at dawn.") {
     id,
     title: id === "scene-1" ? "The Quay" : "Storm",
     content,
+    contentDoc: null,
+    contentFormat: "PLAIN",
     summary: null,
     label: null,
     pov: "THIRD_LIMITED",

@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import type { EditorScene } from "@/lib/writing/service";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { EditorScene, SceneRevisionListItem } from "@/lib/writing/service";
 import { POV_LABELS, POV_VALUES, TENSE_LABELS, TENSE_VALUES } from "@/lib/writing/meta";
 import type { PovValue, TenseValue } from "@/lib/writing/meta";
 import { countWords, formatWordCount } from "@/lib/writing/word-count";
 import { clearDraft, isDraftRecoverable, loadDraft, saveDraft } from "@/lib/writing/draft";
-import { apiPatch, ApiRequestError } from "./api";
+import { docFromPlainText, plainTextFromDoc, type TiptapDoc } from "@/lib/writing/tiptap";
+import { apiGet, apiPatch, apiPost, ApiRequestError } from "./api";
+import { RichTextEditor } from "./RichTextEditor";
 
 export interface SceneEditorProps {
   scene: EditorScene;
@@ -36,6 +38,7 @@ export type SaveStatus = "saved" | "dirty" | "saving" | "error";
 interface SceneSnapshot {
   title: string;
   content: string;
+  contentDoc: TiptapDoc | null;
   summary: string;
   pov: PovValue;
   tense: TenseValue;
@@ -48,6 +51,7 @@ function snapshotOf(scene: EditorScene): SceneSnapshot {
   return {
     title: scene.title,
     content: scene.content,
+    contentDoc: scene.contentDoc ?? null,
     summary: scene.summary ?? "",
     pov: scene.pov,
     tense: scene.tense,
@@ -56,22 +60,27 @@ function snapshotOf(scene: EditorScene): SceneSnapshot {
 }
 
 /**
- * Scene Editor (launch phase 3): distraction-free prose surface with a
- * debounced autosave (Cmd/Ctrl+S flushes), live word count, metadata drawer
- * (POV / Tense / Summary / exclude-from-AI), and a localStorage draft
- * fallback for failed saves.
+ * Scene Editor (STO-1156): Tiptap rich-text surface with debounced autosave
+ * (Cmd/Ctrl+S flushes), live word count, metadata drawer, localStorage draft
+ * fallback, and a minimal revision history / restore panel.
  */
 export function SceneEditor(props: SceneEditorProps) {
   const { scene } = props;
 
   const [title, setTitle] = useState(scene.title);
   const [content, setContent] = useState(scene.content);
+  const [contentDoc, setContentDoc] = useState<TiptapDoc | null>(scene.contentDoc ?? null);
   const [summary, setSummary] = useState(scene.summary ?? "");
   const [pov, setPov] = useState<PovValue>(scene.pov);
   const [tense, setTense] = useState<TenseValue>(scene.tense);
   const [excludeFromAi, setExcludeFromAi] = useState(scene.excludeFromAi);
   const [status, setStatus] = useState<SaveStatus>("saved");
   const [showMeta, setShowMeta] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [revisions, setRevisions] = useState<SceneRevisionListItem[]>([]);
+  const [revisionsLoading, setRevisionsLoading] = useState(false);
+  const [revisionsError, setRevisionsError] = useState<string | null>(null);
+  const [restoringId, setRestoringId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [restoreOffer, setRestoreOffer] = useState<{
     savedAt: number;
@@ -87,6 +96,7 @@ export function SceneEditor(props: SceneEditorProps) {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isSavingRef = useRef(false);
   const queuedSaveRef = useRef(false);
+  const manualFlushRef = useRef(false);
 
   // Local draft fallback check (per-scene mount; the workspace remounts the
   // editor with a key on scene switch).
@@ -113,8 +123,8 @@ export function SceneEditor(props: SceneEditorProps) {
   }, []);
 
   const current: SceneSnapshot = useMemo(
-    () => ({ title, content, summary, pov, tense, excludeFromAi }),
-    [title, content, summary, pov, tense, excludeFromAi],
+    () => ({ title, content, contentDoc, summary, pov, tense, excludeFromAi }),
+    [title, content, contentDoc, summary, pov, tense, excludeFromAi],
   );
 
   const currentRef = useRef<SceneSnapshot>(current);
@@ -124,6 +134,7 @@ export function SceneEditor(props: SceneEditorProps) {
     return (
       a.title !== b.title ||
       a.content !== b.content ||
+      JSON.stringify(a.contentDoc) !== JSON.stringify(b.contentDoc) ||
       a.summary !== b.summary ||
       a.pov !== b.pov ||
       a.tense !== b.tense ||
@@ -141,19 +152,31 @@ export function SceneEditor(props: SceneEditorProps) {
   function diffAgainstSaved(target: SceneSnapshot): Partial<{
     title: string;
     content: string;
+    contentDoc: TiptapDoc;
     summary: string;
     pov: PovValue;
     tense: TenseValue;
     excludeFromAi: boolean;
+    revisionReason: "AUTOSAVE" | "MANUAL";
   }> {
     const saved = savedRef.current;
     const patch: Record<string, unknown> = {};
     if (target.title !== saved.title) patch.title = target.title;
-    if (target.content !== saved.content) patch.content = target.content;
+    const contentChanged =
+      target.content !== saved.content ||
+      JSON.stringify(target.contentDoc) !== JSON.stringify(saved.contentDoc);
+    if (contentChanged) {
+      const doc = target.contentDoc ?? docFromPlainText(target.content);
+      patch.contentDoc = doc;
+      patch.content = plainTextFromDoc(doc);
+    }
     if (target.summary !== saved.summary) patch.summary = target.summary || null;
     if (target.pov !== saved.pov) patch.pov = target.pov;
     if (target.tense !== saved.tense) patch.tense = target.tense;
     if (target.excludeFromAi !== saved.excludeFromAi) patch.excludeFromAi = target.excludeFromAi;
+    if (Object.keys(patch).length > 0) {
+      patch.revisionReason = manualFlushRef.current ? "MANUAL" : "AUTOSAVE";
+    }
     return patch;
   }
 
@@ -170,6 +193,7 @@ export function SceneEditor(props: SceneEditorProps) {
     const patch = diffAgainstSaved(snapshotToPersist);
     if (Object.keys(patch).length === 0) {
       setStatus("saved");
+      manualFlushRef.current = false;
       return;
     }
 
@@ -178,7 +202,9 @@ export function SceneEditor(props: SceneEditorProps) {
     setError(null);
     try {
       const res = await apiPatch<{ scene: EditorScene }>(`/api/scenes/${scene.id}`, patch);
-      savedRef.current = { ...savedRef.current, ...snapshotToPersist };
+      // The working snapshot we sent is authoritative for dirty tracking; the
+      // parent gets the server row via onSaved for outline rollups / breadcrumbs.
+      savedRef.current = { ...snapshotToPersist };
       const stillDirty = isSnapshotDirty(currentRef.current, savedRef.current);
       if (!stillDirty) {
         clearDraft(scene.id);
@@ -214,6 +240,7 @@ export function SceneEditor(props: SceneEditorProps) {
       });
     } finally {
       isSavingRef.current = false;
+      manualFlushRef.current = false;
       if (queuedSaveRef.current) {
         queuedSaveRef.current = false;
         void persist();
@@ -260,14 +287,19 @@ export function SceneEditor(props: SceneEditorProps) {
     appliedInsertSeqRef.current = props.insertRequest.seq;
     setContent((prev) => {
       const separator = prev && !prev.endsWith("\n") ? "\n\n" : prev ? "\n\n" : "";
-      return prev ? `${prev}${separator}${props.insertRequest!.text}` : props.insertRequest!.text;
+      const next = prev
+        ? `${prev}${separator}${props.insertRequest!.text}`
+        : props.insertRequest!.text;
+      setContentDoc(docFromPlainText(next));
+      return next;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props.insertRequest?.seq]);
 
-  function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+  function handleKeyDown(e: React.KeyboardEvent) {
     if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") {
       e.preventDefault();
+      manualFlushRef.current = true;
       void persist();
     }
   }
@@ -276,6 +308,7 @@ export function SceneEditor(props: SceneEditorProps) {
     if (!restoreOffer) return;
     setTitle(restoreOffer.title);
     setContent(restoreOffer.content);
+    setContentDoc(docFromPlainText(restoreOffer.content));
     setSummary(restoreOffer.summary);
     if (restoreOffer.pov !== undefined) setPov(restoreOffer.pov);
     if (restoreOffer.tense !== undefined) setTense(restoreOffer.tense);
@@ -286,6 +319,59 @@ export function SceneEditor(props: SceneEditorProps) {
   function discardDraft() {
     clearDraft(scene.id);
     setRestoreOffer(null);
+  }
+
+  const onRichChange = useCallback((next: { contentDoc: TiptapDoc; content: string }) => {
+    setContentDoc(next.contentDoc);
+    setContent(next.content);
+  }, []);
+
+  const loadRevisions = useCallback(async () => {
+    setRevisionsLoading(true);
+    setRevisionsError(null);
+    try {
+      const res = await apiGet<{ revisions: SceneRevisionListItem[] }>(
+        `/api/scenes/${scene.id}/revisions?limit=20`,
+      );
+      setRevisions(res.revisions);
+    } catch (err) {
+      setRevisionsError(err instanceof ApiRequestError ? err.message : "Failed to load history");
+    } finally {
+      setRevisionsLoading(false);
+    }
+  }, [scene.id]);
+
+  useEffect(() => {
+    if (showHistory) {
+      void loadRevisions();
+    }
+  }, [showHistory, loadRevisions]);
+
+  async function handleRestoreRevision(revisionId: string) {
+    setRestoringId(revisionId);
+    setRevisionsError(null);
+    try {
+      const res = await apiPost<{ scene: EditorScene }>(
+        `/api/scenes/${scene.id}/revisions/${revisionId}/restore`,
+        {},
+      );
+      setTitle(res.scene.title);
+      setContent(res.scene.content);
+      setContentDoc(res.scene.contentDoc ?? null);
+      setSummary(res.scene.summary ?? "");
+      setPov(res.scene.pov);
+      setTense(res.scene.tense);
+      setExcludeFromAi(res.scene.excludeFromAi);
+      savedRef.current = snapshotOf(res.scene);
+      clearDraft(scene.id);
+      setStatus("saved");
+      props.onSaved(res.scene);
+      await loadRevisions();
+    } catch (err) {
+      setRevisionsError(err instanceof ApiRequestError ? err.message : "Restore failed");
+    } finally {
+      setRestoringId(null);
+    }
   }
 
   const words = countWords(content);
@@ -337,6 +423,14 @@ export function SceneEditor(props: SceneEditorProps) {
                     ? "Unsaved changes"
                     : "All changes saved"}
             </span>
+            <button
+              type="button"
+              onClick={() => setShowHistory((v) => !v)}
+              aria-expanded={showHistory}
+              className="rounded-md border border-ink-200 px-2.5 py-1 text-xs font-medium text-ink-700 hover:bg-ink-50"
+            >
+              {showHistory ? "Hide history" : "History"}
+            </button>
             <button
               type="button"
               onClick={() => setShowMeta((v) => !v)}
@@ -440,14 +534,64 @@ export function SceneEditor(props: SceneEditorProps) {
         </div>
       )}
 
-      <textarea
-        value={content}
-        onChange={(e) => setContent(e.target.value)}
+      {showHistory && (
+        <div
+          className="border-ink-200 max-h-48 overflow-y-auto border-b bg-ink-50/40 px-6 py-3"
+          data-testid="scene-history"
+        >
+          <div className="mb-2 flex items-center justify-between">
+            <p className="text-ink-600 text-xs font-medium">Version history</p>
+            <button
+              type="button"
+              onClick={() => void loadRevisions()}
+              className="text-ink-500 text-xs hover:text-ink-800"
+            >
+              Refresh
+            </button>
+          </div>
+          {revisionsLoading && <p className="text-muted text-xs">Loading…</p>}
+          {revisionsError && <p className="text-xs text-red-600">{revisionsError}</p>}
+          {!revisionsLoading && revisions.length === 0 && (
+            <p className="text-muted text-xs">No versions yet — they appear after saves.</p>
+          )}
+          <ul className="space-y-2">
+            {revisions.map((rev) => (
+              <li
+                key={rev.id}
+                className="border-ink-200 flex items-start justify-between gap-3 rounded-md border bg-white px-3 py-2"
+                data-testid="revision-row"
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-xs font-medium text-ink-900">
+                    {rev.title}{" "}
+                    <span className="text-ink-400 font-normal">
+                      · {rev.reason.toLowerCase()} · {formatWordCount(rev.wordCount)}
+                    </span>
+                  </p>
+                  <p className="text-muted truncate text-[11px]">
+                    {new Date(rev.createdAt).toLocaleString()} — {rev.contentPreview || "(empty)"}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  disabled={restoringId === rev.id}
+                  onClick={() => void handleRestoreRevision(rev.id)}
+                  className="shrink-0 rounded border border-ink-200 px-2 py-1 text-[11px] font-medium text-ink-700 hover:bg-ink-50 disabled:opacity-50"
+                >
+                  {restoringId === rev.id ? "Restoring…" : "Restore"}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <RichTextEditor
+        contentDoc={contentDoc}
+        plainContent={content}
+        onChange={onRichChange}
         onKeyDown={handleKeyDown}
         placeholder="Start writing…"
-        aria-label="Scene text"
-        spellCheck
-        className="prose-canvas min-h-0 flex-1 resize-none bg-transparent px-6 py-5 text-[17px] leading-8 text-primary placeholder:text-ink-300 focus:outline-none"
       />
     </div>
   );

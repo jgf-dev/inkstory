@@ -121,28 +121,52 @@ namespace public {
   }
 
   model Scene {
-    id                String              @id(map: "scenes_pkey")
+    id                String                   @id(map: "scenes_pkey")
     title             String
     label             String?
     subtitle          String?
-    content           String              @default("")
+    content           String                   @default("")
+    contentDoc        Jsonb?                   @map("content_doc")
+    contentFormat     pg.enum(ContentFormat)   @default("PLAIN") @map("content_format")
     summary           String?
-    pov               pg.enum(Pov)        @default("THIRD_LIMITED")
-    tense             pg.enum(Tense)      @default("PAST")
-    position          Int                 @default(0)
-    excludeFromAi     Boolean             @default(false) @map("exclude_from_ai")
-    wordCount         Int                 @default(0) @map("word_count")
-    createdAt         Timestamp(3)        @default(now()) @map("created_at")
-    updatedAt         Timestamp(3)        @map("updated_at")
-    deletedAt         Timestamp(3)?       @map("deleted_at")
-    chapterId         String              @map("chapter_id")
+    pov               pg.enum(Pov)             @default("THIRD_LIMITED")
+    tense             pg.enum(Tense)           @default("PAST")
+    position          Int                      @default(0)
+    excludeFromAi     Boolean                  @default(false) @map("exclude_from_ai")
+    wordCount         Int                      @default(0) @map("word_count")
+    createdAt         Timestamp(3)             @default(now()) @map("created_at")
+    updatedAt         Timestamp(3)             @map("updated_at")
+    deletedAt         Timestamp(3)?            @map("deleted_at")
+    chapterId         String                   @map("chapter_id")
 
-    chapter           Chapter             @relation(fields: [chapterId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "scenes_chapter_id_fkey", index: false)
+    chapter           Chapter                  @relation(fields: [chapterId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "scenes_chapter_id_fkey", index: false)
     codexProgressions CodexProgression[]
+    revisions         SceneRevision[]
 
     @@index([chapterId, deletedAt], map: "scenes_chapter_id_deleted_at_idx")
     @@index([chapterId, position], map: "scenes_chapter_id_position_idx")
     @@map("scenes")
+  }
+
+  // Scene revision snapshots (STO-1156). Authz via scene → novel owner chain.
+  model SceneRevision {
+    id            String                       @id(map: "scene_revisions_pkey")
+    sceneId       String                       @map("scene_id")
+    title         String
+    content       String
+    contentDoc    Jsonb?                       @map("content_doc")
+    contentFormat pg.enum(ContentFormat)       @default("PLAIN") @map("content_format")
+    summary       String?
+    pov           pg.enum(Pov)
+    tense         pg.enum(Tense)
+    wordCount     Int                          @map("word_count")
+    reason        pg.enum(SceneRevisionReason) @default("AUTOSAVE")
+    createdAt     Timestamp(3)                 @default(now()) @map("created_at")
+
+    scene         Scene                        @relation(fields: [sceneId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "scene_revisions_scene_id_fkey", index: false)
+
+    @@index([sceneId, createdAt], map: "scene_revisions_scene_id_created_at_idx")
+    @@map("scene_revisions")
   }
 
   model CodexEntry {
@@ -406,5 +430,17 @@ namespace public {
     PAST = "PAST"
     PRESENT = "PRESENT"
     FUTURE = "FUTURE"
+  }
+
+  native_enum ContentFormat {
+    PLAIN = "PLAIN"
+    TIPTAP_JSON = "TIPTAP_JSON"
+  }
+
+  native_enum SceneRevisionReason {
+    AUTOSAVE = "AUTOSAVE"
+    MANUAL = "MANUAL"
+    RESTORE = "RESTORE"
+    IMPORT = "IMPORT"
   }
 }
