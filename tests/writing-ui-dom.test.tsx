@@ -4,6 +4,29 @@ import { act, cleanup, createEvent, fireEvent, render, screen } from "@testing-l
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { Outliner } from "../src/app/dashboard/novels/[id]/_components/Outliner";
 import { SceneEditor } from "../src/app/dashboard/novels/[id]/_components/SceneEditor";
+
+vi.mock("../src/app/dashboard/novels/[id]/_components/RichTextEditor", () => ({
+  RichTextEditor: (props: {
+    plainContent: string;
+    onChange: (next: { content: string; contentDoc: unknown }) => void;
+    onKeyDown?: (e: React.KeyboardEvent) => void;
+  }) =>
+    React.createElement("textarea", {
+      "aria-label": "Scene text",
+      value: props.plainContent,
+      onChange: (e: any) =>
+        props.onChange({
+          content: e.target.value,
+          contentDoc: {
+            type: "doc",
+            content: e.target.value
+              ? [{ type: "paragraph", content: [{ type: "text", text: e.target.value }] }]
+              : [{ type: "paragraph" }],
+          },
+        }),
+      onKeyDown: props.onKeyDown,
+    }),
+}));
 import {
   apiDelete,
   apiGet,
@@ -481,6 +504,8 @@ describe("SceneEditor interactions", () => {
     id: "scene-1",
     title: "The Quay",
     content: "Mara reached the quay at dawn.",
+    contentDoc: null,
+    contentFormat: "PLAIN" as const,
     summary: "Arrival",
     label: null,
     pov: "THIRD_LIMITED" as const,
@@ -649,6 +674,56 @@ describe("SceneEditor interactions", () => {
     expect((screen.getByLabelText("Scene text") as HTMLTextAreaElement).value).toBe(
       "Mara reached the quay at dawn.",
     );
+  });
+
+  it("loads revision history and restores a version", async () => {
+    const restored = {
+      ...scene,
+      content: "Older prose",
+      contentDoc: {
+        type: "doc",
+        content: [{ type: "paragraph", content: [{ type: "text", text: "Older prose" }] }],
+      },
+      contentFormat: "TIPTAP_JSON" as const,
+      title: "Older title",
+    };
+    const fetchMock = vi.fn().mockImplementation(async (url: string, _init?: RequestInit) => {
+      if (typeof url === "string" && url.includes("/revisions/") && url.endsWith("/restore")) {
+        return jsonResponse(200, JSON.stringify({ scene: restored }));
+      }
+      if (typeof url === "string" && url.includes("/revisions")) {
+        return jsonResponse(
+          200,
+          JSON.stringify({
+            revisions: [
+              {
+                id: "rev-1",
+                sceneId: "scene-1",
+                title: "Older title",
+                summary: null,
+                pov: "THIRD_LIMITED",
+                tense: "PAST",
+                wordCount: 2,
+                reason: "AUTOSAVE",
+                contentFormat: "TIPTAP_JSON",
+                createdAt: "2026-10-08T01:00:00.000Z",
+                contentPreview: "Older prose",
+              },
+            ],
+          }),
+        );
+      }
+      return jsonResponse(200, JSON.stringify({ scene }));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    setup();
+    fireEvent.click(screen.getByText("History"));
+    expect(await screen.findByTestId("scene-history")).toBeTruthy();
+    expect(await screen.findByTestId("revision-row")).toBeTruthy();
+    fireEvent.click(screen.getByText("Restore"));
+    await flush();
+    expect(screen.getByDisplayValue("Older prose")).toBeTruthy();
+    expect(screen.getByDisplayValue("Older title")).toBeTruthy();
   });
 
   it("serializes saves and keeps draft when edits occur during save", async () => {

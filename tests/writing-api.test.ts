@@ -7,6 +7,8 @@ import {
   POST as postOutline,
 } from "../src/app/api/novels/[id]/outline/route";
 import { GET as getScene, PATCH as patchScene } from "../src/app/api/scenes/[id]/route";
+import { GET as getRevisions } from "../src/app/api/scenes/[id]/revisions/route";
+import { POST as restoreRevision } from "../src/app/api/scenes/[id]/revisions/[revisionId]/restore/route";
 import * as writingService from "../src/lib/writing/service";
 import { CodexError } from "../src/lib/codex/errors";
 
@@ -223,6 +225,48 @@ describe("Writing REST Route Handlers", () => {
       expect(writingService.updateScene).toHaveBeenCalledWith(userId, sceneId, {
         content: "hello world",
       });
+    });
+
+    it("PATCH accepts contentDoc", async () => {
+      const scene = { id: sceneId, content: "hello", contentFormat: "TIPTAP_JSON" } as any;
+      vi.spyOn(writingService, "updateScene").mockResolvedValueOnce(scene);
+      const doc = {
+        type: "doc",
+        content: [{ type: "paragraph", content: [{ type: "text", text: "hello" }] }],
+      };
+      const req = new NextRequest(`http://localhost:3000/api/scenes/${sceneId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ contentDoc: doc }),
+      });
+      const res = await patchScene(req, { params: Promise.resolve({ id: sceneId }) });
+      expect(res.status).toBe(200);
+      expect(writingService.updateScene).toHaveBeenCalledWith(userId, sceneId, { contentDoc: doc });
+    });
+
+    it("GET revisions lists history", async () => {
+      vi.spyOn(writingService, "listSceneRevisions").mockResolvedValueOnce([
+        { id: "rev-1", sceneId, title: "T", contentPreview: "hi" } as any,
+      ]);
+      const req = new NextRequest(`http://localhost:3000/api/scenes/${sceneId}/revisions?limit=5`);
+      const res = await getRevisions(req, { params: Promise.resolve({ id: sceneId }) });
+      expect(res.status).toBe(200);
+      const json = await res.json();
+      expect(json.revisions).toHaveLength(1);
+      expect(writingService.listSceneRevisions).toHaveBeenCalledWith(userId, sceneId, 5);
+    });
+
+    it("POST restore applies a revision", async () => {
+      const scene = { id: sceneId, content: "restored" } as any;
+      vi.spyOn(writingService, "restoreSceneRevision").mockResolvedValueOnce(scene);
+      const req = new NextRequest(
+        `http://localhost:3000/api/scenes/${sceneId}/revisions/rev-1/restore`,
+        { method: "POST" },
+      );
+      const res = await restoreRevision(req, {
+        params: Promise.resolve({ id: sceneId, revisionId: "rev-1" }),
+      });
+      expect(res.status).toBe(200);
+      expect(writingService.restoreSceneRevision).toHaveBeenCalledWith(userId, sceneId, "rev-1");
     });
 
     it("PATCH with an empty body returns 400", async () => {
