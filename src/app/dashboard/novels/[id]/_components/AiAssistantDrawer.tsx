@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { GenerationMode } from "@/lib/ai/generate";
-import { apiPost, ApiRequestError } from "./api";
+import type { CredentialDto } from "@/lib/ai/credentials/service";
+import { apiGet, apiPost, ApiRequestError } from "./api";
 
 export interface AiAssistantDrawerProps {
   sceneId: string;
@@ -62,13 +63,40 @@ export function AiAssistantDrawer({
   const [draft, setDraft] = useState("");
   const [accepted, setAccepted] = useState(false);
 
+  const [credentials, setCredentials] = useState<CredentialDto[]>([]);
+  const [credentialsError, setCredentialsError] = useState(false);
+  const [credentialId, setCredentialId] = useState("");
+  const [model, setModel] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    apiGet<{ credentials: CredentialDto[] }>("/api/ai/credentials")
+      .then((result) => {
+        if (active) setCredentials(result.credentials);
+      })
+      .catch(() => {
+        if (active) setCredentialsError(true);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const canGenerate = !busy && (!credentialId || Boolean(model.trim()));
+
   async function generate() {
     setBusy(true);
     setError(null);
     try {
       const res = await apiPost<GenerateSuccess & { prompt?: PromptPreview; code?: string }>(
         "/api/ai/generate",
-        { sceneId, mode, beatText: beatText || undefined, content },
+        {
+          sceneId,
+          mode,
+          beatText: beatText || undefined,
+          content,
+          ...(credentialId ? { credentialId, model: model.trim() } : {}),
+        },
       );
       setOutcome({ kind: "generated", result: { text: res.text, model: res.model } });
       setDraft(res.text);
@@ -162,6 +190,47 @@ export function AiAssistantDrawer({
       </header>
 
       <div className="border-ink-200 space-y-3 border-b px-4 py-3">
+        <label className="block text-xs text-muted">
+          Generation provider
+          <select
+            aria-label="Generation provider"
+            value={credentialId}
+            disabled={busy}
+            onChange={(event) => {
+              setCredentialId(event.target.value);
+              setModel("");
+            }}
+            className="mt-1 w-full rounded border border-subtle bg-card p-2 text-primary"
+          >
+            <option value="">Platform gateway (default)</option>
+            {credentials.map((credential) => (
+              <option key={credential.id} value={credential.id}>
+                {credential.provider} — {credential.label || "Default"} {credential.keyHint ?? ""}
+              </option>
+            ))}
+          </select>
+        </label>
+        {credentialsError && (
+          <p role="status" className="text-xs text-muted">
+            Saved credentials could not be loaded. Platform gateway is still available; reopen this
+            drawer to retry.
+          </p>
+        )}
+        {credentialId && (
+          <label className="block text-xs text-muted">
+            Provider model ID
+            <input
+              aria-label="Provider model ID"
+              value={model}
+              maxLength={256}
+              disabled={busy}
+              onChange={(event) => setModel(event.target.value)}
+              placeholder="Enter a model ID supported by this provider"
+              className="mt-1 w-full rounded border border-subtle bg-card p-2 text-primary"
+            />
+            Uses your selected credential, not platform credits.
+          </label>
+        )}
         <div className="flex gap-1" role="tablist" aria-label="Generation mode">
           {(Object.keys(MODE_LABELS) as GenerationMode[]).map((value) => (
             <button
@@ -210,7 +279,7 @@ export function AiAssistantDrawer({
           <button
             type="button"
             onClick={() => void generate()}
-            disabled={busy}
+            disabled={!canGenerate}
             className="flex-1 rounded-md bg-ink-800 px-3 py-2 text-sm font-medium text-ink-50 shadow-xs hover:bg-ink-900 disabled:opacity-50"
           >
             {busy ? "Generating…" : "Generate"}
@@ -267,7 +336,7 @@ export function AiAssistantDrawer({
               <button
                 type="button"
                 onClick={() => void generate()}
-                disabled={busy}
+                disabled={!canGenerate}
                 className="rounded border border-ink-300 px-2 py-1 text-xs font-medium text-ink-700 hover:bg-ink-50 disabled:opacity-50"
               >
                 {busy ? "Regenerating…" : "Regenerate"}

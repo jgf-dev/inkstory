@@ -9,6 +9,8 @@ type Reply = { status: number; body: unknown };
 function stubFetch(...replies: Reply[]) {
   const bodies: unknown[] = [];
   const fn = vi.fn(async (_url: string, init: RequestInit) => {
+    if (init.method === "GET")
+      return { ok: true, text: async () => JSON.stringify({ credentials: [] }) } as Response;
     bodies.push(JSON.parse(init.body as string));
     const r = replies.shift() ?? { status: 200, body: { text: "fallback", model: "m" } };
     return {
@@ -197,5 +199,109 @@ describe("AiAssistantDrawer post-generation controls (STO-1174)", () => {
     fireEvent.click(screen.getByText("Preview prompt"));
 
     await screen.findByText("Preview generation failed");
+  });
+});
+
+describe("AiAssistantDrawer explicit BYOK selection (STO-1159)", () => {
+  function withCredentials(failLoad = false) {
+    const bodies: Record<string, unknown>[] = [];
+    const fn = vi.fn(async (_url: string, init: RequestInit) => {
+      if (init.method === "GET") {
+        return new Response(
+          JSON.stringify(
+            failLoad
+              ? { error: "Unavailable" }
+              : {
+                  credentials: [
+                    { id: "saved", provider: "OPENAI", label: "Personal", keyHint: "1234" },
+                    { id: "local", provider: "OLLAMA", label: "", keyHint: null },
+                  ],
+                },
+          ),
+          { status: failLoad ? 500 : 200 },
+        );
+      }
+      bodies.push(JSON.parse(init.body as string));
+      return new Response(JSON.stringify({ text: "BYOK draft", model: "chosen-model" }));
+    });
+    vi.stubGlobal("fetch", fn);
+    return { fn, bodies };
+  }
+
+  it("defaults to platform; sends only selected credential ID/model, including regeneration", async () => {
+    const { bodies } = withCredentials();
+    setup();
+    await screen.findByRole("option", { name: "OPENAI — Personal 1234" });
+    const provider = screen.getByLabelText("Generation provider") as HTMLSelectElement;
+    expect(provider.value).toBe("");
+    expect(screen.queryByLabelText("Provider model ID")).toBeNull();
+    fireEvent.change(provider, { target: { value: "saved" } });
+    expect((screen.getByText("Generate") as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.change(screen.getByLabelText("Provider model ID"), {
+      target: { value: "  my-model  " },
+    });
+    fireEvent.click(screen.getByText("Generate"));
+    await screen.findByTestId("ai-result");
+    fireEvent.click(screen.getByText("Regenerate"));
+    await waitFor(() => expect(bodies).toHaveLength(2));
+    expect(bodies[0]).toEqual({
+      sceneId: "scene-1",
+      mode: "continuation",
+      content: "She waited.",
+      credentialId: "saved",
+      model: "my-model",
+    });
+    expect(bodies[1]).toEqual(bodies[0]);
+    expect(JSON.stringify(bodies)).not.toContain("keyHint");
+    expect(JSON.stringify(bodies)).not.toContain("apiKey");
+  });
+
+  it("resets model when switching credentials and explicitly returns to platform", async () => {
+    const { bodies } = withCredentials();
+    setup();
+    await screen.findByRole("option", { name: "OLLAMA — Default" });
+    const provider = screen.getByLabelText("Generation provider");
+    fireEvent.change(provider, { target: { value: "saved" } });
+    fireEvent.change(screen.getByLabelText("Provider model ID"), { target: { value: "model-a" } });
+    fireEvent.change(provider, { target: { value: "local" } });
+    expect((screen.getByLabelText("Provider model ID") as HTMLInputElement).value).toBe("");
+    expect((screen.getByText("Generate") as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.change(provider, { target: { value: "" } });
+    expect(screen.queryByLabelText("Provider model ID")).toBeNull();
+    fireEvent.click(screen.getByText("Generate"));
+    await screen.findByTestId("ai-result");
+    expect(bodies[0]).toEqual({ sceneId: "scene-1", mode: "continuation", content: "She waited." });
+  });
+
+  it("leaves platform available and explains credential-load failures", async () => {
+    const { bodies } = withCredentials(true);
+    setup();
+    await screen.findByText(/Saved credentials could not be loaded/);
+    fireEvent.click(screen.getByText("Generate"));
+    await screen.findByTestId("ai-result");
+    expect(bodies[0]).not.toHaveProperty("credentialId");
+  });
+
+  it("disables selection/model changes during generation", async () => {
+    const { fn } = withCredentials();
+    setup();
+    await screen.findByRole("option", { name: "OPENAI — Personal 1234" });
+    fireEvent.change(screen.getByLabelText("Generation provider"), { target: { value: "saved" } });
+    fireEvent.change(screen.getByLabelText("Provider model ID"), { target: { value: "m" } });
+    let finish!: (value: Response) => void;
+    fn.mockImplementationOnce(
+      () =>
+        new Promise<Response>((resolve) => {
+          finish = resolve;
+        }),
+    );
+    fireEvent.click(screen.getByText("Generate"));
+    expect((screen.getByLabelText("Generation provider") as HTMLSelectElement).disabled).toBe(true);
+    expect((screen.getByLabelText("Provider model ID") as HTMLInputElement).disabled).toBe(true);
+    finish(new Response(JSON.stringify({ text: "Done", model: "m" })));
+    await screen.findByTestId("ai-result");
+    expect((screen.getByLabelText("Generation provider") as HTMLSelectElement).disabled).toBe(
+      false,
+    );
   });
 });
