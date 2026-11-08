@@ -43,6 +43,18 @@ enum Tense {
   FUTURE
 }
 
+enum ContentFormat {
+  PLAIN
+  TIPTAP_JSON
+}
+
+enum SceneRevisionReason {
+  AUTOSAVE
+  MANUAL
+  RESTORE
+  IMPORT
+}
+
 enum CodexType {
   CHARACTER
   LOCATION
@@ -204,33 +216,62 @@ model Chapter {
 
 // ─── Scene ───────────────────────────────────────────────────────────────────
 //
-// The atomic writing unit. `content` is plain text for Epic 0; the rich-text
-// editor + revision history land in Epic 3 (STO-1156) and Epic 6 (STO-1165).
+// The atomic writing unit. `content` stays the authoritative plain-text extract
+// for AI / word-count / import; `content_doc` holds Tiptap JSON (STO-1156).
 
 model Scene {
-  id            String    @id @default(cuid())
+  id            String        @id @default(cuid())
   title         String
-  label         String?   // short tag (e.g. "Battle", "Reveal")
+  label         String? // short tag (e.g. "Battle", "Reveal")
   subtitle      String?
-  content       String    @default("") @db.Text
-  summary       String?   @db.Text
-  pov           Pov       @default(THIRD_LIMITED)
-  tense         Tense     @default(PAST)
-  position      Int       @default(0)
-  excludeFromAi Boolean   @default(false) @map("exclude_from_ai")
-  wordCount     Int       @default(0) @map("word_count")
-  createdAt     DateTime  @default(now()) @map("created_at")
-  updatedAt     DateTime  @updatedAt @map("updated_at")
-  deletedAt     DateTime? @map("deleted_at")
+  content       String        @default("") @db.Text // plain extract — KEEP
+  contentDoc    Json?         @map("content_doc") // Tiptap JSON; null = plain-only
+  contentFormat ContentFormat @default(PLAIN) @map("content_format")
+  summary       String?       @db.Text
+  pov           Pov           @default(THIRD_LIMITED)
+  tense         Tense         @default(PAST)
+  position      Int           @default(0)
+  excludeFromAi Boolean       @default(false) @map("exclude_from_ai")
+  wordCount     Int           @default(0) @map("word_count")
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+  deletedAt     DateTime?     @map("deleted_at")
 
   chapterId String  @map("chapter_id")
   chapter   Chapter @relation(fields: [chapterId], references: [id], onDelete: Cascade)
 
   progressions CodexProgression[]
+  revisions    SceneRevision[]
 
   @@index([chapterId, deletedAt])
   @@index([chapterId, position])
   @@map("scenes")
+}
+
+// ─── Scene Revision ──────────────────────────────────────────────────────────
+//
+// Snapshot of editor-relevant scene fields at save/restore time (STO-1156).
+// Authz is via the scene → chapter → act → novel owner chain — no ownerId here.
+
+model SceneRevision {
+  id            String              @id @default(cuid())
+  sceneId       String              @map("scene_id")
+  scene         Scene               @relation(fields: [sceneId], references: [id], onDelete: Cascade)
+
+  title         String
+  content       String              @db.Text
+  contentDoc    Json?               @map("content_doc")
+  contentFormat ContentFormat       @default(PLAIN) @map("content_format")
+  summary       String?             @db.Text
+  pov           Pov
+  tense         Tense
+  wordCount     Int                 @map("word_count")
+  reason        SceneRevisionReason @default(AUTOSAVE)
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([sceneId, createdAt])
+  @@map("scene_revisions")
 }
 
 // ─── Codex Entry ─────────────────────────────────────────────────────────────

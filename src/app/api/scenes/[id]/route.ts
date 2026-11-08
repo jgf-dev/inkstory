@@ -26,8 +26,8 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
 }
 
 /**
- * Scene autosave endpoint: content and/or metadata. `word_count` is
- * recomputed server-side whenever content changes.
+ * Scene autosave endpoint: content and/or metadata (+ optional contentDoc).
+ * `word_count` is recomputed server-side whenever content changes.
  */
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -46,6 +46,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     if (
       body.title === undefined &&
       body.content === undefined &&
+      body.contentDoc === undefined &&
       body.summary === undefined &&
       body.pov === undefined &&
       body.tense === undefined &&

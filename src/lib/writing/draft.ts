@@ -10,11 +10,14 @@
 
 import type { PovValue, TenseValue } from "./meta";
 import { isPovValue, isTenseValue } from "./meta";
+import { normalizeContentDoc, type TiptapDoc } from "./tiptap";
 
 export interface SceneDraft {
   sceneId: string;
   title: string;
   content: string;
+  /** Rich doc when the draft was saved from the Tiptap editor. */
+  contentDoc?: TiptapDoc | null;
   summary: string;
   pov?: PovValue;
   tense?: TenseValue;
@@ -79,6 +82,9 @@ export function loadDraft(sceneId: string): SceneDraft | null {
     if (isPovValue(parsed.pov)) result.pov = parsed.pov;
     if (isTenseValue(parsed.tense)) result.tense = parsed.tense;
     if (typeof parsed.excludeFromAi === "boolean") result.excludeFromAi = parsed.excludeFromAi;
+    if ("contentDoc" in parsed) {
+      result.contentDoc = normalizeContentDoc(parsed.contentDoc);
+    }
     return result;
   } catch {
     return null;

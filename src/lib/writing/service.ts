@@ -6,6 +6,15 @@ import { toEpochMs, toIsoString } from "./dates";
 import { countWords } from "./word-count";
 import { lockNovelStructure, type DbTransaction } from "./novel-lock";
 import { applySiblingReorder } from "./sibling-reorder";
+import {
+  docFromPlainText,
+  isSceneRevisionReasonValue,
+  normalizeContentDoc,
+  plainTextFromDoc,
+  type ContentFormatValue,
+  type SceneRevisionReasonValue,
+  type TiptapDoc,
+} from "./tiptap";
 
 function nowTimestamp(): Temporal.PlainDateTime {
   return Temporal.Now.plainDateTimeISO();
@@ -554,10 +563,15 @@ export async function deleteOutlineNode(
 
 // ─── Scene editor ────────────────────────────────────────────────────────────
 
+const MAX_SCENE_REVISIONS = 50;
+const AUTOSAVE_REVISION_COLLAPSE_MS = 60_000;
+
 export interface EditorScene {
   id: string;
   title: string;
   content: string;
+  contentDoc: TiptapDoc | null;
+  contentFormat: ContentFormatValue;
   summary: string | null;
   label: string | null;
   pov: PovValue;
@@ -572,6 +586,14 @@ export interface EditorScene {
   novelTitle: string;
 }
 
+function asContentFormat(value: unknown): ContentFormatValue {
+  return value === "TIPTAP_JSON" ? "TIPTAP_JSON" : "PLAIN";
+}
+
+function asContentDoc(value: unknown): TiptapDoc | null {
+  return normalizeContentDoc(value);
+}
+
 /** Loads a scene with breadcrumb context for the editor surface. */
 export async function getSceneForEditor(userId: string, sceneId: string): Promise<EditorScene> {
   const { scene, chapter, act, novel } = await assertSceneAccess(userId, sceneId);
@@ -579,10 +601,12 @@ export async function getSceneForEditor(userId: string, sceneId: string): Promis
     id: scene.id,
     title: scene.title,
     content: scene.content,
+    contentDoc: asContentDoc(scene.contentDoc),
+    contentFormat: asContentFormat(scene.contentFormat),
     summary: scene.summary,
     label: scene.label,
-    pov: scene.pov,
-    tense: scene.tense,
+    pov: scene.pov as PovValue,
+    tense: scene.tense as TenseValue,
     excludeFromAi: scene.excludeFromAi,
     wordCount: scene.wordCount,
     updatedAt: toIsoString(scene.updatedAt),
@@ -598,37 +622,227 @@ export interface UpdateSceneInput {
   title?: string;
   summary?: string | null;
   content?: string;
+  contentDoc?: unknown;
   pov?: PovValue;
   tense?: TenseValue;
   excludeFromAi?: boolean;
   label?: string | null;
+  /** Snapshot reason when content/title/summary change. Defaults to AUTOSAVE. */
+  revisionReason?: SceneRevisionReasonValue;
+}
+
+export interface SceneRevisionListItem {
+  id: string;
+  sceneId: string;
+  title: string;
+  summary: string | null;
+  pov: PovValue;
+  tense: TenseValue;
+  wordCount: number;
+  reason: SceneRevisionReasonValue;
+  contentFormat: ContentFormatValue;
+  createdAt: string;
+  /** Short plain preview (truncated) for the history panel. */
+  contentPreview: string;
+}
+
+export interface SceneRevisionDetail extends SceneRevisionListItem {
+  content: string;
+  contentDoc: TiptapDoc | null;
+}
+
+type SceneRowLike = {
+  id: string;
+  title: string;
+  content: string;
+  contentDoc: unknown;
+  contentFormat: unknown;
+  summary: string | null;
+  pov: unknown;
+  tense: unknown;
+  wordCount: number;
+};
+
+function resolveContentDualWrite(
+  scene: SceneRowLike,
+  input: UpdateSceneInput,
+): {
+  content?: string;
+  contentDoc?: TiptapDoc | null;
+  contentFormat?: ContentFormatValue;
+  wordCount?: number;
+} {
+  const hasDoc = input.contentDoc !== undefined;
+  const hasPlain = input.content !== undefined;
+
+  if (!hasDoc && !hasPlain) {
+    return {};
+  }
+
+  if (hasDoc) {
+    const doc = normalizeContentDoc(input.contentDoc);
+    if (!doc) {
+      throw new CodexError("contentDoc must be a Tiptap doc JSON object", "VALIDATION_FAILED", 422);
+    }
+    const derived = plainTextFromDoc(doc);
+    if (hasPlain) {
+      if (typeof input.content !== "string") {
+        throw new CodexError("Scene content must be a string", "VALIDATION_FAILED", 422);
+      }
+      if (input.content !== derived) {
+        throw new CodexError(
+          "content does not match plain text derived from contentDoc",
+          "VALIDATION_FAILED",
+          422,
+        );
+      }
+    }
+    return {
+      content: derived,
+      contentDoc: doc,
+      contentFormat: "TIPTAP_JSON",
+      wordCount: countWords(derived),
+    };
+  }
+
+  // Plain-only patch.
+  if (typeof input.content !== "string") {
+    throw new CodexError("Scene content must be a string", "VALIDATION_FAILED", 422);
+  }
+  const plain = input.content;
+  if (asContentFormat(scene.contentFormat) === "TIPTAP_JSON") {
+    // After a scene is rich, wrap/overwrite into a simple doc + update content_doc.
+    const doc = docFromPlainText(plain);
+    return {
+      content: plain,
+      contentDoc: doc,
+      contentFormat: "TIPTAP_JSON",
+      wordCount: countWords(plain),
+    };
+  }
+  return {
+    content: plain,
+    wordCount: countWords(plain),
+  };
+}
+
+async function createSceneRevisionSnapshot(
+  scene: SceneRowLike,
+  reason: SceneRevisionReasonValue,
+): Promise<void> {
+  const now = nowTimestamp();
+
+  if (reason === "AUTOSAVE") {
+    const recent = await db.orm.public.SceneRevision.where((r) => r.sceneId.eq(scene.id))
+      .orderBy((r) => r.createdAt.desc())
+      .first();
+    if (
+      recent &&
+      recent.reason === "AUTOSAVE" &&
+      Date.now() - toEpochMs(recent.createdAt) < AUTOSAVE_REVISION_COLLAPSE_MS
+    ) {
+      return;
+    }
+  }
+
+  await db.orm.public.SceneRevision.create({
+    id: crypto.randomUUID(),
+    sceneId: scene.id,
+    title: scene.title,
+    content: scene.content,
+    contentDoc: (asContentDoc(scene.contentDoc) as any) ?? null,
+    contentFormat: asContentFormat(scene.contentFormat),
+    summary: scene.summary,
+    pov: scene.pov as PovValue,
+    tense: scene.tense as TenseValue,
+    wordCount: scene.wordCount,
+    reason,
+    createdAt: now,
+  });
+
+  const all = await db.orm.public.SceneRevision.where((r) => r.sceneId.eq(scene.id))
+    .orderBy((r) => r.createdAt.desc())
+    .all();
+  if (all.length > MAX_SCENE_REVISIONS) {
+    const toPrune = all.slice(MAX_SCENE_REVISIONS);
+    for (const row of toPrune) {
+      await db.orm.public.SceneRevision.where({ id: row.id }).delete();
+    }
+  }
+}
+
+function revisionPreview(content: string): string {
+  const trimmed = content.replace(/\s+/g, " ").trim();
+  if (trimmed.length <= 160) return trimmed;
+  return `${trimmed.slice(0, 157)}…`;
+}
+
+function toRevisionListItem(row: {
+  id: string;
+  sceneId: string;
+  title: string;
+  summary: string | null;
+  pov: unknown;
+  tense: unknown;
+  wordCount: number;
+  reason: unknown;
+  contentFormat: unknown;
+  createdAt: unknown;
+  content: string;
+}): SceneRevisionListItem {
+  return {
+    id: row.id,
+    sceneId: row.sceneId,
+    title: row.title,
+    summary: row.summary,
+    pov: row.pov as PovValue,
+    tense: row.tense as TenseValue,
+    wordCount: row.wordCount,
+    reason: (row.reason as SceneRevisionReasonValue) ?? "AUTOSAVE",
+    contentFormat: asContentFormat(row.contentFormat),
+    createdAt: toIsoString(row.createdAt),
+    contentPreview: revisionPreview(row.content),
+  };
 }
 
 /**
- * Updates scene content/metadata. `word_count` is recomputed server-side
- * whenever content changes so the outliner rollups stay authoritative.
+ * Updates scene content/metadata. Dual-writes plain `content` + optional
+ * `content_doc`. Creates a revision snapshot on meaningful field changes.
  */
 export async function updateScene(userId: string, sceneId: string, input: UpdateSceneInput) {
   const { scene } = await assertSceneAccess(userId, sceneId);
 
   const updateData: Record<string, unknown> = { updatedAt: nowTimestamp() };
+  let meaningfulChange = false;
 
   if (input.title !== undefined) {
     const title = input.title.trim();
     if (!title) {
       throw new CodexError("Scene title cannot be empty", "VALIDATION_FAILED", 422);
     }
+    if (title !== scene.title) meaningfulChange = true;
     updateData.title = title;
   }
-  if (input.summary !== undefined) updateData.summary = input.summary;
-  if (input.label !== undefined) updateData.label = input.label;
-  if (input.content !== undefined) {
-    if (typeof input.content !== "string") {
-      throw new CodexError("Scene content must be a string", "VALIDATION_FAILED", 422);
-    }
-    updateData.content = input.content;
-    updateData.wordCount = countWords(input.content);
+  if (input.summary !== undefined) {
+    if (input.summary !== scene.summary) meaningfulChange = true;
+    updateData.summary = input.summary;
   }
+  if (input.label !== undefined) updateData.label = input.label;
+
+  const dual = resolveContentDualWrite(scene as SceneRowLike, input);
+  if (dual.content !== undefined) {
+    if (
+      dual.content !== scene.content ||
+      JSON.stringify(dual.contentDoc ?? null) !== JSON.stringify(asContentDoc(scene.contentDoc))
+    ) {
+      meaningfulChange = true;
+    }
+    updateData.content = dual.content;
+    updateData.wordCount = dual.wordCount;
+    if (dual.contentDoc !== undefined) updateData.contentDoc = dual.contentDoc as any;
+    if (dual.contentFormat !== undefined) updateData.contentFormat = dual.contentFormat;
+  }
+
   if (input.pov !== undefined) {
     if (!isPovValue(input.pov)) {
       throw new CodexError("Invalid POV value", "VALIDATION_FAILED", 422);
@@ -643,6 +857,87 @@ export async function updateScene(userId: string, sceneId: string, input: Update
   }
   if (input.excludeFromAi !== undefined) updateData.excludeFromAi = input.excludeFromAi;
 
+  if (input.revisionReason !== undefined && !isSceneRevisionReasonValue(input.revisionReason)) {
+    throw new CodexError("Invalid revision reason", "VALIDATION_FAILED", 422);
+  }
+
+  if (meaningfulChange) {
+    const reason: SceneRevisionReasonValue =
+      input.revisionReason === "MANUAL" ||
+      input.revisionReason === "IMPORT" ||
+      input.revisionReason === "RESTORE"
+        ? input.revisionReason
+        : "AUTOSAVE";
+    await createSceneRevisionSnapshot(scene as SceneRowLike, reason);
+  }
+
   await db.orm.public.Scene.where({ id: scene.id }).update(updateData);
+  return getSceneForEditor(userId, sceneId);
+}
+
+/** Lists recent scene revisions (newest first). Omits full contentDoc payloads. */
+export async function listSceneRevisions(
+  userId: string,
+  sceneId: string,
+  limit = 20,
+): Promise<SceneRevisionListItem[]> {
+  await assertSceneAccess(userId, sceneId);
+  const safeLimit = Math.min(Math.max(1, Math.floor(limit) || 20), MAX_SCENE_REVISIONS);
+  const rows = await db.orm.public.SceneRevision.where((r) => r.sceneId.eq(sceneId))
+    .orderBy((r) => r.createdAt.desc())
+    .limit(safeLimit)
+    .all();
+  return rows.map(toRevisionListItem);
+}
+
+/** Loads one revision including full content + contentDoc for preview/restore. */
+export async function getSceneRevision(
+  userId: string,
+  sceneId: string,
+  revisionId: string,
+): Promise<SceneRevisionDetail> {
+  await assertSceneAccess(userId, sceneId);
+  const row = await db.orm.public.SceneRevision.where({ id: revisionId }).first();
+  if (!row || row.sceneId !== sceneId) {
+    throw new CodexError("Revision not found", "NOT_FOUND", 404);
+  }
+  return {
+    ...toRevisionListItem(row),
+    content: row.content,
+    contentDoc: asContentDoc(row.contentDoc),
+  };
+}
+
+/**
+ * Restores a revision onto the live scene. Snapshots the current state as
+ * RESTORE first so undo-restore stays possible, then applies the revision.
+ */
+export async function restoreSceneRevision(
+  userId: string,
+  sceneId: string,
+  revisionId: string,
+): Promise<EditorScene> {
+  const { scene } = await assertSceneAccess(userId, sceneId);
+  const revision = await db.orm.public.SceneRevision.where({ id: revisionId }).first();
+  if (!revision || revision.sceneId !== sceneId) {
+    throw new CodexError("Revision not found", "NOT_FOUND", 404);
+  }
+
+  await createSceneRevisionSnapshot(scene as SceneRowLike, "RESTORE");
+
+  const contentDoc = asContentDoc(revision.contentDoc);
+  const contentFormat = asContentFormat(revision.contentFormat);
+  await db.orm.public.Scene.where({ id: scene.id }).update({
+    title: revision.title,
+    content: revision.content,
+    contentDoc: (contentDoc as any) ?? null,
+    contentFormat,
+    summary: revision.summary,
+    pov: revision.pov as PovValue,
+    tense: revision.tense as TenseValue,
+    wordCount: revision.wordCount,
+    updatedAt: nowTimestamp(),
+  });
+
   return getSceneForEditor(userId, sceneId);
 }
