@@ -37,3 +37,11 @@ next-env.d.ts
 .env*
 .remember
 .mcp.json
+
+# OpenNext
+.open-next
+
+# wrangler files
+.wrangler
+.dev.vars*
+!.dev.vars.example
