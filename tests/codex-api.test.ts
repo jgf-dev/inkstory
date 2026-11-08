@@ -22,6 +22,9 @@ import {
 import { POST as createRelation } from "../src/app/api/codex/relations/route";
 import { DELETE as deleteTag } from "../src/app/api/codex/tags/[id]/route";
 import { POST as assembleContextRoute } from "../src/app/api/context/assemble/route";
+import * as entitlements from "../src/lib/billing/entitlements";
+import { PLANS } from "../src/lib/billing/plans";
+import { inspectAssembledContext } from "../src/lib/codex/context-inspection";
 import { ContextAssemblyError } from "../src/lib/codex/context-assembler";
 import * as codexService from "../src/lib/codex/service";
 import { CodexError } from "../src/lib/codex/service";
@@ -385,6 +388,9 @@ describe("Codex REST Route Handlers", () => {
     });
   });
   describe("POST /api/context/assemble (STO-1171)", () => {
+    beforeEach(() => {
+      vi.spyOn(entitlements, "getEntitlements").mockResolvedValue(PLANS.FREE);
+    });
     const post = (body: unknown) =>
       assembleContextRoute(
         new NextRequest("http://localhost:3000/api/context/assemble", {
@@ -441,7 +447,10 @@ describe("Codex REST Route Handlers", () => {
       });
 
       expect(res.status).toBe(200);
-      expect(await res.json()).toEqual(context);
+      expect(await res.json()).toEqual(
+        inspectAssembledContext(context, PLANS.FREE.maxContextTokens),
+      );
+      expect(res.headers.get("Cache-Control")).toBe("private, no-store");
       expect(spy).toHaveBeenCalledWith(userId, {
         sceneId: "scene-1",
         novelId: undefined,
