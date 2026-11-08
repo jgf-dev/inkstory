@@ -24,7 +24,6 @@
         "react-dom": "^19.3.1",
         "stripe": "^23.1.0",
         "temporal-polyfill": "1.0.4",
-        "wrangler": "^4.158.0",
       },
       "devDependencies": {
         "@playwright/test": "^1.64.1",
@@ -45,6 +44,7 @@
         "tsx": "^4.23.15",
         "typescript": "7.0.2",
         "vite-plus": "^1.4.0",
+        "wrangler": "^4.158.0",
       },
     },
   },
