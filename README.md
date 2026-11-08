@@ -6,16 +6,16 @@ Linear project: [novel-writing-app](https://linear.app/jgfdev/project/novel-writ
 
 ## Stack
 
-| Layer     | Choice                                      | Why                                              |
-| --------- | ------------------------------------------- | ------------------------------------------------ |
-| Framework | Next.js 16 (App Router) + React 19          | Server Components, Server Actions, `src/proxy.ts` session refresh |
-| Language  | TypeScript (strict)                         | Type safety across the Codex domain model        |
-| Database  | Supabase Postgres                           | Auth + Postgres; Prisma 8 talks to it via `DIRECT_URL` |
-| ORM       | Prisma 8 (Prisma Next, contract-first)      | `prisma/contract.prisma` + `@prisma/orm-postgres` |
-| Auth      | Supabase Auth (cookie session)              | Email + password; Codex APIs require a session   |
-| Styling   | Tailwind CSS 4                              | Utility-first                                    |
-| Tooling   | bun + vite-plus (`vp`)                      | CI/Vercel install with bun; lint/format/test via `vp` |
-| Hosting   | Vercel                                      | `vercel.json` runs `bun install` / `bun run build` |
+| Layer     | Choice                                 | Why                                                               |
+| --------- | -------------------------------------- | ----------------------------------------------------------------- |
+| Framework | Next.js 16 (App Router) + React 19     | Server Components, Server Actions, `src/proxy.ts` session refresh |
+| Language  | TypeScript (strict)                    | Type safety across the Codex domain model                         |
+| Database  | Supabase Postgres                      | Auth + Postgres; Prisma 8 talks to it via `DIRECT_URL`            |
+| ORM       | Prisma 8 (Prisma Next, contract-first) | `prisma/contract.prisma` + `@prisma/orm-postgres`                 |
+| Auth      | Supabase Auth (cookie session)         | Email + password; Codex APIs require a session                    |
+| Styling   | Tailwind CSS 4                         | Utility-first                                                     |
+| Tooling   | bun + vite-plus (`vp`)                 | CI/Vercel install with bun; lint/format/test via `vp`             |
+| Hosting   | Vercel                                 | `vercel.json` runs `bun install` / `bun run build`                |
 
 ## Acceptance criteria covered
 
@@ -102,14 +102,14 @@ Hierarchical story model: `User → Series → Novel → Act → Chapter → Sce
 
 Codex entries are the story bible: character / location / item / lore / faction / concept / other. Book-scoped entries bind to one novel; series-scoped entries are shared across books in that series. Soft-delete via `deletedAt` (pass `?hard=true` to hard-delete).
 
-| Concern | Where |
-| ------- | ----- |
-| Domain API | `src/lib/codex/service.ts` (`CodexError`, CRUD, mentions, `resolveCodexEntryAtScene`) |
-| Server Actions | `src/lib/codex/actions.ts` (`{ success, data }` or `{ success: false, error, code, status }`) |
-| Types | `src/lib/codex/types.ts` (`CodexType`, `CodexTrackingMode`, `ProgressionMode`) |
-| Mentions | `src/lib/codex/mention-detection.ts` — case-insensitive, word-boundary, longer-match wins |
-| Progressions | `src/lib/codex/progression-engine.ts` (STO-1153) — reading order Act→Chapter→Scene; `ADDITION` appends, `REPLACEMENT` replaces |
-| Relations | `src/lib/codex/relation-engine.ts` (STO-1154) — pure `RelationEngine`: BFS graph expansion from a seed entry, cycle detection, depth limit (default 2), dedupe; DB-agnostic edge input; unit-tested in `tests/relation-engine.test.ts` |
+| Concern        | Where                                                                                                                                                                                                                                  |
+| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Domain API     | `src/lib/codex/service.ts` (`CodexError`, CRUD, mentions, `resolveCodexEntryAtScene`)                                                                                                                                                  |
+| Server Actions | `src/lib/codex/actions.ts` (`{ success, data }` or `{ success: false, error, code, status }`)                                                                                                                                          |
+| Types          | `src/lib/codex/types.ts` (`CodexType`, `CodexTrackingMode`, `ProgressionMode`)                                                                                                                                                         |
+| Mentions       | `src/lib/codex/mention-detection.ts` — case-insensitive, word-boundary, longer-match wins                                                                                                                                              |
+| Progressions   | `src/lib/codex/progression-engine.ts` (STO-1153) — reading order Act→Chapter→Scene; `ADDITION` appends, `REPLACEMENT` replaces                                                                                                         |
+| Relations      | `src/lib/codex/relation-engine.ts` (STO-1154) — pure `RelationEngine`: BFS graph expansion from a seed entry, cycle detection, depth limit (default 2), dedupe; DB-agnostic edge input; unit-tested in `tests/relation-engine.test.ts` |
 
 Tracking modes: `ALWAYS`, `DETECTED`, `NEVER`.
 
@@ -117,38 +117,38 @@ There is **no** HTTP endpoint for “resolve entry at scene”; use `resolveCode
 
 ### REST (cookie session required; 401 if missing)
 
-| Method | Path | Role |
-| ------ | ---- | ---- |
-| GET | `/api/health` | Liveness `{ status, service, version, time }` |
-| GET | `/api/codex/entries?novelId\|seriesId&type&trackingMode&search&seriesOnly` | List |
-| POST | `/api/codex/entries` | Create (`CreateCodexEntryInput`) |
-| GET/PATCH/DELETE | `/api/codex/entries/[id]` | Read / update / delete (`?hard=true`) |
-| POST | `/api/codex/entries/[id]/aliases` | Add alias |
-| DELETE | `/api/codex/aliases/[id]` | Remove alias |
-| POST | `/api/codex/entries/[id]/tags` | Add tag |
-| DELETE | `/api/codex/tags/[id]` | Remove tag |
-| POST | `/api/codex/relations` | Create relation |
-| PATCH/DELETE | `/api/codex/relations/[id]` | Update / delete |
-| POST | `/api/codex/progressions` | Create progression |
-| PATCH/DELETE | `/api/codex/progressions/[id]` | Update / delete |
-| POST | `/api/codex/mentions` | `{ text, novelId? \| sceneId? }` |
+| Method           | Path                                                                       | Role                                          |
+| ---------------- | -------------------------------------------------------------------------- | --------------------------------------------- |
+| GET              | `/api/health`                                                              | Liveness `{ status, service, version, time }` |
+| GET              | `/api/codex/entries?novelId\|seriesId&type&trackingMode&search&seriesOnly` | List                                          |
+| POST             | `/api/codex/entries`                                                       | Create (`CreateCodexEntryInput`)              |
+| GET/PATCH/DELETE | `/api/codex/entries/[id]`                                                  | Read / update / delete (`?hard=true`)         |
+| POST             | `/api/codex/entries/[id]/aliases`                                          | Add alias                                     |
+| DELETE           | `/api/codex/aliases/[id]`                                                  | Remove alias                                  |
+| POST             | `/api/codex/entries/[id]/tags`                                             | Add tag                                       |
+| DELETE           | `/api/codex/tags/[id]`                                                     | Remove tag                                    |
+| POST             | `/api/codex/relations`                                                     | Create relation                               |
+| PATCH/DELETE     | `/api/codex/relations/[id]`                                                | Update / delete                               |
+| POST             | `/api/codex/progressions`                                                  | Create progression                            |
+| PATCH/DELETE     | `/api/codex/progressions/[id]`                                             | Update / delete                               |
+| POST             | `/api/codex/mentions`                                                      | `{ text, novelId? \| sceneId? }`              |
 
 Error payload: `{ error, code }`. Codes: `NOT_FOUND`, `FORBIDDEN`, `VALIDATION_FAILED`, `SCOPING_ERROR`, `CONFLICT`, `INVALID_JSON` (malformed body → 400, not 500).
 
 ## Scripts
 
-| Script | Purpose |
-| ------ | ------- |
-| `bun run dev` | Next.js dev server |
-| `bun run build` / `start` | Production build / serve |
-| `bun run lint` | oxlint via `vp lint --fix` |
-| `bun run format` / `format:check` | `vp fmt` |
-| `bun run typecheck` | `vp check --no-fmt --no-lint` |
-| `bun run test` / `test:cov` | Vitest via `vp test` |
-| `bun run test:e2e` | Playwright (`tests/e2e`, Chrome at `/usr/bin/google-chrome`) |
-| `bun run contract:emit` | `prisma contract emit` |
-| `bun run db:update` / `db:verify` / `db:sign` | Prisma 8 schema apply / verify / sign |
-| `bun run db:seed` | Demo data |
+| Script                                        | Purpose                                                      |
+| --------------------------------------------- | ------------------------------------------------------------ |
+| `bun run dev`                                 | Next.js dev server                                           |
+| `bun run build` / `start`                     | Production build / serve                                     |
+| `bun run lint`                                | oxlint via `vp lint --fix`                                   |
+| `bun run format` / `format:check`             | `vp fmt`                                                     |
+| `bun run typecheck`                           | `vp check --no-fmt --no-lint`                                |
+| `bun run test` / `test:cov`                   | Vitest via `vp test`                                         |
+| `bun run test:e2e`                            | Playwright (`tests/e2e`, Chrome at `/usr/bin/google-chrome`) |
+| `bun run contract:emit`                       | `prisma contract emit`                                       |
+| `bun run db:update` / `db:verify` / `db:sign` | Prisma 8 schema apply / verify / sign                        |
+| `bun run db:seed`                             | Demo data                                                    |
 
 ## Tests
 
@@ -161,15 +161,15 @@ E2E launches Chromium with `executablePath: /usr/bin/google-chrome`. Codex tests
 
 ## Troubleshooting
 
-| Symptom | Likely cause |
-| ------- | ------------ |
-| `db:update` / seed hangs | Transaction pooler (port 6543) blocks DDL. Point `DIRECT_URL` at the **session** pooler (port 5432). Direct hostnames can be IPv6-only. |
-| `command not found: db:migrate` / `db:studio` | Those Prisma 7 scripts were removed. Use `db:update` and the contract files. |
-| Seed never exits | Historical: undrained `pg.Pool`. Current `prisma/seed.ts` should exit; if it hangs, check the pooler URL first. |
-| Server Components look logged-out | `src/proxy.ts` must refresh the Supabase cookie; do not reintroduce a separate `middleware.ts` that skips `@supabase/ssr`. |
-| Codex API 401 | No session cookie. Sign in via `/login`; there is no API-key auth. |
-| Playwright cannot find Chrome | Config expects `/usr/bin/google-chrome`. |
-| `prisma contract emit` missing after install | CI uses `bun install --ignore-scripts`; run `bun run contract:emit`. |
+| Symptom                                       | Likely cause                                                                                                                            |
+| --------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `db:update` / seed hangs                      | Transaction pooler (port 6543) blocks DDL. Point `DIRECT_URL` at the **session** pooler (port 5432). Direct hostnames can be IPv6-only. |
+| `command not found: db:migrate` / `db:studio` | Those Prisma 7 scripts were removed. Use `db:update` and the contract files.                                                            |
+| Seed never exits                              | Historical: undrained `pg.Pool`. Current `prisma/seed.ts` should exit; if it hangs, check the pooler URL first.                         |
+| Server Components look logged-out             | `src/proxy.ts` must refresh the Supabase cookie; do not reintroduce a separate `middleware.ts` that skips `@supabase/ssr`.              |
+| Codex API 401                                 | No session cookie. Sign in via `/login`; there is no API-key auth.                                                                      |
+| Playwright cannot find Chrome                 | Config expects `/usr/bin/google-chrome`.                                                                                                |
+| `prisma contract emit` missing after install  | CI uses `bun install --ignore-scripts`; run `bun run contract:emit`.                                                                    |
 
 ## What's next (Epic 1)
 
