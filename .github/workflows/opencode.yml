@@ -2,20 +2,20 @@ name: opencode
 
 on:
   issue_comment:
-    types: 
-     - created
-     - edited
+    types:
+      - created
+      - edited
   pull_request_review_comment:
-    types: 
-     - created
-     - edited
-  pull_request_review: 
+    types:
+      - created
+      - edited
+  pull_request_review:
     types:
       - submitted
       - edited
 
   pull_request:
-    types: 
+    types:
       - edited
       - opened
       - ready_for_review
