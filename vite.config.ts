@@ -1,15 +1,31 @@
-/** @format */
-
-import path from "node:path";
-import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite-plus";
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+import vinext from "vinext";
+import path from "path";
+import { cloudflare } from "@cloudflare/vite-plugin";
+import { responseStoreAdapter } from "@vinext/cloudflare/cache/response-store-adapter";
+import { imagesOptimizer } from "@vinext/cloudflare/images/images-optimizer";
+import { responseStoreServiceBinding } from "./cloudflare.config";
 
 export default defineConfig({
+  plugins: [
+    vinext({
+      cache: responseStoreAdapter(),
+      images: { optimizer: imagesOptimizer() },
+
+      prerender: { routes: "*" },
+    }),
+    cloudflare({
+      auxiliaryWorkers: [{ config: responseStoreServiceBinding }],
+      viteEnvironment: {
+        name: "rsc",
+        childEnvironments: ["ssr"],
+      },
+    }),
+  ],
   resolve: {
+    noExternal: ["tailwindcss"],
     alias: {
-      "@": path.resolve(__dirname, "./src"),
+      "@": path.resolve(import.meta.dirname, "./src"),
     },
   },
   test: {
