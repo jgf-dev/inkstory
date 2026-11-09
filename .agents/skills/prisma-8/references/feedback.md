@@ -1,34 +1,35 @@
-# Prisma Next — Feedback (Bug Reports, Feature Requests, Team Q&A)
+
+# Prisma 8 — Feedback (Bug Reports, Feature Requests, Team Q&A)
 
 > **Edit your data contract. Prisma handles the rest.**
 
-This skill is the _terminal_ of the capability-gap routing pattern. Every other Prisma Next skill's _What Prisma Next doesn't do yet_ entries route here when the user wants the gap closed; the skill also fires directly on prompts like _"this is a bug"_, _"file an issue"_, _"feature request"_, _"can I ask the team about this?"_, _"how should I integrate X with Prisma Next?"_.
+This skill is the *terminal* of the capability-gap routing pattern. Every other Prisma 8 skill's *What Prisma 8 doesn't do yet* entries route here when the user wants the gap closed; the skill also fires directly on prompts like *"this is a bug"*, *"file an issue"*, *"feature request"*, *"can I ask the team about this?"*, *"how should I integrate X with Prisma 8?"*.
 
-The skill's job is to pick the _right channel_ — GitHub issue or Discord — and then either produce a **structured, public-safe** issue body (no secrets, no proprietary schema) the framework team can act on, or hand the user a direct link to the Prisma Discord for synchronous Q&A. Submission to GitHub never happens without explicit user confirmation.
+The skill's job is to pick the *right channel* — GitHub issue or Discord — and then either produce a **structured, public-safe** issue body (no secrets, no proprietary schema) the framework team can act on, or hand the user a direct link to the Prisma Discord for synchronous Q&A. Submission to GitHub never happens without explicit user confirmation.
 
 Canonical channels:
 
-- **GitHub Issues** (bugs + concrete feature requests): <https://github.com/prisma/prisma-next/issues/new/choose>
+- **GitHub Issues** (bugs + concrete feature requests): <https://github.com/prisma/orm/issues/new/choose>
 - **Prisma Discord** (Q&A, design feedback, direct team contact — including extension authors): <https://pris.ly/discord>
 
 ## When to Use
 
-- A capability-gap entry from another `prisma-next-*` skill fired and the user said _"yes, file the feature request"_.
-- User says _"this is a bug"_, _"file this"_, _"report this"_, _"file an issue against PN"_, _"send feedback"_, _"this should be a feature"_.
+- A capability-gap entry from another `prisma-8` skill fired and the user said *"yes, file the feature request"*.
+- User says *"this is a bug"*, *"file this"*, *"report this"*, *"file an issue against PN"*, *"send feedback"*, *"this should be a feature"*.
 - User describes an unexpected behaviour — wrong exit code, error message that didn't match what happened, type signature that doesn't match runtime behaviour, planner refused a migration that looked safe — and wants it on the framework team's radar.
-- User asks _"can I ask the Prisma team about this?"_, _"is there somewhere I can talk to the team?"_, _"is this the intended way to do X?"_, _"how should I integrate <my extension / my tool> with PN?"_, or any other open-ended Q&A or design-feedback prompt — including extension authors asking integration questions.
+- User asks *"can I ask the Prisma team about this?"*, *"is there somewhere I can talk to the team?"*, *"is this the intended way to do X?"*, *"how should I integrate <my extension / my tool> with PN?"*, or any other open-ended Q&A or design-feedback prompt — including extension authors asking integration questions.
 
 ## When Not to Use
 
 - User wants to fix the bug themselves in the user's own code. The fix lives in another workflow reference (debug / contract / migrations / queries / runtime / build). Open the right reference first; only fall back to feedback if the user explicitly wants the framework to do something differently.
-- User wants to upgrade Prisma Next (the bug may already be fixed) → [`upgrade-app.md`](upgrade-app.md); this reference mentions it as a pre-flight check.
-- The user's question is already covered by a workflow reference in this skill (_"how do I add a column?"_ → `references/contract.md`; _"what's the right query interface?"_ → `references/queries.md`). Route to the workflow reference, not to the team — open the reference, answer the question, and only escalate to Discord if the agent can't.
+- User wants to upgrade Prisma 8 (the bug may already be fixed) → [`upgrade-app.md`](upgrade-app.md); this reference mentions it as a pre-flight check.
+- The user's question is already covered by a workflow reference in this skill (*"how do I add a column?"* → `references/contract.md`; *"what's the right query interface?"* → `references/queries.md`). Route to the workflow reference, not to the team — open the reference, answer the question, and only escalate to Discord if the agent can't.
 
 ## Key Concepts
 
 - **Three channels, one decision.** GitHub Issues (bugs + concrete feature requests), Prisma Discord (Q&A, design feedback, direct team contact), or another workflow reference in this skill (when the question turns out to be a workflow question, not a hand-off-to-team question). The first move is the channel decision; everything else follows.
-- **Public artifact.** GitHub issues _and_ Discord messages are world-readable and archived. The body / message must not contain `DATABASE_URL` strings, internal company schema fragments, customer data in sample rows, or any other content the user wouldn't share publicly. The agent redacts before either kind of submission.
-- **Bug vs feature vs question.** A _bug_ is "documented surface behaved unexpectedly". A _feature request_ is "I want a capability that doesn't exist". A _question_ is "I want to discuss X with someone, or I'm not sure this is a bug at all". Many capability-gap routes are feature requests; many extension-author prompts are questions.
+- **Public artifact.** GitHub issues *and* Discord messages are world-readable and archived. The body / message must not contain `DATABASE_URL` strings, internal company schema fragments, customer data in sample rows, or any other content the user wouldn't share publicly. The agent redacts before either kind of submission.
+- **Bug vs feature vs question.** A *bug* is "documented surface behaved unexpectedly". A *feature request* is "I want a capability that doesn't exist". A *question* is "I want to discuss X with someone, or I'm not sure this is a bug at all". Many capability-gap routes are feature requests; many extension-author prompts are questions.
 - **The framework team needs to reproduce (issues only).** A bug report without a reproduction is much harder to act on. Where possible, the agent produces a minimal repro the team can re-run locally — ideally a small change against [`examples/prisma-8-demo`](https://github.com/prisma/prisma/tree/main/examples/prisma-8-demo), which the team already has checked out. Discord Q&A doesn't require a full repro — a short code snippet plus the question is usually enough.
 
 ## Workflow
@@ -39,20 +40,20 @@ The user wants to hand something off to the team. Which channel?
 
 **GitHub Issue** if any of:
 
-- The user describes a concrete bug (see _Classify_ below for the bug-vs-feature split).
+- The user describes a concrete bug (see *Classify* below for the bug-vs-feature split).
 - The user has a concrete feature request — a named capability, a specific API shape, a specific CLI flag — that they want on the backlog.
-- A capability-gap entry from another `prisma-next-*` skill routed them here for a feature request.
+- A capability-gap entry from another `prisma-8` skill routed them here for a feature request.
 
 **Prisma Discord** (<https://pris.ly/discord>) if any of:
 
-- The user is asking an open-ended question — _"is this the intended way to do X?"_, _"how would you approach Y?"_, _"I'm seeing weird behaviour but I'm not sure if it's a bug."_
-- The user wants design feedback before committing to a feature request — _"we're thinking of building a custom middleware that does X, does this fit the framework's direction?"_
+- The user is asking an open-ended question — *"is this the intended way to do X?"*, *"how would you approach Y?"*, *"I'm seeing weird behaviour but I'm not sure if it's a bug."*
+- The user wants design feedback before committing to a feature request — *"we're thinking of building a custom middleware that does X, does this fit the framework's direction?"*
 - The user is an extension author with an integration question that needs back-and-forth with the team (peer-dependency coordination, breaking-change timing, a new extension surface).
-- The user explicitly asks for the team — _"can I ask the team about this?"_, _"is there somewhere I can talk to Prisma?"_, _"where do extension authors discuss things with the team?"_
+- The user explicitly asks for the team — *"can I ask the team about this?"*, *"is there somewhere I can talk to Prisma?"*, *"where do extension authors discuss things with the team?"*
 
 **Both, in sequence**, if any of:
 
-- The user has a bug _and_ a related feature request — file two separate GitHub issues, do not mix them in one issue.
+- The user has a bug *and* a related feature request — file two separate GitHub issues, do not mix them in one issue.
 - The user wants to discuss a design before filing the feature request — start in Discord, file the issue once the shape is settled.
 
 ### 2. Classify (issue path only)
@@ -70,16 +71,16 @@ The user is filing a GitHub issue. Is it a bug or a feature request?
 
 **Feature request** if any of:
 
-- The user wants a capability that doesn't exist yet (most of the _What PN doesn't do yet_ entries land here).
+- The user wants a capability that doesn't exist yet (most of the *What PN doesn't do yet* entries land here).
 - The user wants a better error message, an additional CLI flag, a new middleware, an additional bundler plugin, etc.
 
-If both — a bug _and_ the user wants a related feature — file two separate issues. Mixing them makes the framework team's triage harder.
+If both — a bug *and* the user wants a related feature — file two separate issues. Mixing them makes the framework team's triage harder.
 
 ### 3. Collect the minimum body (issue path only)
 
 For **either** kind:
 
-- **Prisma Next version**: `pnpm ls @internal/postgres` (or `@internal/mongo`). If the project uses a target package, that version is canonical.
+- **Prisma 8 version**: `pnpm ls @internal/postgres` (or `@internal/mongo`). If the project uses a target package, that version is canonical.
 - **Node version**: `node -v`.
 - **Package manager**: `pnpm` / `npm` / `yarn` / `bun` / `deno`.
 - **OS**: `darwin` / `linux` / `win32` and the version string is enough.
@@ -97,16 +98,16 @@ For **bug reports**, additionally:
 For **feature requests**, additionally:
 
 - **Desired API or behaviour** — one paragraph. Concrete shape (CLI flag, config field, middleware export, plugin API) where possible.
-- **Where the gap surfaces today** — which skill's _What PN doesn't do yet_ entry triggered the request, or the workflow the user was trying to complete.
+- **Where the gap surfaces today** — which skill's *What PN doesn't do yet* entry triggered the request, or the workflow the user was trying to complete.
 - **Current workaround**, if any — one sentence (and the skill body the user is following may already say this).
 
 ### 4. Render the body
 
-The repository ships GitHub Issue Forms (`.github/ISSUE_TEMPLATE/bug_report.yml` and `feature_request.yml`). When the user lands on <https://github.com/prisma/prisma-next/issues/new/choose> they pick the matching template and fill in the form fields; the skill produces the body in the same structured shape so it maps onto the form one-to-one (and so `gh issue create --body-file` produces a parseable artifact even when the form isn't in play).
+The repository ships GitHub Issue Forms (`.github/ISSUE_TEMPLATE/bug_report.yml` and `feature_request.yml`). When the user lands on <https://github.com/prisma/orm/issues/new/choose> they pick the matching template and fill in the form fields; the skill produces the body in the same structured shape so it maps onto the form one-to-one (and so `gh issue create --body-file` produces a parseable artifact even when the form isn't in play).
 
 Bug-report body shape (fields named to match `.github/ISSUE_TEMPLATE/bug_report.yml`):
 
-````markdown
+~~~markdown
 ## Package and version
 
 <e.g. @internal/postgres@0.5.2>
@@ -140,11 +141,11 @@ Bug-report body shape (fields named to match `.github/ISSUE_TEMPLATE/bug_report.
 
 <optional — link to source skill's capability-gap entry, related
 issue number, partner extension involved>
-````
+~~~
 
 Feature-request body shape (fields named to match `.github/ISSUE_TEMPLATE/feature_request.yml`):
 
-````markdown
+~~~markdown
 ## What problem are you trying to solve?
 
 <paragraph — the use case or pain point this would address>
@@ -162,7 +163,7 @@ Feature-request body shape (fields named to match `.github/ISSUE_TEMPLATE/featur
 ## Scope and impact
 
 <which package(s) this would touch; target-specific implications>
-````
+~~~
 
 ### 5. Title (issue path only)
 
@@ -173,7 +174,7 @@ Areas mirror the cluster of skills: `cli`, `contract`, `migration`, `query`, `ru
 
 ### 6. Surface for confirmation (issue path only)
 
-**Never auto-submit.** The agent shows the rendered title and body to the user and asks: _"This looks good to file. Shall I submit it to GitHub?"_. Submission only happens after explicit user approval.
+**Never auto-submit.** The agent shows the rendered title and body to the user and asks: *"This looks good to file. Shall I submit it to GitHub?"*. Submission only happens after explicit user approval.
 
 ### 7. Submit (issue path only)
 
@@ -182,20 +183,20 @@ Preferred. Two steps:
 1. **Write the rendered body to a temporary file.** Use your file-write tool (the same tool you'd use to create any other file on disk) to write the body to e.g. `wip/pn-issue-body.md` or `/tmp/pn-issue-body.md`. The body content is just the markdown produced in step 4 of this workflow — no surrounding shell quoting, no heredoc.
 2. **Reference that file from `gh`.** Run:
 
-   ```bash
+   ~~~bash
    gh issue create \
      --repo prisma/prisma \
      --title "<title>" \
      --body-file <path-from-step-1>
-   ```
+   ~~~
 
 **Anti-pattern (do not do this):** inlining the body via `--body "$(cat <<EOF …)"` or `--body-file <(cat <<EOF …)`. Those one-liners reliably leak literal `cat <<'EOF'` / `EOF` markers into the issue body when the agent reuses the template verbatim with the body interpolated. Always write the body to a real file first and pass the path.
 
 If `gh` is not installed: open the prefilled new-issue URL in the browser:
 
-```text
-https://github.com/prisma/prisma-next/issues/new/choose
-```
+~~~text
+https://github.com/prisma/orm/issues/new/choose
+~~~
 
 …and instruct the user to paste the rendered body. The agent can copy the body to the clipboard via `pbcopy` (macOS), `xclip` (Linux), or by simply printing it in the chat for the user to copy.
 
@@ -204,20 +205,20 @@ https://github.com/prisma/prisma-next/issues/new/choose
 When step 1 picked the Discord channel (steps 2–7 do not apply):
 
 1. **Surface the link.** Give the user the canonical invite: <https://pris.ly/discord>. Suggest the channel that fits the question:
-   - General usage / Q&A → the public `#help` or `#prisma-next` channel (channel naming evolves; the invite landing page lists current channels).
+   - General usage / Q&A → the public `#help` channel (the invite landing page lists current channels).
    - Extension-author / partner-integration / breaking-change-coordination questions → the public extension-authors channel, or the user can ping a maintainer directly once they're in the server.
 2. **Help draft the opening message.** Prisma's Discord is searchable; a well-framed opening message gets a faster, more useful answer. The agent drafts a short message with:
    - One-sentence summary of what the user is trying to do.
-   - The Prisma Next version (`pnpm ls @internal/postgres` or equivalent).
+   - The Prisma 8 version (`pnpm ls @internal/postgres` or equivalent).
    - A short code snippet (PSL excerpt, query, config file) where relevant — redacted the same way as a GitHub issue body (no `DATABASE_URL`, no customer schema names).
    - The specific question the user wants answered.
-3. **Do not auto-post.** The agent surfaces the drafted message to the user — _"here's an opening message you can paste into Discord; want to adjust before sending?"_ — and lets the user decide whether to paste it as-is, edit it, or pick a different framing.
-4. **Set expectations honestly.** Discord is synchronous and best-effort. Bugs and concrete feature requests should land in GitHub regardless (use the issue path); Discord is for the conversation that gets you to _"yes, this is a bug, file it"_ or _"yes, this should be a feature, file it"_.
+3. **Do not auto-post.** The agent surfaces the drafted message to the user — *"here's an opening message you can paste into Discord; want to adjust before sending?"* — and lets the user decide whether to paste it as-is, edit it, or pick a different framing.
+4. **Set expectations honestly.** Discord is synchronous and best-effort. Bugs and concrete feature requests should land in GitHub regardless (use the issue path); Discord is for the conversation that gets you to *"yes, this is a bug, file it"* or *"yes, this should be a feature, file it"*.
 
 ### 9. Follow up
 
-- **Issue path**: record the issue URL in the user's project notes (or in the project's `wip/` if there is one) so a later upgrade or related work can reference it. If the bug is the symptom of an old version of Prisma Next, suggest an upgrade following [`upgrade-app.md`](upgrade-app.md) — many bugs are fixed in newer releases.
-- **Discord path**: once the conversation on Discord settles into a concrete bug or a concrete feature request, return to step 1 of this skill and file the issue (the Discord thread becomes the _Notes_ / _Where the gap surfaces_ reference in the issue body).
+- **Issue path**: record the issue URL in the user's project notes (or in the project's `wip/` if there is one) so a later upgrade or related work can reference it. If the bug is the symptom of an old version of Prisma 8, suggest an upgrade following [`upgrade-app.md`](upgrade-app.md) — many bugs are fixed in newer releases.
+- **Discord path**: once the conversation on Discord settles into a concrete bug or a concrete feature request, return to step 1 of this skill and file the issue (the Discord thread becomes the *Notes* / *Where the gap surfaces* reference in the issue body).
 
 ## Common Pitfalls
 
@@ -226,15 +227,15 @@ When step 1 picked the Discord channel (steps 2–7 do not apply):
 3. **Pasting a customer's confidential domain schema.** When original model and field names would leak confidential information (product codenames, customer identifiers, regulated-data fields), rename to neutral placeholders before the body goes into a public issue. Otherwise, keep the original names — a faithful excerpt is easier for the framework team to reason about than a re-themed one. Over-renaming is its own readability cost.
 4. **Filing a documentation question as a bug.** Documentation questions belong in another skill or in a GitHub Discussion (if the repo enables them). Bugs are about the surface misbehaving.
 5. **Conflating bug + feature in one issue.** File two. Mixed issues are hard to triage and hard to close.
-6. **Filing without a version.** "I'm using Prisma Next, it's broken" without the version makes triage hopeless. The version is the cheapest piece of context to capture; always include it.
+6. **Filing without a version.** "I'm using Prisma 8, it's broken" without the version makes triage hopeless. The version is the cheapest piece of context to capture; always include it.
 
-## What Prisma Next doesn't do yet
+## What Prisma 8 doesn't do yet
 
-- **In-product feedback channel.** No `prisma-next feedback` CLI command. The GitHub Issues page is the canonical surface. If you want a CLI-side feedback command, file a feature request via this skill.
+- **In-product feedback channel.** No `prisma feedback` CLI command. The GitHub Issues page is the canonical surface. If you want a CLI-side feedback command, file a feature request via this skill.
 
 ## Reference Files
 
-- <https://github.com/prisma/prisma-next/issues/new/choose> — the canonical submission surface.
+- <https://github.com/prisma/orm/issues/new/choose> — the canonical submission surface.
 - <https://cli.github.com/manual/gh_issue_create> — the `gh` command reference.
 
 ## Checklist
