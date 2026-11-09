@@ -14,8 +14,6 @@ export default defineConfig({
         vinext({
           cache: responseStoreAdapter(),
           images: { optimizer: imagesOptimizer() },
-
-          prerender: { routes: "*" },
         }),
         cloudflare({
           auxiliaryWorkers: [{ config: responseStoreServiceBinding }],
