@@ -56,7 +56,7 @@ describe("Codex REST Route Handlers", () => {
       const res = await getEntries(req);
 
       expect(res.status).toBe(401);
-      const json = await res.json();
+      const json = await res.json<any>();
       expect(json.error).toBe("Unauthorized");
     });
 
@@ -79,7 +79,7 @@ describe("Codex REST Route Handlers", () => {
       const res = await getEntries(req);
 
       expect(res.status).toBe(400);
-      const json = await res.json();
+      const json = await res.json<any>();
       expect(json.error).toMatch(/Must specify novelId or seriesId/);
     });
 
@@ -93,7 +93,7 @@ describe("Codex REST Route Handlers", () => {
       const res = await getEntries(req);
 
       expect(res.status).toBe(200);
-      const json = await res.json();
+      const json = await res.json<any>();
       expect(json.entries).toEqual(mockEntries);
       expect(codexService.listCodexEntriesForNovel).toHaveBeenCalledWith(
         userId,
@@ -112,7 +112,7 @@ describe("Codex REST Route Handlers", () => {
       const res = await getEntries(req);
 
       expect(res.status).toBe(200);
-      const json = await res.json();
+      const json = await res.json<any>();
       expect(json.entries).toEqual(mockEntries);
     });
 
@@ -127,7 +127,7 @@ describe("Codex REST Route Handlers", () => {
       const res = await createEntry(req);
 
       expect(res.status).toBe(201);
-      const json = await res.json();
+      const json = await res.json<any>();
       expect(json.entry).toEqual(mockEntry);
     });
 
@@ -143,7 +143,7 @@ describe("Codex REST Route Handlers", () => {
       const res = await createEntry(req);
 
       expect(res.status).toBe(422);
-      const json = await res.json();
+      const json = await res.json<any>();
       expect(json.error).toBe("Scoping error");
       expect(json.code).toBe("SCOPING_ERROR");
     });
@@ -158,7 +158,7 @@ describe("Codex REST Route Handlers", () => {
       const res = await getEntry(req, { params: Promise.resolve({ id: "entry-1" }) });
 
       expect(res.status).toBe(200);
-      const json = await res.json();
+      const json = await res.json<any>();
       expect(json.entry).toEqual(mockEntry);
     });
 
@@ -173,7 +173,7 @@ describe("Codex REST Route Handlers", () => {
       const res = await updateEntry(req, { params: Promise.resolve({ id: "entry-1" }) });
 
       expect(res.status).toBe(200);
-      const json = await res.json();
+      const json = await res.json<any>();
       expect(json.entry).toEqual(mockUpdated);
     });
 
@@ -190,7 +190,7 @@ describe("Codex REST Route Handlers", () => {
       const res = await deleteEntry(req, { params: Promise.resolve({ id: "entry-1" }) });
 
       expect(res.status).toBe(200);
-      const json = await res.json();
+      const json = await res.json<any>();
       expect(json.deleted).toBe("soft");
     });
   });
@@ -369,7 +369,7 @@ describe("Codex REST Route Handlers", () => {
       });
       const missingScopeRes = await scanMentions(missingScopeReq);
       expect(missingScopeRes.status).toBe(400);
-      const missingScopeJson = await missingScopeRes.json();
+      const missingScopeJson = await missingScopeRes.json<any>();
       expect(missingScopeJson.code).toBe("VALIDATION_FAILED");
       expect(missingScopeJson.error).toMatch(/Must specify novelId or sceneId/);
     });
@@ -382,7 +382,7 @@ describe("Codex REST Route Handlers", () => {
       });
       const res = await createEntry(malformedReq);
       expect(res.status).toBe(400);
-      const json = await res.json();
+      const json = await res.json<any>();
       expect(json.code).toBe("INVALID_JSON");
       expect(json.error).toMatch(/Malformed or invalid JSON body/);
     });
@@ -408,7 +408,7 @@ describe("Codex REST Route Handlers", () => {
     it("returns 400 for invalid bodies", async () => {
       const res = await post({ beatText: "no scene" });
       expect(res.status).toBe(400);
-      const json = await res.json();
+      const json = await res.json<any>();
       expect(json.code).toBe("VALIDATION_FAILED");
       expect(json.error).toMatch(/sceneId/);
     });
@@ -416,7 +416,7 @@ describe("Codex REST Route Handlers", () => {
     it("returns 400 for malformed JSON", async () => {
       const res = await post("{not json");
       expect(res.status).toBe(400);
-      expect((await res.json()).code).toBe("INVALID_JSON");
+      expect((await res.json<any>()).code).toBe("INVALID_JSON");
     });
 
     it("returns the assembled context for the authenticated user", async () => {
@@ -447,7 +447,7 @@ describe("Codex REST Route Handlers", () => {
       });
 
       expect(res.status).toBe(200);
-      expect(await res.json()).toEqual(
+      expect(await res.json<any>()).toEqual(
         inspectAssembledContext(context, PLANS.FREE.maxContextTokens),
       );
       expect(res.headers.get("Cache-Control")).toBe("private, no-store");
@@ -472,7 +472,7 @@ describe("Codex REST Route Handlers", () => {
 
       const assembly = await post({ sceneId: "scene-1" });
       expect(assembly.status).toBe(422);
-      expect((await assembly.json()).code).toBe("CONTEXT_ASSEMBLY_FAILED");
+      expect((await assembly.json<any>()).code).toBe("CONTEXT_ASSEMBLY_FAILED");
 
       const internal = await post({ sceneId: "scene-1" });
       expect(internal.status).toBe(500);

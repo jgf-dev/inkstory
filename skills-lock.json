@@ -25,6 +25,12 @@
       "skillPath": ".agents/skills/impeccable/SKILL.md",
       "computedHash": "d4cfdc3b7a18041ff02e1ad4b6377450e978e10928ba7e96377ff7d66994b490"
     },
+    "migrate-to-vinext": {
+      "source": "cloudflare/vinext",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/migrate-to-vinext/SKILL.md",
+      "computedHash": "28ca25ee19527a9c9f1d4d7564655115a511566d59f8349508e9580a8a6a590c"
+    },
     "prisma-compute": {
       "source": "prisma/skills",
       "sourceType": "github",

@@ -132,7 +132,7 @@ describe("ByokCredentialsPanel (STO-1178)", () => {
     });
 
     // Select OPENAI
-    const providerSelect = screen.getByLabelText("Provider") as HTMLSelectElement;
+    const providerSelect = screen.getByLabelText("Provider");
     fireEvent.change(providerSelect, { target: { value: "OPENAI" } });
 
     // Enter label
@@ -185,7 +185,7 @@ describe("ByokCredentialsPanel (STO-1178)", () => {
     });
 
     // Switch to OLLAMA
-    const providerSelect = screen.getByLabelText("Provider") as HTMLSelectElement;
+    const providerSelect = screen.getByLabelText("Provider");
     fireEvent.change(providerSelect, { target: { value: "OLLAMA" } });
 
     // Key input should have (optional) in label

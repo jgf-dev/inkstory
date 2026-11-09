@@ -246,7 +246,7 @@ describe("AI generation (scene continuation / beat expansion)", () => {
           makeRequest({ sceneId, mode: "continuation", maxTokens: invalid }),
         );
         expect(res.status).toBe(400);
-        const json = await res.json();
+        const json = await res.json<any>();
         expect(json.code).toBe("VALIDATION_FAILED");
       }
     });
@@ -266,7 +266,7 @@ describe("AI generation (scene continuation / beat expansion)", () => {
       });
       const res = await generateRoute(makeRequest({ sceneId, mode: "continuation" }));
       expect(res.status).toBe(403);
-      const json = await res.json();
+      const json = await res.json<any>();
       expect(json.code).toBe("SCENE_EXCLUDED_FROM_AI");
     });
 
@@ -279,7 +279,7 @@ describe("AI generation (scene continuation / beat expansion)", () => {
 
       const res = await generateRoute(makeRequest({ sceneId, mode: "continuation" }));
       expect(res.status).toBe(503);
-      const json = await res.json();
+      const json = await res.json<any>();
       expect(json.code).toBe("AI_NOT_CONFIGURED");
       expect(json.prompt.system).toContain("<story_bible>");
       expect(json.prompt.system).toContain("<codex_context>");
@@ -302,7 +302,7 @@ describe("AI generation (scene continuation / beat expansion)", () => {
         makeRequest({ sceneId, mode: "continuation", content: "Unsaved fresh prose." }),
       );
       expect(res.status).toBe(200);
-      const json = await res.json();
+      const json = await res.json<any>();
       expect(json.text).toBe("New prose.");
       expect(json.model).toBe(DEFAULT_AI_MODEL);
 
@@ -358,7 +358,7 @@ describe("AI generation (scene continuation / beat expansion)", () => {
           makeRequest({ sceneId, mode: "continuation", content: "Live prose" }),
         );
         expect(generated.status).toBe(503); // no gateway call or spend
-        const generatedBody = await generated.json();
+        const generatedBody = await generated.json<any>();
         const inspectionResponse = await inspectRoute(
           new NextRequest("http://localhost:3000/api/context/assemble", {
             method: "POST",

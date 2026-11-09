@@ -248,7 +248,7 @@ export function CodexEditor({
     void Promise.all(
       outlineNovelIds.map((novelId) =>
         fetch(`/api/novels/${novelId}/outline`)
-          .then((res) => (res.ok ? res.json() : null))
+          .then((res) => (res.ok ? res.json<{ outline?: unknown }>() : null))
           .catch(() => null),
       ),
     )
