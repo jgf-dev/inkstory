@@ -10,11 +10,24 @@ import { POV_LABELS, TENSE_LABELS } from "@/lib/writing/meta";
 import {
   AiError,
   DEFAULT_MAX_OUTPUT_TOKENS,
+  DEFAULT_TEMPERATURE,
   generateText,
   handleAiApiError,
   isGenerationMode,
   MAX_OUTPUT_TOKENS,
+  resolveGatewayModel,
 } from "@/lib/ai/generate";
+import {
+  CapabilityError,
+  applyAvoidanceGuidance,
+  assertControlsSupported,
+  buildAppliedMetadata,
+  handleCapabilityApiError,
+  joinPromptMessages,
+  needsCatalog,
+  parseAdvancedControls,
+  resolveCapabilities,
+} from "@/lib/ai/capabilities";
 import { PromptError, handlePromptApiError, renderResolvedScenePrompt } from "@/lib/prompts";
 import {
   ByokCryptoError,
@@ -53,6 +66,12 @@ export async function POST(request: NextRequest) {
       credentialId?: string;
       /** Provider-specific model ID, required only for BYOK. */
       model?: string;
+      /** STO-1265: optional Min-P (0–1); omitted ≠ 0. */
+      minP?: number;
+      /** STO-1265: per-request avoidance guidance (instruction-only). */
+      avoidanceGuidance?: string;
+      /** STO-1265: OpenRouter endpoint slug to pin. */
+      endpoint?: string;
     };
 
     if (typeof body.sceneId !== "string" || !body.sceneId) {
@@ -113,6 +132,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Shape-check advanced controls, and reject anything the platform route
+    // can't honor, before any lookup or spend. Client capability maps are ignored.
+    const controls = parseAdvancedControls(body as Record<string, unknown>);
+    const platformProfile =
+      body.credentialId === undefined
+        ? await resolveCapabilities({ provider: "platform-gateway", model: resolveGatewayModel() })
+        : null;
+    if (platformProfile) assertControlsSupported(controls, platformProfile);
+
     const scene = await getSceneForEditor(user.id, body.sceneId);
     if (scene.excludeFromAi) {
       throw new AiError(
@@ -158,7 +186,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const messages = rendered.messages;
+    // Same delimited guidance block the Preview route renders (STO-1265).
+    const messages = applyAvoidanceGuidance(rendered.messages, controls.avoidanceGuidance);
+    const guidanceIncluded = controls.avoidanceGuidance !== undefined;
 
     if (body.credentialId === undefined && !process.env.AI_GATEWAY_API_KEY) {
       return Response.json(
@@ -167,29 +197,82 @@ export async function POST(request: NextRequest) {
           code: "AI_NOT_CONFIGURED",
           prompt: { system: messages[0]?.content ?? "", user: messages[1]?.content ?? "" },
           messages,
-          joined: rendered.joined,
+          joined: guidanceIncluded ? joinPromptMessages(messages) : rendered.joined,
         },
         { status: 503 },
       );
     }
 
-    // Never silently fall back to platform spend when an explicit credential fails.
-    const provider =
-      body.credentialId !== undefined
-        ? await createProviderFromCredential(user.id, body.credentialId.trim())
-        : null;
-    const result = provider
-      ? await provider.chat({
-          model: body.model!.trim(),
-          messages,
-          maxOutputTokens: body.maxTokens ?? DEFAULT_MAX_OUTPUT_TOKENS,
-          temperature: 0.7,
-          signal: request.signal,
-        })
-      : await generateText({ messages, maxTokens: body.maxTokens, signal: request.signal });
+    const maxTokens = body.maxTokens ?? DEFAULT_MAX_OUTPUT_TOKENS;
 
-    return Response.json({ text: result.text, model: result.model });
+    if (platformProfile) {
+      const temperature = platformProfile.controls.temperature.usable
+        ? DEFAULT_TEMPERATURE
+        : undefined;
+      const result = await generateText({
+        messages,
+        maxTokens: body.maxTokens,
+        temperature: temperature ?? null,
+        signal: request.signal,
+      });
+      return Response.json({
+        text: result.text,
+        model: result.model,
+        applied: buildAppliedMetadata({
+          provider: "platform-gateway",
+          requestedModel: platformProfile.route.model,
+          servedModel: result.model,
+          maxTokens,
+          temperature,
+          guidanceIncluded,
+        }),
+      });
+    }
+
+    // Never silently fall back to platform spend when an explicit credential fails.
+    const provider = await createProviderFromCredential(user.id, body.credentialId!.trim());
+    const model = body.model!.trim();
+    const profile = await resolveCapabilities(
+      {
+        provider: provider.id,
+        model,
+        endpoint: controls.endpoint,
+        customBaseUrl: provider.customBaseUrl,
+      },
+      { useCatalog: needsCatalog(controls), signal: request.signal },
+    );
+    // Unsupported/unknown controls fail here, before the provider is called.
+    assertControlsSupported(controls, profile);
+    const temperature = profile.controls.temperature.usable ? DEFAULT_TEMPERATURE : undefined;
+
+    const result = await provider.chat({
+      model,
+      messages,
+      maxOutputTokens: maxTokens,
+      ...(temperature !== undefined ? { temperature } : {}),
+      ...(controls.minP !== undefined ? { minP: controls.minP } : {}),
+      ...(controls.endpoint !== undefined ? { endpoint: controls.endpoint } : {}),
+      signal: request.signal,
+    });
+
+    return Response.json({
+      text: result.text,
+      model: result.model,
+      applied: buildAppliedMetadata({
+        provider: provider.id,
+        requestedModel: model,
+        servedModel: result.model,
+        endpoint: controls.endpoint,
+        maxTokens,
+        temperature,
+        minP: controls.minP,
+        guidanceIncluded,
+      }),
+    });
   } catch (err) {
+    if (err instanceof CapabilityError) {
+      return handleCapabilityApiError(err);
+    }
     if (err instanceof CredentialError || err instanceof ByokCryptoError) {
       return handleCredentialApiError(err);
     }

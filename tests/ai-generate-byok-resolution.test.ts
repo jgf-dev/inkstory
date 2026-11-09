@@ -96,7 +96,9 @@ describe("scene generate with real credential resolution + encryption", () => {
     vi.stubGlobal("fetch", fetchMock);
     const response = await POST(request());
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ text: "New prose.", model: "served-model" });
+    const json = (await response.json()) as Record<string, unknown>;
+    expect(json).toMatchObject({ text: "New prose.", model: "served-model" });
+    expect(JSON.stringify(json)).not.toContain(apiKey);
     expect(where).toHaveBeenCalledWith({ id: "credential" });
     expect(fetchMock).toHaveBeenCalledOnce();
     const [url, init] = fetchMock.mock.calls[0];
