@@ -75,6 +75,12 @@ export interface CapabilityProfile {
   source: CapabilitySource;
   /** ISO time the endpoint catalog was observed, when it was consulted. */
   observedAt: string | null;
+  /**
+   * Whether the OpenRouter catalog listed the pinned endpoint: false when the
+   * catalog was consulted and the endpoint is missing, true when listed,
+   * undefined when no endpoint was pinned or the catalog was not consulted.
+   */
+  endpointListed?: boolean;
   controls: Record<ControlId, ControlCapability>;
 }
 

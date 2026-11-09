@@ -128,6 +128,12 @@ export function assertControlsSupported(
       "Endpoint selection is not available with a custom OpenRouter base URL. Clear the endpoint.",
     );
   }
+  if (controls.endpoint !== undefined && profile.endpointListed === false) {
+    throw unsupported(
+      "endpoint",
+      `Endpoint "${controls.endpoint}" is not listed for ${profile.route.model} on OpenRouter. Pick a listed endpoint or clear the endpoint.`,
+    );
+  }
   if (controls.minP !== undefined) {
     const cap = profile.controls.minP;
     if (!cap.usable) {

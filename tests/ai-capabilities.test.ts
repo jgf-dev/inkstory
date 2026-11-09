@@ -141,6 +141,11 @@ describe("static capability registry", () => {
     ["gpt-5-chat-latest", false],
     ["gpt-4o", false],
     ["anthropic/claude-sonnet-4.6", false],
+    ["anthropic/claude-opus-4.7", true],
+    ["claude-opus-4-7", true],
+    ["claude-opus-5-5", true],
+    ["anthropic/claude-opus-4.1", false],
+    ["claude-opus-4-20250514", false],
     ["omni-model", false],
   ])("rejectsSamplingParams(%s) = %s", (model, expected) => {
     expect(rejectsSamplingParams(model)).toBe(expected);
@@ -229,6 +234,11 @@ describe("OpenRouter endpoint catalog overlay", () => {
     expect(parsed?.endpoints).toEqual([
       { tag: "ok", providerName: "ok", supportedParameters: ["min_p"] },
     ]);
+    clearOpenRouterCatalogCache();
+    const allInvalid = vi
+      .fn()
+      .mockResolvedValue(Response.json({ data: { endpoints: [{ tag: 1 }, null] } }));
+    expect(await loadOpenRouterCatalog(LLAMA, { fetch: allInvalid })).toBeNull();
   });
 
   it("does not fetch for ids without a catalog path and defaults to global fetch", async () => {
@@ -493,6 +503,15 @@ describe("assertControlsSupported", () => {
     expect(() => assertControlsSupported({ endpoint: "groq" }, custom)).toThrow(
       /custom OpenRouter base URL/,
     );
+  });
+
+  it("rejects a pinned endpoint the catalog does not list, even without Min-P", async () => {
+    const p = await resolveCapabilities(
+      { provider: "openrouter", model: LLAMA, endpoint: "made-up" },
+      { useCatalog: true, loadCatalog: async () => entry(ENDPOINTS) },
+    );
+    expect(p.endpointListed).toBe(false);
+    expect(() => assertControlsSupported({ endpoint: "made-up" }, p)).toThrow(/not listed/);
   });
 
   it("allows Min-P on an eligible OpenRouter endpoint", async () => {

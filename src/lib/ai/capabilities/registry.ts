@@ -61,13 +61,15 @@ const PROVIDER_LABELS: Record<CapabilityProvider, string> = {
 
 /**
  * Models known to reject sampling parameters such as `temperature` (OpenAI
- * reasoning models; recent Claude Opus releases restrict sampling). When the
+ * reasoning models; Claude Opus 4.7 and later reject non-default sampling
+ * values with a 400). When the
  * route matches, inkstory omits its internal temperature default instead of
  * sending a value the model rejects.
  */
 const SAMPLING_RESTRICTED_MODELS: RegExp[] = [
   /^(?:openai\/)?o\d(?:[-.:]|$)/i,
   /^(?:openai\/)?gpt-5(?![\w.]*-chat)/i,
+  /^(?:anthropic\/)?claude-opus-(?:4[.-][7-9]|[5-9])(?!\d)/i,
 ];
 
 export function rejectsSamplingParams(model: string): boolean {

@@ -72,6 +72,9 @@ function parseEndpoints(body: unknown): OpenRouterEndpointInfo[] | null {
       supportedParameters: e.supported_parameters.filter((p): p is string => typeof p === "string"),
     });
   }
+  // A non-empty list with no valid entry is malformed metadata, not proof the
+  // model has no capable endpoints — report it as unavailable (unknown).
+  if (endpoints.length > 0 && parsed.length === 0) return null;
   return parsed;
 }
 

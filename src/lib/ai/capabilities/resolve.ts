@@ -95,6 +95,8 @@ export async function resolveCapabilities(
     ? catalog.endpoints.filter((e) => e.tag === endpoint)
     : catalog.endpoints;
 
+  if (endpoint) profile.endpointListed = candidates.length > 0;
+
   if (endpoint && candidates.length === 0) {
     controls.minP = minP(
       "unverified",
