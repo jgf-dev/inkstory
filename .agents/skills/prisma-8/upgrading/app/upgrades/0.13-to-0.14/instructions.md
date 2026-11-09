@@ -162,9 +162,9 @@ or public-API change. Incidental substrate diff only.
 
 The uuid field preset names now include the storage encoding suffix:
 
-| Before              | After                     |
-| ------------------- | ------------------------- |
-| `field.uuid()`      | `field.uuidString()`      |
+| Before | After |
+| --- | --- |
+| `field.uuid()` | `field.uuidString()` |
 | `field.id.uuidv4()` | `field.id.uuidv4String()` |
 | `field.id.uuidv7()` | `field.id.uuidv7String()` |
 
@@ -190,7 +190,7 @@ No change to `contract.json` — both the old and new preset names emit the same
 
 The query builder and ORM client are now **always qualified by namespace**. The flat by-bare-name accessors are gone: there is no `sql.<table>` and no `orm.<Model>` at the builder layer, and the **Postgres** facade exposes the qualified surface (`db.sql` / `db.orm` are the namespace map). You reach a table or model by naming its namespace.
 
-Namespace selection separates _which namespace's table_ from _the ergonomic shorthand for the single-namespace case_. The builder layer always names the namespace; the single-namespace shorthand is recovered by the facade on targets that have only one namespace (SQLite, Mongo).
+Namespace selection separates *which namespace's table* from *the ergonomic shorthand for the single-namespace case*. The builder layer always names the namespace; the single-namespace shorthand is recovered by the facade on targets that have only one namespace (SQLite, Mongo).
 
 ### Who needs to change code
 
@@ -198,11 +198,11 @@ Namespace selection separates _which namespace's table_ from _the ergonomic shor
 
 ```ts
 // Before
-const users = await db.sql.user.select("id", "email").build().execute();
+const users = await db.sql.user.select('id', 'email').build().execute();
 const alice = await db.orm.User.find({ where: { id } });
 
 // After — name the namespace the table/model is declared in (`public` for a standard schema)
-const users = await db.sql.public.user.select("id", "email").build().execute();
+const users = await db.sql.public.user.select('id', 'email').build().execute();
 const alice = await db.orm.public.User.find({ where: { id } });
 ```
 
@@ -257,22 +257,17 @@ Replace direct `createRuntime` calls with the appropriate target class construct
 
 ```ts
 // Before
-import { createRuntime } from "@internal/sql-runtime";
+import { createRuntime } from '@internal/sql-runtime';
 const runtime = createRuntime({ stackInstance, context, driver, ...opts });
 
 // After — use the target factory (recommended for app code)
-import { postgres } from "@internal/postgres";
+import { postgres } from '@internal/postgres';
 const db = postgres({ contract, ...opts });
 // runtime is accessed via db.connect() / db.runtime() etc.
 
 // Or construct the target class directly (for advanced/test use)
-import { PostgresRuntimeImpl } from "@internal/postgres/runtime";
-const runtime = new PostgresRuntimeImpl({
-  adapter: stackInstance.adapter,
-  context,
-  driver,
-  ...opts,
-});
+import { PostgresRuntimeImpl } from '@internal/postgres/runtime';
+const runtime = new PostgresRuntimeImpl({ adapter: stackInstance.adapter, context, driver, ...opts });
 ```
 
 The constructor options are identical to what `createRuntime` accepted, except `stackInstance` is not taken: pass `adapter` from `stackInstance.adapter` directly.
@@ -285,16 +280,16 @@ The option shapes also changed: positional arguments are replaced by a single op
 
 Remove the bare names from your import and replace each call-site:
 
-| Before (bare function)                                                  | After (method)                                                                               |
-| ----------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| `dropColumn(schema, table, column)`                                     | `this.dropColumn({ schema, table, column })`                                                 |
-| `setNotNull(schema, table, column)`                                     | `this.setNotNull({ schema, table, column })`                                                 |
-| `setDefault(schema, table, column, defaultSql)`                         | `this.setDefault({ schema, table, column, defaultSql })`                                     |
-| `addPrimaryKey(schema, table, name, columns)`                           | `this.addPrimaryKey({ schema, table, constraint: name, columns })`                           |
+| Before (bare function) | After (method) |
+| --- | --- |
+| `dropColumn(schema, table, column)` | `this.dropColumn({ schema, table, column })` |
+| `setNotNull(schema, table, column)` | `this.setNotNull({ schema, table, column })` |
+| `setDefault(schema, table, column, defaultSql)` | `this.setDefault({ schema, table, column, defaultSql })` |
+| `addPrimaryKey(schema, table, name, columns)` | `this.addPrimaryKey({ schema, table, constraint: name, columns })` |
 | `addForeignKey(schema, table, { name, columns, references, onDelete })` | `this.addForeignKey({ schema, table, foreignKey: { name, columns, references, onDelete } })` |
-| `addCheckConstraint(schema, table, name, column, values)`               | `this.addCheckConstraint({ schema, table, constraint: name, column, values })`               |
-| `createIndex(schema, table, indexName, columns)`                        | `this.createIndex({ schema, table, index: indexName, columns })`                             |
-| `installExtension({ id, extensionName, invariantId })`                  | `this.installExtension({ id, extensionName, invariantId })`                                  |
+| `addCheckConstraint(schema, table, name, column, values)` | `this.addCheckConstraint({ schema, table, constraint: name, column, values })` |
+| `createIndex(schema, table, indexName, columns)` | `this.createIndex({ schema, table, index: indexName, columns })` |
+| `installExtension({ id, extensionName, invariantId })` | `this.installExtension({ id, extensionName, invariantId })` |
 
 Example:
 
@@ -348,11 +343,11 @@ Replace `SqlContractSerializer` with `PostgresContractSerializer` in any migrati
 
 ```ts
 // Before
-import { SqlContractSerializer } from "@internal/family-sql/ir";
+import { SqlContractSerializer } from '@internal/family-sql/ir';
 const contract = new SqlContractSerializer().deserializeContract(contractJson) as Contract;
 
 // After
-import { PostgresContractSerializer } from "@internal/target-postgres/runtime";
+import { PostgresContractSerializer } from '@internal/target-postgres/runtime';
 const contract = new PostgresContractSerializer().deserializeContract(contractJson) as Contract;
 ```
 
@@ -392,15 +387,15 @@ Rules:
 If you author contracts in TypeScript instead of PSL: the native `enumType(name, values[])` and `enumColumn(...)` helpers from `@internal/adapter-postgres/column-types` are deleted. Author the domain enum with `enumType` + `member` from your target's contract-builder and return it under the `enums` key:
 
 ```ts
-import { defineContract, enumType, member } from "@internal/postgres/contract-builder";
+import { defineContract, enumType, member } from '@internal/postgres/contract-builder';
 
-const pgText = { codecId: "pg/text@1", nativeType: "text" } as const;
-const UserType = enumType("user_type", pgText, member("admin", "admin"), member("user", "user"));
+const pgText = { codecId: 'pg/text@1', nativeType: 'text' } as const;
+const UserType = enumType('user_type', pgText, member('admin', 'admin'), member('user', 'user'));
 
-export const contract = defineContract({/* … */}, ({ field, model }) => ({
+export const contract = defineContract({ /* … */ }, ({ field, model }) => ({
   enums: { user_type: UserType },
   models: {
-    User: model("User", {
+    User: model('User', {
       fields: { /* … */ kind: field.namedType(UserType) },
     }),
   },
@@ -419,7 +414,7 @@ A database created under 0.13 still has the native enum type and columns typed w
 
 Because the contract hash does not change (the schema conversion in step 1 and the emitted contract are the end state), scaffold the migration as a data-only edge on the current hash: `prisma-next migration new --name convert-<type>-to-value-set --from <current-storage-hash>`, give the ALTER op `operationClass: 'data'`, and self-emit by running the scaffolded `migration.ts`. The `DROP TYPE` has no op builder — express it as an inline `rawSql` op.
 
-A complete worked example ships in the Prisma Next repo: `examples/prisma-8-demo/migrations/app/20260611T1856_convert_user_type_to_value_set/migration.ts` — three ops (data-class ALTER … USING, `addCheckConstraint`, rawSql `DROP TYPE`), each with pre/postchecks that make replay idempotent.
+A complete worked example ships in the Prisma 8 repo: `examples/prisma-8-demo/migrations/app/20260611T1856_convert_user_type_to_value_set/migration.ts` — three ops (data-class ALTER … USING, `addCheckConstraint`, rawSql `DROP TYPE`), each with pre/postchecks that make replay idempotent.
 
 Note: `prisma-next contract infer` **refuses** databases containing native enum types — it names each offending type and points at this conversion. Convert the database first, then infer.
 
@@ -435,13 +430,13 @@ If your code imported `Models` from the generated contract, read a namespace's m
 
 ```ts
 // Before
-import type { Contract, Models } from "./prisma/contract";
-type UserModel = Models["User"];
+import type { Contract, Models } from './prisma/contract';
+type UserModel = Models['User'];
 
 // After — name the namespace the model is declared in
-import type { Contract } from "./prisma/contract";
-type Models = Contract["domain"]["namespaces"]["public"]["models"];
-type UserModel = Models["User"];
+import type { Contract } from './prisma/contract';
+type Models = Contract['domain']['namespaces']['public']['models'];
+type UserModel = Models['User'];
 ```
 
 Use `public` for a standard single-schema Postgres project, or `__unbound__` for SQLite and Mongo. In a multi-schema Postgres contract, name the schema each model is declared in. Re-emit your contract (`prisma-next contract emit`) so the generated `.d.ts` drops the `Models` export; the emitted `contract.json` is unchanged.

@@ -15,14 +15,16 @@ import "temporal-polyfill/full/global";
 import { Temporal } from "temporal-polyfill";
 import { ensureSystemDefaultPrompts } from "../src/lib/prompts/service";
 import postgres from "@prisma/orm-postgres/runtime";
+import { contractFromJson } from "@prisma/orm-postgres/static";
 import type { Contract } from "./contract.d";
 import contractJson from "./contract.json" with { type: "json" };
 
 // Use DIRECT_URL (session pooler, port 5432) for seeding.
 // SESSION pooler supports DDL + prepared statements; TRANSACTION pooler (port 6543) does not.
 // Fall back to DATABASE_URL if DIRECT_URL is not set.
+const contract = contractFromJson<Contract>(contractJson);
 const db = postgres<Contract>({
-  contractJson,
+  contract,
   url: process.env.DIRECT_URL ?? process.env.DATABASE_URL!,
 });
 

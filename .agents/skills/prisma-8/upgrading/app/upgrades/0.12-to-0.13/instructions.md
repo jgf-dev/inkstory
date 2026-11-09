@@ -120,18 +120,16 @@ The column builder helpers `col()`, `lit()`, `fn()`, `primaryKey()`, `foreignKey
 ### Before 0.13
 
 ```ts
-import { Migration, MigrationCLI, createTable, col, primaryKey } from "@internal/sqlite/migration";
+import { Migration, MigrationCLI, createTable, col, primaryKey } from '@internal/sqlite/migration';
 
 export default class M extends Migration {
-  override describe() {
-    return { from: null, to: "..." };
-  }
+  override describe() { return { from: null, to: '...' }; }
 
   override get operations() {
     return [
-      createTable("user", [
-        col("id", "INTEGER", { primaryKey: true }),
-        col("email", "TEXT", { notNull: true }),
+      createTable('user', [
+        col('id', 'INTEGER', { primaryKey: true }),
+        col('email', 'TEXT', { notNull: true }),
       ]),
     ];
   }
@@ -143,20 +141,18 @@ MigrationCLI.run(import.meta.url, M);
 ### Starting at 0.13
 
 ```ts
-import { Migration, MigrationCLI, col, primaryKey } from "@internal/sqlite/migration";
+import { Migration, MigrationCLI, col, primaryKey } from '@internal/sqlite/migration';
 
 export default class M extends Migration {
-  override describe() {
-    return { from: null, to: "..." };
-  }
+  override describe() { return { from: null, to: '...' }; }
 
   override get operations() {
     return [
       this.createTable({
-        table: "user",
+        table: 'user',
         columns: [
-          col("id", "INTEGER", { primaryKey: true }),
-          col("email", "TEXT", { notNull: true }),
+          col('id', 'INTEGER', { primaryKey: true }),
+          col('email', 'TEXT', { notNull: true }),
         ],
       }),
     ];
@@ -292,7 +288,6 @@ namespace public {
 ```
 
 On emit, `contract.json` gains:
-
 - A `types.Uuid` entry under `storage` for the named-type alias.
 - The `userId` column with `typeRef: "Uuid"` on the storage table.
 - A cross-space `foreignKey` entry on the storage table pointing at the extension space's table.
