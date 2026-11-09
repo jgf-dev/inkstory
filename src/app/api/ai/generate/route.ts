@@ -176,7 +176,7 @@ export async function POST(request: NextRequest) {
     // Never silently fall back to platform spend when an explicit credential fails.
     const provider =
       body.credentialId !== undefined
-        ? await createProviderFromCredential(user.id, body.credentialId)
+        ? await createProviderFromCredential(user.id, body.credentialId.trim())
         : null;
     const result = provider
       ? await provider.chat({

@@ -267,6 +267,106 @@ function prepareEncryptedKey(apiKey: string): {
   }
 }
 
+const PRIVATE_IPV4_RANGES: Array<[number, number]> = [
+  [0x00000000, 8], // 0.0.0.0/8
+  [0x0a000000, 8], // 10.0.0.0/8
+  [0x64400000, 10], // 100.64.0.0/10 (CGNAT)
+  [0x7f000000, 8], // 127.0.0.0/8
+  [0xa9fe0000, 16], // 169.254.0.0/16 (link-local / cloud metadata)
+  [0xac100000, 12], // 172.16.0.0/12
+  [0xc0a80000, 16], // 192.168.0.0/16
+];
+
+function ipv4ToInt(host: string): number | null {
+  const parts = host.split(".");
+  if (parts.length !== 4) return null;
+  let n = 0;
+  for (const part of parts) {
+    if (!/^\d{1,3}$/.test(part)) return null;
+    const v = Number(part);
+    if (v > 255) return null;
+    n = n * 256 + v;
+  }
+  return n >>> 0;
+}
+
+function isPrivateIpv4(host: string): boolean {
+  const n = ipv4ToInt(host);
+  if (n === null) return false;
+  return PRIVATE_IPV4_RANGES.some(([base, bits]) => {
+    const mask = bits === 0 ? 0 : (0xffffffff << (32 - bits)) >>> 0;
+    return (n & mask) >>> 0 === base;
+  });
+}
+
+function isPrivateHost(hostname: string): boolean {
+  const host = hostname
+    .toLowerCase()
+    .replace(/^\[|\]$/g, "")
+    .replace(/\.$/, "");
+  if (host === "localhost" || host.endsWith(".localhost") || host.endsWith(".internal")) {
+    return true;
+  }
+  if (isPrivateIpv4(host)) return true;
+  if (host.includes(":")) {
+    // IPv6 (WHATWG URL already normalizes the literal).
+    if (host === "::" || host === "::1") return true;
+    if (/^f[cd][0-9a-f]{2}:/.test(host)) return true; // fc00::/7 unique-local
+    if (/^fe[89ab][0-9a-f]:/.test(host)) return true; // fe80::/10 link-local
+    const mapped = host.match(/^::ffff:(.+)$/);
+    if (mapped) {
+      const tail = mapped[1];
+      if (tail.includes(".")) return isPrivateIpv4(tail);
+      const hex = tail.split(":");
+      if (hex.length === 2) {
+        const n = (parseInt(hex[0], 16) << 16) | parseInt(hex[1], 16);
+        const dotted = [24, 16, 8, 0].map((s) => (n >>> s) & 255).join(".");
+        return isPrivateIpv4(dotted);
+      }
+    }
+  }
+  return false;
+}
+
+/**
+ * Validates a credential base URL before it can ever reach a server-side fetch.
+ * Only http(s) is allowed, and hosted providers may not point at loopback,
+ * link-local (cloud metadata), or private-network hosts. Local providers
+ * (Ollama, LM Studio) are expected to live on such hosts, so they skip the host check.
+ */
+export function assertSafeBaseUrl(providerId: ProviderId, baseUrl: string): void {
+  let url: URL;
+  try {
+    url = new URL(baseUrl);
+  } catch {
+    throw new CredentialError("baseUrl must be a valid URL", "VALIDATION_FAILED", 400);
+  }
+  if (url.protocol !== "https:" && url.protocol !== "http:") {
+    throw new CredentialError("baseUrl must use http or https", "VALIDATION_FAILED", 400);
+  }
+  if (url.username || url.password) {
+    throw new CredentialError("baseUrl must not contain credentials", "VALIDATION_FAILED", 400);
+  }
+  if (!isLocalProvider(providerId) && isPrivateHost(url.hostname)) {
+    throw new CredentialError(
+      "baseUrl must not point at a private, loopback, or link-local host",
+      "VALIDATION_FAILED",
+      400,
+    );
+  }
+}
+
+function normalizeBaseUrlInput(
+  providerId: ProviderId,
+  raw: string | null | undefined,
+): string | null | undefined {
+  if (raw === undefined) return undefined;
+  if (raw === null || raw.trim() === "") return null;
+  const trimmed = raw.trim();
+  assertSafeBaseUrl(providerId, trimmed);
+  return trimmed;
+}
+
 export async function upsertCredential(
   ownerId: string,
   input: UpsertCredentialInput,
@@ -308,12 +408,7 @@ export async function upsertCredential(
     }
   }
 
-  const baseUrl =
-    input.baseUrl === undefined
-      ? undefined
-      : input.baseUrl === null || input.baseUrl.trim() === ""
-        ? null
-        : input.baseUrl.trim();
+  const baseUrl = normalizeBaseUrlInput(providerId, input.baseUrl);
 
   const now = Temporal.Now.plainDateTimeISO();
 
@@ -450,8 +545,7 @@ export async function patchCredential(
   }
 
   if (input.baseUrl !== undefined) {
-    updates.baseUrl =
-      input.baseUrl === null || input.baseUrl.trim() === "" ? null : input.baseUrl.trim();
+    updates.baseUrl = normalizeBaseUrlInput(providerIdFromName(row.provider), input.baseUrl);
   }
   if (input.defaultModel !== undefined) {
     updates.defaultModel = input.defaultModel;
@@ -506,6 +600,9 @@ export async function resolveProviderConfig(
 
   const providerId = providerIdFromName(row.provider);
   const baseUrl = row.baseUrl ?? undefined;
+  // Re-check stored values too: rows saved before validation existed must not
+  // be able to send a decrypted key to an internal host.
+  if (baseUrl) assertSafeBaseUrl(providerId, baseUrl);
   let apiKey: string | undefined;
 
   if (row.ciphertext && row.iv && row.authTag) {
