@@ -628,9 +628,12 @@ describe("SceneEditor interactions", () => {
     expect(screen.queryByTestId("draft-restore")).toBeNull();
 
     fireEvent.click(screen.getByText("Details"));
-    const selects = screen.getAllByRole("combobox");
-    expect((selects[0] as HTMLSelectElement).value).toBe("FIRST");
-    expect((selects[1] as HTMLSelectElement).value).toBe("PRESENT");
+    const [povSelect, tenseSelect] = screen.getAllByRole("combobox");
+    if (!(povSelect instanceof HTMLSelectElement) || !(tenseSelect instanceof HTMLSelectElement)) {
+      throw new Error("expected <select> elements");
+    }
+    expect(povSelect.value).toBe("FIRST");
+    expect(tenseSelect.value).toBe("PRESENT");
     expect((screen.getByRole("checkbox") as HTMLInputElement).checked).toBe(true);
     unmount();
 

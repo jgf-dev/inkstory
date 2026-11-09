@@ -65,7 +65,7 @@ describe("Writing REST Route Handlers", () => {
       const req = new NextRequest(`http://localhost:3000/api/novels/${novelId}/outline`);
       const res = await getOutline(req, { params: Promise.resolve({ id: novelId }) });
       expect(res.status).toBe(200);
-      const json = await res.json();
+      const json = await res.json<any>();
       expect(json.outline).toEqual(outline);
     });
 
@@ -125,7 +125,7 @@ describe("Writing REST Route Handlers", () => {
       });
       const res = await patchOutline(req, { params: Promise.resolve({ id: novelId }) });
       expect(res.status).toBe(200);
-      const json = await res.json();
+      const json = await res.json<any>();
       expect(json.renamed.title).toBe("Renamed");
       expect(json.moved.moved).toBe(true);
     });
@@ -208,7 +208,7 @@ describe("Writing REST Route Handlers", () => {
       const req = new NextRequest(`http://localhost:3000/api/scenes/${sceneId}`);
       const res = await getScene(req, { params: Promise.resolve({ id: sceneId }) });
       expect(res.status).toBe(200);
-      const json = await res.json();
+      const json = await res.json<any>();
       expect(json.scene).toEqual(scene);
     });
 
@@ -250,7 +250,7 @@ describe("Writing REST Route Handlers", () => {
       const req = new NextRequest(`http://localhost:3000/api/scenes/${sceneId}/revisions?limit=5`);
       const res = await getRevisions(req, { params: Promise.resolve({ id: sceneId }) });
       expect(res.status).toBe(200);
-      const json = await res.json();
+      const json = await res.json<any>();
       expect(json.revisions).toHaveLength(1);
       expect(writingService.listSceneRevisions).toHaveBeenCalledWith(userId, sceneId, 5);
     });

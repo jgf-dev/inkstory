@@ -14,6 +14,10 @@ const mockRouter = {
   prefetch: vi.fn(),
 };
 
+// vinext's next/navigation shim touches window.history on import and doesn't read
+// AppRouterContext, so mock useRouter to hand components the same mock router.
+vi.mock("next/navigation", () => ({ useRouter: () => mockRouter }));
+
 vi.mock("react", async (importOriginal) => {
   const actual = await importOriginal<typeof import("react")>();
   return {
