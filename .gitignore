@@ -47,3 +47,4 @@ next-env.d.ts
 !.dev.vars.example
 .vinext/
 .cloudflare/
+worker-startup.cpuprofile
