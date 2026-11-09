@@ -64,7 +64,7 @@ describe("BYOK credentials API (STO-1178)", { timeout: 20_000 }, () => {
       }),
     );
     expect(putRes.status).toBe(200);
-    const putBody = await putRes.json();
+    const putBody = await putRes.json<any>();
     assertNoSecretFields(putBody);
     expect(JSON.stringify(putBody)).not.toContain(apiKey);
     for (const field of SECRET_FIELD_NAMES) {
@@ -75,7 +75,7 @@ describe("BYOK credentials API (STO-1178)", { timeout: 20_000 }, () => {
 
     const listRes = await listPutGet();
     expect(listRes.status).toBe(200);
-    const listBody = await listRes.json();
+    const listBody = await listRes.json<any>();
     assertNoSecretFields(listBody);
 
     const id = putBody.credential.id as string;
@@ -83,7 +83,7 @@ describe("BYOK credentials API (STO-1178)", { timeout: 20_000 }, () => {
       params: Promise.resolve({ id }),
     });
     expect(oneRes.status).toBe(200);
-    assertNoSecretFields(await oneRes.json());
+    assertNoSecretFields(await oneRes.json<any>());
   });
 
   it("DELETE soft-deletes; subsequent GET is 404", async () => {
@@ -95,7 +95,7 @@ describe("BYOK credentials API (STO-1178)", { timeout: 20_000 }, () => {
         body: JSON.stringify({ provider: "OPENAI", apiKey: "sk-openai-zzzz" }),
       }),
     );
-    const { credential } = await putRes.json();
+    const { credential } = await putRes.json<any>();
 
     const delRes = await DELETE(
       new NextRequest(`http://localhost:3000/api/ai/credentials/${credential.id}`),
@@ -119,7 +119,7 @@ describe("BYOK credentials API (STO-1178)", { timeout: 20_000 }, () => {
         body: JSON.stringify({ provider: "OPENROUTER", apiKey: "sk-old-key-1111" }),
       }),
     );
-    const { credential } = await putRes.json();
+    const { credential } = await putRes.json<any>();
 
     const patchRes = await PATCH(
       new NextRequest(`http://localhost:3000/api/ai/credentials/${credential.id}`, {
@@ -129,7 +129,7 @@ describe("BYOK credentials API (STO-1178)", { timeout: 20_000 }, () => {
       { params: Promise.resolve({ id: credential.id }) },
     );
     expect(patchRes.status).toBe(200);
-    const body = await patchRes.json();
+    const body = await patchRes.json<any>();
     assertNoSecretFields(body);
     expect(body.credential.keyHint).toBe("2222");
     expect(JSON.stringify(body)).not.toContain("sk-new-key");

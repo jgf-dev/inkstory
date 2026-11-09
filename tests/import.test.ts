@@ -569,7 +569,7 @@ describe("import service + route (database)", { timeout: 30_000 }, () => {
   it("previews without writing", async () => {
     const res = await post(novelId, { file: mdFile(exportedMd) });
     expect(res.status).toBe(200);
-    const { preview } = await res.json();
+    const { preview } = await res.json<any>();
     expect(preview.totals).toEqual({ acts: 2, chapters: 2, scenes: 3, words: 16, summaries: 2 });
     const acts = await db.orm.public.Act.where((a) => a.novelId.eq(novelId)).all();
     expect(acts).toHaveLength(1);
@@ -664,7 +664,7 @@ describe("import service + route (database)", { timeout: 30_000 }, () => {
       });
       const previewRes = await post(overrideNovelId, { file: mdFile(exportedMd), structure });
       expect(previewRes.status).toBe(200);
-      const { preview } = await previewRes.json();
+      const { preview } = await previewRes.json<any>();
       expect(preview.totals).toMatchObject({ acts: 1, chapters: 2, scenes: 3, words: 16 });
       expect(await db.orm.public.Act.where((a) => a.novelId.eq(overrideNovelId)).all()).toEqual([]);
 
@@ -689,7 +689,7 @@ describe("import service + route (database)", { timeout: 30_000 }, () => {
         structure: JSON.stringify({ scenes: [{ title: "x", act: "A", chapter: "C" }] }),
       });
       expect(mismatch.status).toBe(400);
-      expect((await mismatch.json()).code).toBe("VALIDATION_FAILED");
+      expect((await mismatch.json<any>()).code).toBe("VALIDATION_FAILED");
       const bad = await post(overrideNovelId, { file: mdFile(exportedMd), structure: "{" });
       expect(bad.status).toBe(400);
     } finally {
@@ -708,7 +708,7 @@ describe("import service + route (database)", { timeout: 30_000 }, () => {
     try {
       const kept = await post(titleNovelId, { file: mdFile(exportedMd), confirm: "true" });
       expect(kept.status).toBe(201);
-      expect((await kept.json()).titleApplied).toBe(false);
+      expect((await kept.json<any>()).titleApplied).toBe(false);
       let novel = await db.orm.public.Novel.where({ id: titleNovelId }).first();
       expect(novel).toMatchObject({ title: "Untitled", subtitle: null });
 
@@ -718,7 +718,7 @@ describe("import service + route (database)", { timeout: 30_000 }, () => {
         applyTitle: "true",
       });
       expect(applied.status).toBe(201);
-      const body = await applied.json();
+      const body = await applied.json<any>();
       expect(body.titleApplied).toBe(true);
       expect(body.actIds).toHaveLength(2);
       novel = await db.orm.public.Novel.where({ id: titleNovelId }).first();
@@ -730,7 +730,7 @@ describe("import service + route (database)", { timeout: 30_000 }, () => {
         confirm: "true",
         applyTitle: "true",
       });
-      expect((await untitled.json()).titleApplied).toBe(false);
+      expect((await untitled.json<any>()).titleApplied).toBe(false);
       novel = await db.orm.public.Novel.where({ id: titleNovelId }).first();
       expect(novel?.title).toBe("The Glass Tide");
     } finally {
@@ -742,7 +742,7 @@ describe("import service + route (database)", { timeout: 30_000 }, () => {
     // 1. Import (summaries on).
     const res = await post(novelId, { file: mdFile(exportedMd), confirm: "true" });
     expect(res.status).toBe(201);
-    const { actIds, preview } = await res.json();
+    const { actIds, preview } = await res.json<any>();
     expect(actIds).toHaveLength(2);
     expect(preview.totals.scenes).toBe(3);
 

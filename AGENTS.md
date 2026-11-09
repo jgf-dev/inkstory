@@ -11,7 +11,7 @@ InkStory application code uses **Supabase Auth + Prisma 8 (Prisma Next) against 
 | Auth    | `@supabase/ssr` cookie session; Codex routes 401 without `getUser()`                                              |
 | Codex   | `src/lib/codex/{service,actions,types,mention-detection,progression-engine,relation-engine,context-assembler}.ts` |
 | UI      | `/dashboard` metrics, `/dashboard/codex` manager/editor                                                           |
-| Tooling | bun (CI/Vercel), vite-plus (`vp lint` / `vp fmt` / `vp test` / `vp check`)                                        |
+| Tooling | bun (CI/~~vercel~~), vite-plus (`vp lint` / `vp fmt` / `vp test` / `vp check`)                                    |
 
 Commands: `bun run dev`, `bun run test`, `bun run test:e2e`, `bun run db:update`, `bun run db:seed`, `bun run contract:emit`. There is no `db:migrate` or `db:studio`.
 
@@ -38,32 +38,32 @@ Theming (JGF-128): the `ink-*` ramp is defined as CSS variables in `src/app/glob
 - [supabase-postgres-best-practices](.agents/skills/supabase-postgres-best-practices/SKILL.md)
 - [taste-design](.agents/skills/taste-design/SKILL.md)
 
-<!-- VERCEL BEST PRACTICES START -->
+<!-- ~~vercel~~ BEST PRACTICES START -->
 
-## Best practices for developing on Vercel
+## Best practices for developing on ~~vercel~~
 
-These defaults are optimized for AI coding agents (and humans) working on apps that deploy to Vercel.
+These defaults are optimized for AI coding agents (and humans) working on apps that deploy to ~~vercel~~.
 
-- Treat Vercel Functions as stateless + ephemeral (no durable RAM/FS, no background daemons), use Blob or marketplace integrations for preserving state
-- Edge Functions (standalone) are deprecated; prefer Vercel Functions
-- Don't start new projects on Vercel KV/Postgres (both discontinued); use Marketplace Redis/Postgres instead
-- Store secrets in Vercel Env Variables; not in git or `NEXT_PUBLIC_*`
-- Provision Marketplace native integrations with `vercel integration add` (CI/agent-friendly)
-- Sync env + project settings with `vercel env pull` / `vercel pull` when you need local/offline parity
+- Treat ~~vercel~~ Functions as stateless + ephemeral (no durable RAM/FS, no background daemons), use Blob or marketplace integrations for preserving state
+- Edge Functions (standalone) are deprecated; prefer ~~vercel~~ Functions
+- Don't start new projects on ~~vercel~~ KV/Postgres (both discontinued); use Marketplace Redis/Postgres instead
+- Store secrets in ~~vercel~~ Env Variables; not in git or `NEXT_PUBLIC_*`
+- Provision Marketplace native integrations with `~~vercel~~ integration add` (CI/agent-friendly)
+- Sync env + project settings with `~~vercel~~ env pull` / `~~vercel~~ pull` when you need local/offline parity
 - Use `waitUntil` for post-response work; avoid the deprecated Function `context` parameter
 - Set Function regions near your primary data source; avoid cross-region DB/service roundtrips
 - Tune Fluid Compute knobs (e.g., `maxDuration`, memory/CPU) for long I/O-heavy calls (LLMs, APIs)
 - Use Runtime Cache for fast **regional** caching + tag invalidation (don't treat it as global KV)
 - Use Cron Jobs for schedules; cron runs in UTC and triggers your production URL via HTTP GET
-- Use Vercel Blob for uploads/media; Use Edge Config for small, globally-read config
-- If a deployment URL returns a Vercel Deployment Protection 401/403, retry the same URL with `vercel curl <url>`; don't disable protection or manage bypass secrets manually
-- Add OpenTelemetry via `@vercel/otel` on Node; don't expect OTEL support on the Edge runtime
+- Use ~~vercel~~ Blob for uploads/media; Use Edge Config for small, globally-read config
+- If a deployment URL returns a ~~vercel~~ Deployment Protection 401/403, retry the same URL with `~~vercel~~ curl <url>`; don't disable protection or manage bypass secrets manually
+- Add OpenTelemetry via `@~~vercel~~/otel` on Node; don't expect OTEL support on the Edge runtime
 - Enable Web Analytics + Speed Insights early
 - Use AI Gateway for model routing, set AI_GATEWAY_API_KEY, using a model string (e.g. 'anthropic/claude-sonnet-4.6'), Gateway is already default in AI SDK
-  needed. Always curl <https://ai-gateway.vercel.sh/v1/models> first; never trust model IDs from memory
-- For durable agent loops or untrusted code: use Workflow (pause/resume/state) + Sandbox; use Vercel MCP for secure infra access
+  needed. Always curl <https://ai-gateway.~~vercel~~.sh/v1/models> first; never trust model IDs from memory
+- For durable agent loops or untrusted code: use Workflow (pause/resume/state) + Sandbox; use ~~vercel~~ MCP for secure infra access
 
-<!-- VERCEL BEST PRACTICES END -->
+<!-- ~~vercel~~ BEST PRACTICES END -->
 
 <!-- BEGIN:nextjs-agent-rules -->
 
@@ -74,3 +74,35 @@ This version has breaking changes — APIs, conventions, and file structure may 
 This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
 
 <!-- END:nextjs-agent-rules -->
+
+<!--VITE PLUS START-->
+
+# Using Vite+, the Unified Toolchain for the Web
+
+This project is using Vite+, a unified toolchain built on top of Vite, Rolldown, Vitest, tsdown, Oxlint, Oxfmt, and Vite Task. Vite+ wraps runtime management, package management, and frontend tooling in a single global CLI called `vp`. Vite+ is distinct from Vite, and it invokes Vite through `vp dev` and `vp build`. Run `vp help` to print a list of commands and `vp <command> --help` for information about a specific command.
+
+Docs are local at `node_modules/vite-plus/docs` or online at https://viteplus.dev/guide/.
+
+## Built-in Commands vs Scripts
+
+`vp <name>` runs a built-in command. `vp run <name>` runs a `package.json` script or a `vite.config.ts` task. Scripts cannot overwrite built-ins, so `vp dev` and `vp run dev` may do different things. Check `package.json` and `vite.config.ts` first, and run `vp run <name>` when the project defines a script or task with that name.
+
+## Running Scripts
+
+Run TypeScript and JavaScript files with `vpx <file>`, for example `vpx ./scripts/seed.ts --dry-run`. It handles enums, decorators, JSX, and tsconfig `paths`, so do not add `tsx` or `ts-node` to run scripts. `vpx --watch <file>` reruns the file when a file it uses changes, in place of `tsx watch`. `vp node <file>` runs plain Node.js.
+
+## Tool Versions
+
+Run `vp toolchain` to show versions and relationships in the active Vite+
+release. Add a tool name to select part of the graph. For example, run
+`vp toolchain vite`. Use `--global` to ignore the local `vite-plus` package. Use
+`vp why <package>` to show the package-manager dependency graph.
+
+## Review Checklist
+
+- [ ] Run `vp install` after pulling remote changes and before getting started.
+- [ ] Run `vp check` and `vp test` to format, lint, type check and test changes.
+- [ ] Check if there are `vite.config.ts` tasks or `package.json` scripts necessary for validation, run via `vp run <script>`.
+- [ ] If setup, runtime, or package-manager behavior looks wrong, run `vp env doctor` and include its output when asking for help.
+
+<!--VITE PLUS END-->

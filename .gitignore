@@ -45,3 +45,7 @@ next-env.d.ts
 .wrangler
 .dev.vars*
 !.dev.vars.example
+.vinext/
+.cloudflare/
+worker-startup.cpuprofile
+.vitest/
