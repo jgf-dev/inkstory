@@ -299,11 +299,23 @@ function isPrivateIpv4(host: string): boolean {
   });
 }
 
-function isPrivateHost(hostname: string): boolean {
-  const host = hostname
+function normalizeHost(hostname: string): string {
+  return hostname
     .toLowerCase()
     .replace(/^\[|\]$/g, "")
     .replace(/\.$/, "");
+}
+
+/** Loopback only: localhost, 127.0.0.0/8, ::1. The only hosts local providers may use. */
+function isLoopbackHost(hostname: string): boolean {
+  const host = normalizeHost(hostname);
+  if (host === "localhost" || host.endsWith(".localhost") || host === "::1") return true;
+  const n = ipv4ToInt(host);
+  return n !== null && n >>> 24 === 127;
+}
+
+function isPrivateHost(hostname: string): boolean {
+  const host = normalizeHost(hostname);
   if (host === "localhost" || host.endsWith(".localhost") || host.endsWith(".internal")) {
     return true;
   }
@@ -332,7 +344,8 @@ function isPrivateHost(hostname: string): boolean {
  * Validates a credential base URL before it can ever reach a server-side fetch.
  * Only http(s) is allowed, and hosted providers may not point at loopback,
  * link-local (cloud metadata), or private-network hosts. Local providers
- * (Ollama, LM Studio) are expected to live on such hosts, so they skip the host check.
+ * (Ollama, LM Studio) are caller-chosen, so they may only use loopback hosts;
+ * link-local, metadata, private-network and 0.0.0.0 targets are rejected for them too.
  */
 export function assertSafeBaseUrl(providerId: ProviderId, baseUrl: string): void {
   let url: URL;
@@ -347,7 +360,17 @@ export function assertSafeBaseUrl(providerId: ProviderId, baseUrl: string): void
   if (url.username || url.password) {
     throw new CredentialError("baseUrl must not contain credentials", "VALIDATION_FAILED", 400);
   }
-  if (!isLocalProvider(providerId) && isPrivateHost(url.hostname)) {
+  if (isLocalProvider(providerId)) {
+    if (!isLoopbackHost(url.hostname)) {
+      throw new CredentialError(
+        "baseUrl for a local provider must point at a loopback host (localhost, 127.0.0.1, ::1)",
+        "VALIDATION_FAILED",
+        400,
+      );
+    }
+    return;
+  }
+  if (isPrivateHost(url.hostname)) {
     throw new CredentialError(
       "baseUrl must not point at a private, loopback, or link-local host",
       "VALIDATION_FAILED",

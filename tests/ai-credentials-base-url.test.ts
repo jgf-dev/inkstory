@@ -44,5 +44,18 @@ describe("assertSafeBaseUrl (STO-1159)", () => {
 
   it("still rejects non-http schemes for local providers", () => {
     expect(() => assertSafeBaseUrl("ollama", "file:///etc/passwd")).toThrow(CredentialError);
+    expect(() => assertSafeBaseUrl("ollama", "http://[::1]:11434")).not.toThrow();
+    for (const bad of [
+      "http://169.254.169.254/latest/meta-data",
+      "http://0.0.0.0:11434",
+      "http://192.168.1.10:11434",
+      "http://10.0.0.5:1234/v1",
+      "http://metadata.google.internal",
+      "http://[fe80::1]:11434",
+      "https://api.example.com",
+    ]) {
+      expect(() => assertSafeBaseUrl("ollama", bad)).toThrow(CredentialError);
+      expect(() => assertSafeBaseUrl("lmstudio", bad)).toThrow(CredentialError);
+    }
   });
 });
