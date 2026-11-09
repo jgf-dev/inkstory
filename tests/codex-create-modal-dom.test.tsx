@@ -261,8 +261,9 @@ describe("CodexCreateModal DOM interactions", () => {
     expect(ids.size).toBe(expectations.length);
 
     fireEvent.click(screen.getByLabelText("Series-wide"));
-    const seriesSelect = screen.getByLabelText("Target Series *") as HTMLSelectElement;
+    const seriesSelect = screen.getByLabelText("Target Series *");
     expect(seriesSelect.tagName).toBe("SELECT");
+    if (!(seriesSelect instanceof HTMLSelectElement)) throw new Error("expected a <select>");
     expect(seriesSelect.value).toBe("s-1");
   });
 
