@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "vp build",
-    "dev": "vp dev",
+    "dev": "vp dev --port 3000",
     "start": "vp preview",
     "lint": "vp lint --fix",
     "format": "vp fmt",

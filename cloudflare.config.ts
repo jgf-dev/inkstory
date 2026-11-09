@@ -5,7 +5,7 @@ const responseStore = await createWorkersResponseStoreServiceBindingConfig({
   worker: {
     name: "inkstory-response-store",
     compatibilityDate: "2026-11-08",
-    compatibilityFlags: ["nodejs_compat"],
+    compatibilityFlags: ["nodejs_compat", "global_fetch_strictly_public"],
   },
   bucket: "inkstory-response-store-cache-bodies",
 });
@@ -18,7 +18,7 @@ export default defineConfig({
     name: "inkstory",
     entrypoint: "vinext/server/fetch-handler",
     compatibilityDate: "2026-11-08",
-    compatibilityFlags: ["nodejs_compat"],
+    compatibilityFlags: ["nodejs_compat", "global_fetch_strictly_public"],
     assets: {
       htmlHandling: "none",
       notFoundHandling: "none",

@@ -20,6 +20,6 @@
       ]
     }
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx"],
-  "exclude": ["node_modules", "dist", ".cloudflare"]
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".cloudflare/types"],
+  "exclude": ["node_modules", "dist"]
 }
