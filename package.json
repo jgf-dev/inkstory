@@ -20,16 +20,12 @@
     "db:verify": "prisma db verify",
     "db:sign": "prisma db sign",
     "db:update": "prisma db update",
-    "db:seed": "tsx prisma/seed.ts",
+    "db:seed": "vpx prisma/seed.ts",
     "prepare": "vp config",
     "cf-typegen": "cf workers types",
-    "deploy": "vp exec vinext-cloudflare deploy",
     "deploy:response-store": "cf deploy --prebuilt --mode production --worker inkstory-response-store",
     "preview": "vp build && vp preview",
-    "dev:vinext": "vite dev --port 3001",
-    "build:vinext": "vite build",
-    "start:vinext": "vite preview",
-    "deploy:vinext": "vinext-cloudflare deploy"
+    "deploy": "vinext-cloudflare deploy"
   },
   "dependencies": {
     "@cloudflare/workers-response-store": "^1.1.5",
@@ -72,14 +68,13 @@
     "cf": "^1.0.0-beta.28",
     "dotenv-cli": "11.0.0",
     "happy-dom": "^21.0.4",
-    "oxlint": "1.90.0",
     "postcss": "^8.5.32",
     "prisma": "8.0.0-rc.27",
     "tailwindcss": "^4.3.5",
-    "tsx": "^4.23.15",
     "typescript": "7.0.2",
-    "vite": "8.3.0",
-    "vite-plus": "^1.5.0"
+    "vite": "npm:@voidzero-dev/vite-plus-core@1.5.0",
+    "vite-plus": "1.5.0",
+    "vitest": "5.1.0"
   },
   "overrides": {
     "@hono/node-server": "1.19.10",
@@ -89,7 +84,8 @@
     "minimatch": "10.2.6",
     "sharp": "0.35.5",
     "source-map-js": "1.2.2",
-    "vite": "npm:@voidzero-dev/vite-plus-core@1.5.0"
+    "vite": "npm:@voidzero-dev/vite-plus-core@1.5.0",
+    "vitest": "5.1.0"
   },
   "allowScripts": {
     "msgpackr-extract@3.0.4": true,
