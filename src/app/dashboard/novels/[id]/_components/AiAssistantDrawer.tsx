@@ -72,7 +72,9 @@ export function AiAssistantDrawer({
     let active = true;
     apiGet<{ credentials: CredentialDto[] }>("/api/ai/credentials")
       .then((result) => {
-        if (active) setCredentials(result.credentials);
+        if (active) {
+          setCredentials(Array.isArray(result.credentials) ? result.credentials : []);
+        }
       })
       .catch(() => {
         if (active) setCredentialsError(true);

@@ -232,7 +232,8 @@ describe("AiAssistantDrawer explicit BYOK selection (STO-1159)", () => {
     const { bodies } = withCredentials();
     setup();
     await screen.findByRole("option", { name: "OPENAI — Personal 1234" });
-    const provider = screen.getByLabelText("Generation provider") as HTMLSelectElement;
+    const provider = screen.getByLabelText("Generation provider");
+    if (!(provider instanceof HTMLSelectElement)) throw new Error("expected a <select>");
     expect(provider.value).toBe("");
     expect(screen.queryByLabelText("Provider model ID")).toBeNull();
     fireEvent.change(provider, { target: { value: "saved" } });
@@ -296,12 +297,14 @@ describe("AiAssistantDrawer explicit BYOK selection (STO-1159)", () => {
         }),
     );
     fireEvent.click(screen.getByText("Generate"));
-    expect((screen.getByLabelText("Generation provider") as HTMLSelectElement).disabled).toBe(true);
+    const busyProvider = screen.getByLabelText("Generation provider");
+    if (!(busyProvider instanceof HTMLSelectElement)) throw new Error("expected a <select>");
+    expect(busyProvider.disabled).toBe(true);
     expect((screen.getByLabelText("Provider model ID") as HTMLInputElement).disabled).toBe(true);
     finish(new Response(JSON.stringify({ text: "Done", model: "m" })));
     await screen.findByTestId("ai-result");
-    expect((screen.getByLabelText("Generation provider") as HTMLSelectElement).disabled).toBe(
-      false,
-    );
+    const idleProvider = screen.getByLabelText("Generation provider");
+    if (!(idleProvider instanceof HTMLSelectElement)) throw new Error("expected a <select>");
+    expect(idleProvider.disabled).toBe(false);
   });
 });

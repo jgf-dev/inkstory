@@ -368,7 +368,7 @@ describe("AI generation (scene continuation / beat expansion)", () => {
           makeRequest({ sceneId, mode: "continuation", ...extra }),
         );
         expect(response.status).toBe(400);
-        expect((await response.json()).code).toBe("VALIDATION_FAILED");
+        expect((await response.json<any>()).code).toBe("VALIDATION_FAILED");
       }
       expect(resolve).not.toHaveBeenCalled();
     });
