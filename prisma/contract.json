@@ -1565,6 +1565,13 @@
                   "kind": "scalar"
                 }
               },
+              "contract": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/jsonb@1",
+                  "kind": "scalar"
+                }
+              },
               "createdAt": {
                 "nullable": false,
                 "type": {
@@ -1671,6 +1678,9 @@
               "fields": {
                 "body": {
                   "column": "body"
+                },
+                "contract": {
+                  "column": "contract"
                 },
                 "createdAt": {
                   "column": "created_at"
@@ -4208,6 +4218,11 @@
                   "dataType": "pg/text",
                   "nullable": false
                 },
+                "contract": {
+                  "codecId": "pg/jsonb@1",
+                  "dataType": "pg/jsonb",
+                  "nullable": true
+                },
                 "created_at": {
                   "codecId": "pg/timestamp-temporal@1",
                   "dataType": "pg/timestamp",
@@ -5412,7 +5427,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "675e71f45aabada220b977253f50d6e820bc32e6f2a1929926c45b8778b8f4bf"
+    "storageHash": "ee75d478a0aa06a08bca418d7025c919d13af0b6021f8fda6c99a78d352e33d0"
   },
   "capabilities": {
     "postgres": {
