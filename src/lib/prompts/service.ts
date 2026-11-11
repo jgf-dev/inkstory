@@ -528,6 +528,17 @@ export async function duplicatePromptToLibrary(
   const source = await getPrompt(userId, promptId);
   const now = Temporal.Now.plainDateTimeISO();
 
+  // Re-validate contracts of components that will be copied. The DTO contract is
+  // read leniently (invalid → null), so read the stored value and reject an
+  // invalid one rather than silently copying it as a legacy component.
+  const copiedContracts = new Map<string, ReturnType<typeof normalizePromptContract>>();
+  for (const link of source.components ?? []) {
+    const src = link.component;
+    if (!src || src.ownerId === userId || copiedContracts.has(src.id)) continue;
+    const row = await loadComponentRow(src.id);
+    copiedContracts.set(src.id, normalizePromptContract(row?.contract ?? null));
+  }
+
   const createdId = await db.transaction(async (tx) => {
     const created = (await tx.orm.public.Prompt.create({
       id: crypto.randomUUID(),
@@ -560,7 +571,7 @@ export async function duplicatePromptToLibrary(
         body: src.body,
         role: src.role,
         // Contract (incl. attribution) is copied; ownership moves to the duplicating user.
-        contract: (src.contract ?? null) as any,
+        contract: (copiedContracts.get(src.id) ?? null) as any,
         ownerId: userId,
         updatedAt: now,
       })) as ComponentRow;

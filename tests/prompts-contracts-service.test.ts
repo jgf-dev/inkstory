@@ -252,6 +252,33 @@ describe("prompt component contracts — service (STO-1275)", { timeout: 30_000 
     await softDeletePrompt(userId, prompt.id);
   });
 
+  it("duplicate rejects a copied component whose stored contract no longer validates", async () => {
+    const tamperedId = `${systemComponentId}-tampered`;
+    await db.orm.public.PromptComponent.create({
+      id: tamperedId,
+      name: "Tampered shared",
+      description: null,
+      body: "x",
+      role: "USER",
+      contract: { schemaVersion: 9 } as any,
+      ownerId: null,
+      updatedAt: Temporal.Now.plainDateTimeISO(),
+    });
+    const prompt = await createPrompt(userId, {
+      name: "Tampered prompt",
+      mode: "beat_expansion",
+      componentIds: [tamperedId],
+    });
+    try {
+      await expect(duplicatePromptToLibrary(userId, prompt.id)).rejects.toMatchObject({
+        code: "UNSUPPORTED_VERSION",
+      });
+    } finally {
+      await softDeletePrompt(userId, prompt.id);
+      await db.orm.public.PromptComponent.where({ id: tamperedId }).delete();
+    }
+  });
+
   it("a contract never changes how an existing prompt renders", async () => {
     const body = "Continue {{novel.title}} {{craft.selection}}";
     const legacy = await createComponent(userId, { name: "L", body, role: "USER" });
