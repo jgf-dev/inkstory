@@ -4,6 +4,7 @@ import { db } from "../src/lib/prisma";
 import {
   assembleCodexContextForScene,
   createCodexEntry,
+  createCodexRelation,
   createCodexTag,
   getCodexEntry,
   updateCodexEntry,
@@ -263,6 +264,43 @@ describe("Codex lorebook interchange service (STO-1262)", { timeout: 30_000 }, (
 
     const named = await exportLorebook(userId, { entryIds: [mara.id], name: "Ünïcode / Book!" });
     expect(named.filename).toBe("unicode-book.json");
+  });
+
+  it("exports an import-time mode override instead of the file's original flags", async () => {
+    const imported = await importLorebook(userId, lorebook, {
+      novelId,
+      activationOverrides: { "11": "DETECTED" },
+    });
+    const lighthouse = imported.created.find((c) => c.sourceEntryKey === "11")!;
+    expect(lighthouse.trackingMode).toBe("DETECTED");
+    const result = await exportLorebook(userId, { entryIds: [lighthouse.id] });
+    expect((result.lorebook.entries as any)["0"]).toMatchObject({
+      constant: false,
+      disable: false,
+    });
+  });
+
+  it("warns NOT_PORTABLE for relations or non-LORE types even without tags", async () => {
+    const imported = await importLorebook(userId, lorebook, { novelId });
+    const [mara, lighthouse] = imported.created;
+    const plain = await exportLorebook(userId, { entryIds: [mara.id] });
+    expect(plain.warnings.map((w) => w.code)).not.toContain("NOT_PORTABLE");
+
+    await createCodexRelation(userId, {
+      sourceEntryId: mara.id,
+      targetEntryId: lighthouse.id,
+      relationType: "keeps",
+    });
+    const related = await exportLorebook(userId, { entryIds: [mara.id] });
+    expect(related.warnings.map((w) => w.code)).toContain("NOT_PORTABLE");
+
+    const character = await createCodexEntry(userId, {
+      name: "Wren",
+      novelId,
+      type: "CHARACTER",
+    });
+    const typed = await exportLorebook(userId, { entryIds: [character.id] });
+    expect(typed.warnings.map((w) => w.code)).toContain("NOT_PORTABLE");
   });
 
   it("exports native entries and rejects foreign, deleted or malformed selections", async () => {

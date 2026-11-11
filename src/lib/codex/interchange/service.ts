@@ -100,6 +100,9 @@ export async function importLorebook(
   if (!CODEX_TYPES.has(type)) {
     throw invalid("type must be a valid Codex entry type");
   }
+  // Export compares against the mode the file's own flags imply, so record it
+  // before overrides change the drafts.
+  const parsedModes = new Map(parsed.drafts.map((d) => [d, d.trackingMode]));
   applyActivationOverrides(parsed.drafts, options.activationOverrides, warnings);
 
   const groupId = crypto.randomUUID();
@@ -117,7 +120,7 @@ export async function importLorebook(
       originalEntry: draft.originalEntry,
       bookMetadata: parsed.bookMetadata,
       mappingVersion: LOREBOOK_MAPPING_VERSION,
-      importedTrackingMode: draft.trackingMode,
+      importedTrackingMode: parsedModes.get(draft) ?? draft.trackingMode,
       unsupportedFeatures: draft.unsupportedFeatures,
     };
     return { id: crypto.randomUUID(), draft, envelope };
@@ -276,12 +279,21 @@ export async function exportLorebook(
     }
   }
 
-  const [aliases, tags] = await Promise.all([
+  const [aliases, tags, outgoing, incoming, progressions] = await Promise.all([
     db.orm.public.CodexAlias.where((a) => a.entryId.in(ids))
       .where((a) => a.deletedAt.isNull())
       .all(),
     db.orm.public.CodexTag.where((t) => t.entryId.in(ids))
       .where((t) => t.deletedAt.isNull())
+      .all(),
+    db.orm.public.CodexRelation.where((r) => r.sourceEntryId.in(ids))
+      .where((r) => r.deletedAt.isNull())
+      .all(),
+    db.orm.public.CodexRelation.where((r) => r.targetEntryId.in(ids))
+      .where((r) => r.deletedAt.isNull())
+      .all(),
+    db.orm.public.CodexProgression.where((p) => p.entryId.in(ids))
+      .where((p) => p.deletedAt.isNull())
       .all(),
   ]);
   const aliasesByEntry = new Map<string, string[]>();
@@ -313,7 +325,13 @@ export async function exportLorebook(
 
   const exportName = typeof name === "string" ? name : null;
   const { lorebook, warnings } = serializeLorebook(sources, { name: exportName });
-  if (tags.length > 0) {
+  const dropsData =
+    tags.length > 0 ||
+    outgoing.length > 0 ||
+    incoming.length > 0 ||
+    progressions.length > 0 ||
+    rows.some((row) => row.type !== "LORE");
+  if (dropsData) {
     warnings.push({
       code: "NOT_PORTABLE",
       message: "Tags, entry types, relations and progressions are not part of lorebook JSON.",
