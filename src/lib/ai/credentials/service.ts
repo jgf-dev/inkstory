@@ -17,6 +17,7 @@ import {
   type ProviderId,
 } from "@/lib/ai/providers";
 import { ByokCryptoError, decryptSecret, encryptSecret, keyHintFrom } from "./crypto";
+import { defaultHostResolver, type HostResolver } from "./host-resolver";
 
 export type AiProviderName = "OPENROUTER" | "OPENAI" | "ANTHROPIC" | "OLLAMA" | "LMSTUDIO";
 
@@ -379,14 +380,64 @@ export function assertSafeBaseUrl(providerId: ProviderId, baseUrl: string): void
   }
 }
 
-function normalizeBaseUrlInput(
+let hostResolver: HostResolver = defaultHostResolver;
+
+/**
+ * Swap the DNS resolver used by {@link assertSafeBaseUrlResolved}. Pass nothing
+ * to restore the default. Intended for tests and alternative runtimes.
+ */
+export function setHostResolver(resolver?: HostResolver): void {
+  hostResolver = resolver ?? defaultHostResolver;
+}
+
+function isIpLiteral(hostname: string): boolean {
+  const host = normalizeHost(hostname);
+  return host.includes(":") || ipv4ToInt(host) !== null;
+}
+
+/**
+ * {@link assertSafeBaseUrl} plus DNS: for hosted providers whose baseUrl uses a
+ * hostname (not an IP literal), resolve it and reject when it does not resolve
+ * or when any resolved address is private, loopback, link-local or metadata.
+ * This stops a public-looking hostname that points at an internal address.
+ * Local providers are loopback-only by literal host, so they skip DNS.
+ */
+export async function assertSafeBaseUrlResolved(
+  providerId: ProviderId,
+  baseUrl: string,
+  resolver: HostResolver = hostResolver,
+): Promise<void> {
+  assertSafeBaseUrl(providerId, baseUrl);
+  if (isLocalProvider(providerId)) return;
+  const { hostname } = new URL(baseUrl);
+  if (isIpLiteral(hostname)) return;
+
+  let addresses: string[];
+  try {
+    addresses = await resolver(normalizeHost(hostname));
+  } catch {
+    throw new CredentialError("baseUrl host could not be resolved", "VALIDATION_FAILED", 400);
+  }
+  if (addresses.length === 0) {
+    throw new CredentialError("baseUrl host could not be resolved", "VALIDATION_FAILED", 400);
+  }
+  if (addresses.some((address) => isPrivateHost(address))) {
+    throw new CredentialError(
+      "baseUrl must not resolve to a private, loopback, or link-local address",
+      "VALIDATION_FAILED",
+      400,
+    );
+  }
+}
+
+async function normalizeBaseUrlInput(
   providerId: ProviderId,
   raw: string | null | undefined,
-): string | null | undefined {
+): Promise<string | null | undefined> {
   if (raw === undefined) return undefined;
   if (raw === null || raw.trim() === "") return null;
   const trimmed = raw.trim();
-  assertSafeBaseUrl(providerId, trimmed);
+  await assertSafeBaseUrlResolved(providerId, trimmed);
   return trimmed;
 }
 
@@ -431,7 +482,7 @@ export async function upsertCredential(
     }
   }
 
-  const baseUrl = normalizeBaseUrlInput(providerId, input.baseUrl);
+  const baseUrl = await normalizeBaseUrlInput(providerId, input.baseUrl);
 
   const now = Temporal.Now.plainDateTimeISO();
 
@@ -568,7 +619,7 @@ export async function patchCredential(
   }
 
   if (input.baseUrl !== undefined) {
-    updates.baseUrl = normalizeBaseUrlInput(providerIdFromName(row.provider), input.baseUrl);
+    updates.baseUrl = await normalizeBaseUrlInput(providerIdFromName(row.provider), input.baseUrl);
   }
   if (input.defaultModel !== undefined) {
     updates.defaultModel = input.defaultModel;
@@ -623,9 +674,9 @@ export async function resolveProviderConfig(
 
   const providerId = providerIdFromName(row.provider);
   const baseUrl = row.baseUrl ?? undefined;
-  // Re-check stored values too: rows saved before validation existed must not
-  // be able to send a decrypted key to an internal host.
-  if (baseUrl) assertSafeBaseUrl(providerId, baseUrl);
+  // Re-check stored values too (including DNS, which can change after save):
+  // a stored host must not be able to send a decrypted key to an internal address.
+  if (baseUrl) await assertSafeBaseUrlResolved(providerId, baseUrl);
   let apiKey: string | undefined;
 
   if (row.ciphertext && row.iv && row.authTag) {

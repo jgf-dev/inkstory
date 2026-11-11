@@ -7,6 +7,7 @@ import {
   listCredentials,
   patchCredential,
   resolveProviderConfig,
+  setHostResolver,
   softDeleteCredential,
   upsertCredential,
   CredentialError,
@@ -22,6 +23,8 @@ describe("BYOK credentials service (STO-1178)", { timeout: 20_000 }, () => {
 
   beforeAll(async () => {
     process.env.BYOK_ENCRYPTION_KEY = TEST_KEY_B64;
+    // Keep DNS hermetic: every hosted baseUrl host "resolves" to a public IP.
+    setHostResolver(async () => ["93.184.215.14"]);
     const now = Temporal.Now.plainDateTimeISO();
     await db.orm.public.User.upsert({
       create: { id: userId, email: `byok-${runId}@inkstory.local`, updatedAt: now },
@@ -40,6 +43,7 @@ describe("BYOK credentials service (STO-1178)", { timeout: 20_000 }, () => {
   });
 
   afterAll(async () => {
+    setHostResolver();
     if (prevKey === undefined) delete process.env.BYOK_ENCRYPTION_KEY;
     else process.env.BYOK_ENCRYPTION_KEY = prevKey;
     const rows = await db.orm.public.UserProviderCredential.where((c) =>
@@ -136,6 +140,40 @@ describe("BYOK credentials service (STO-1178)", { timeout: 20_000 }, () => {
     if (resolved.provider === "anthropic") {
       expect(resolved.apiKey).toBe(originalKey);
       expect(resolved.baseUrl).toBe("https://proxy.anthropic.com");
+    }
+  });
+
+  it("rejects baseUrl hosts that resolve to internal addresses (save and use time)", async () => {
+    setHostResolver(async (host) =>
+      host === "rebind.example" ? ["169.254.169.254"] : ["93.184.215.14"],
+    );
+    try {
+      await expect(
+        upsertCredential(userId, {
+          provider: "OPENAI",
+          label: "rebind",
+          apiKey: "sk-test-rebind-0001",
+          baseUrl: "https://rebind.example/v1",
+        }),
+      ).rejects.toMatchObject({ code: "VALIDATION_FAILED" });
+
+      const created = await upsertCredential(userId, {
+        provider: "OPENAI",
+        label: "rebind",
+        apiKey: "sk-test-rebind-0001",
+        baseUrl: "https://public.example/v1",
+      });
+      await expect(
+        patchCredential(userId, created.id, { baseUrl: "https://rebind.example/v1" }),
+      ).rejects.toMatchObject({ code: "VALIDATION_FAILED" });
+
+      // DNS for a stored host can change after save: re-checked before decrypting.
+      setHostResolver(async () => ["10.0.0.7"]);
+      await expect(resolveProviderConfig(userId, created.id)).rejects.toMatchObject({
+        code: "VALIDATION_FAILED",
+      });
+    } finally {
+      setHostResolver(async () => ["93.184.215.14"]);
     }
   });
 
