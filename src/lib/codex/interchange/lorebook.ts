@@ -177,11 +177,15 @@ function looksLikeCharacterBook(entries: unknown[]): boolean {
   );
 }
 
+export function entrySourceKey(raw: unknown, fallback: string | number): string {
+  if (typeof raw === "number" && Number.isFinite(raw)) return String(raw);
+  if (typeof raw === "string" && raw.trim() !== "") return raw.trim();
+  return String(fallback);
+}
+
 /** Original uid, or the container key when the entry has none. */
 export function lorebookSourceKey(entry: InterchangeObject, fallback: string): string {
-  if (typeof entry.uid === "number" && Number.isFinite(entry.uid)) return String(entry.uid);
-  if (typeof entry.uid === "string" && entry.uid.trim() !== "") return entry.uid.trim();
-  return fallback;
+  return entrySourceKey(entry.uid, fallback);
 }
 
 /**
@@ -370,6 +374,18 @@ export function sameStringSet(a: readonly string[], b: readonly string[]): boole
   return b.every((v) => set.has(v));
 }
 
+export function overlayPrimaryKeys(rawKeys: unknown, newAliases: readonly string[]): string[] {
+  const originalKeys = Array.isArray(rawKeys)
+    ? rawKeys.filter((k): k is string => typeof k === "string")
+    : typeof rawKeys === "string"
+      ? [rawKeys]
+      : [];
+  const normalized = normalizePrimaryKeys(originalKeys);
+  return sameStringSet(normalized.aliases, newAliases)
+    ? originalKeys
+    : [...newAliases, ...normalized.regexKeys];
+}
+
 export function activationFlags(mode: CodexTrackingMode): { constant: boolean; disable: boolean } {
   if (mode === "ALWAYS") return { constant: true, disable: false };
   if (mode === "NEVER") return { constant: false, disable: true };
@@ -415,16 +431,7 @@ export function serializeLorebook(
       groups.set(env.groupId, env.bookMetadata);
       const original = env.originalEntry;
       entry = { ...DEFAULT_ENTRY, ...original };
-
-      const originalKeys = Array.isArray(original.key)
-        ? original.key.filter((k): k is string => typeof k === "string")
-        : typeof original.key === "string"
-          ? [original.key]
-          : [];
-      const normalized = normalizePrimaryKeys(originalKeys);
-      entry.key = sameStringSet(normalized.aliases, source.aliases)
-        ? originalKeys
-        : [...source.aliases, ...normalized.regexKeys];
+      entry.key = overlayPrimaryKeys(original.key, source.aliases);
 
       const originalTitle = typeof original.comment === "string" ? original.comment.trim() : "";
       if (originalTitle !== source.name) entry.comment = source.name;

@@ -23,9 +23,9 @@ import { parseDocument } from "yaml";
 import {
   activationFlags,
   activationSemanticsWarning,
-  normalizePrimaryKeys,
+  entrySourceKey,
+  overlayPrimaryKeys,
   parseLorebook,
-  sameStringSet,
 } from "./lorebook";
 import { extractCardText, readPng, base64ToUtf8 } from "./png";
 import {
@@ -354,10 +354,8 @@ function v2DataFrom(fields: InterchangeObject): InterchangeObject {
 
 /** Source key used when an embedded book entry is imported through the lorebook codec. */
 export function characterBookEntrySourceKey(entry: InterchangeObject, index: number): string {
-  const uid = typeof entry.id === "number" || typeof entry.id === "string" ? entry.id : index;
-  if (typeof uid === "number" && Number.isFinite(uid)) return String(uid);
-  if (typeof uid === "string" && uid.trim() !== "") return uid.trim();
-  return String(index);
+  const rawId = typeof entry.id === "number" || typeof entry.id === "string" ? entry.id : index;
+  return entrySourceKey(rawId, index);
 }
 
 function overlayCharacterBookEntry(
@@ -367,22 +365,13 @@ function overlayCharacterBookEntry(
 ): { entry: InterchangeObject; warnings: InterchangeWarning[] } {
   const next: InterchangeObject = { ...original };
   const warnings: InterchangeWarning[] = [];
-  const originalTitle =
-    typeof original.comment === "string" && original.comment.trim()
-      ? original.comment.trim()
-      : typeof original.name === "string"
-        ? original.name.trim()
-        : "";
+  const commentTitle = typeof original.comment === "string" ? original.comment.trim() : "";
+  const nameTitle = typeof original.name === "string" ? original.name.trim() : "";
+  const originalTitle = commentTitle || nameTitle;
   if (originalTitle !== source.name) next.comment = source.name;
   next.content = source.description;
 
-  const originalKeys = Array.isArray(original.keys)
-    ? original.keys.filter((key): key is string => typeof key === "string")
-    : [];
-  const normalized = normalizePrimaryKeys(originalKeys);
-  if (!sameStringSet(normalized.aliases, source.aliases)) {
-    next.keys = [...source.aliases, ...normalized.regexKeys];
-  }
+  next.keys = overlayPrimaryKeys(original.keys, source.aliases);
 
   if (env && source.trackingMode !== env.importedTrackingMode) {
     const flags = activationFlags(source.trackingMode);
