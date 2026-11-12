@@ -1,6 +1,7 @@
 import type { PromptBindings } from "./catalog";
 import { DEFAULT_MAX_CONTENT_CHARS, systemDefaultParts } from "./defaults";
-import { interpolate, tidyInterpolatedText } from "./interpolate";
+import type { CraftInputKey } from "./contracts";
+import { interpolate, tidyInterpolatedText, type InterpolateOptions } from "./interpolate";
 import type { PromptPart, RenderedPrompt, ScenePromptBindingInput } from "./types";
 
 /**
@@ -35,15 +36,21 @@ export function buildSceneBindings(input: ScenePromptBindingInput): PromptBindin
  * that are adjacent are concatenated with a blank line; role changes start a
  * new message. Preview and Generate share this function.
  */
-export function renderPrompt(parts: PromptPart[], bindings: PromptBindings): RenderedPrompt {
+export function renderPrompt(
+  parts: PromptPart[],
+  bindings: PromptBindings,
+  options: InterpolateOptions = {},
+): RenderedPrompt {
   const unresolved = new Set<ReturnType<typeof interpolate>["unresolved"][number]>();
   const unknownTokens = new Set<string>();
+  const unresolvedInputs = new Set<CraftInputKey>();
   const messages: RenderedPrompt["messages"] = [];
 
   for (const part of parts) {
-    const result = interpolate(part.body, bindings);
+    const result = interpolate(part.body, bindings, options);
     for (const token of result.unresolved) unresolved.add(token);
     for (const token of result.unknownTokens) unknownTokens.add(token);
+    for (const token of result.unresolvedInputs ?? []) unresolvedInputs.add(token);
     const content = tidyInterpolatedText(result.text);
     if (!content) continue;
 
@@ -57,12 +64,14 @@ export function renderPrompt(parts: PromptPart[], bindings: PromptBindings): Ren
 
   const joined = messages.map((m) => `--- ${m.role} ---\n${m.content}`).join("\n\n");
 
-  return {
+  const rendered: RenderedPrompt = {
     messages,
     joined,
     unresolved: [...unresolved],
     unknownTokens: [...unknownTokens],
   };
+  if (options.craftInputs) rendered.unresolvedInputs = [...unresolvedInputs];
+  return rendered;
 }
 
 /** Offline render using shipped SYSTEM_DEFAULT templates (no DB). */

@@ -337,6 +337,7 @@ describe("prompt preview + API routes (STO-1158)", () => {
         description: null,
         body: "text",
         role: "USER",
+        contract: null,
         ownerId: "user-1",
         updatedAt: "now",
       });
@@ -361,6 +362,7 @@ describe("prompt preview + API routes (STO-1158)", () => {
         description: null,
         body: "text",
         role: "USER",
+        contract: null,
         ownerId: "user-1",
         updatedAt: "now",
       });

@@ -4,6 +4,19 @@ import {
   type PromptBindings,
   type PromptVariableToken,
 } from "./catalog";
+import { CRAFT_INPUT_KEYS, type CraftInputBindings, type CraftInputKey } from "./contracts";
+
+export interface InterpolateOptions {
+  /**
+   * Validated craft input bindings (STO-1275, from resolveCraftInputs). When
+   * omitted, `{{craft.*}}` tokens behave exactly as before (unknown tokens).
+   */
+  craftInputs?: CraftInputBindings;
+}
+
+function isCraftInputKey(value: string): value is CraftInputKey {
+  return (CRAFT_INPUT_KEYS as readonly string[]).includes(value);
+}
 
 export interface InterpolateResult {
   text: string;
@@ -11,6 +24,8 @@ export interface InterpolateResult {
   unresolved: PromptVariableToken[];
   /** Non-catalog tokens left in place. */
   unknownTokens: string[];
+  /** Craft input tokens without a binding; present only when craftInputs were supplied. */
+  unresolvedInputs?: CraftInputKey[];
 }
 
 /**
@@ -18,15 +33,32 @@ export interface InterpolateResult {
  * - Known token with a defined binding (including "") → substituted.
  * - Known token with undefined/null binding or absent key → left as `{{token}}`.
  * - Unknown token → left as `{{token}}`, listed in unknownTokens.
+ * - With `options.craftInputs`, registered `{{craft.*}}` tokens resolve from it.
+ *
+ * Single pass: substituted values are inserted literally and never re-scanned,
+ * so supplied text containing `{{…}}` is not evaluated a second time.
  */
 export function interpolate(
   template: string,
   bindings: Partial<PromptBindings> = {},
+  options: InterpolateOptions = {},
 ): InterpolateResult {
   const unresolved = new Set<PromptVariableToken>();
   const unknownTokens = new Set<string>();
+  const unresolvedInputs = new Set<CraftInputKey>();
+  const craftInputs = options.craftInputs;
 
   const text = template.replace(VARIABLE_PATTERN, (_match, raw: string) => {
+    if (craftInputs && isCraftInputKey(raw)) {
+      const value = Object.prototype.hasOwnProperty.call(craftInputs, raw)
+        ? craftInputs[raw]
+        : undefined;
+      if (value === undefined || value === null) {
+        unresolvedInputs.add(raw);
+        return `{{${raw}}}`;
+      }
+      return value;
+    }
     if (!isPromptVariableToken(raw)) {
       unknownTokens.add(raw);
       return `{{${raw}}}`;
@@ -43,11 +75,13 @@ export function interpolate(
     return value;
   });
 
-  return {
+  const result: InterpolateResult = {
     text,
     unresolved: [...unresolved],
     unknownTokens: [...unknownTokens],
   };
+  if (craftInputs) result.unresolvedInputs = [...unresolvedInputs];
+  return result;
 }
 
 /**

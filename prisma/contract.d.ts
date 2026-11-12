@@ -23,7 +23,7 @@ import type {
 } from "@prisma/orm-postgres/contract/types";
 
 export type StorageHash =
-  StorageHashBase<"675e71f45aabada220b977253f50d6e820bc32e6f2a1929926c45b8778b8f4bf">;
+  StorageHashBase<"ee75d478a0aa06a08bca418d7025c919d13af0b6021f8fda6c99a78d352e33d0">;
 export type ExecutionHash = ExecutionHashBase<string>;
 export type ProfileHash =
   ProfileHashBase<"3916f444a8a17ad749191acf9e08dad97d1a327b88c2f1d45d12f240296aa8b2">;
@@ -595,6 +595,7 @@ export namespace Models {
   };
   export type public_PromptComponent = {
     body: FieldOutputTypes["public"]["PromptComponent"]["body"];
+    contract: FieldOutputTypes["public"]["PromptComponent"]["contract"];
     createdAt: FieldOutputTypes["public"]["PromptComponent"]["createdAt"];
     deletedAt: FieldOutputTypes["public"]["PromptComponent"]["deletedAt"];
     description: FieldOutputTypes["public"]["PromptComponent"]["description"];
@@ -1768,6 +1769,12 @@ type ContractBase = Omit<
                   readonly dataType: "pg/text";
                   readonly codecId: "pg/text@1";
                   readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly contract: {
+                  readonly dataType: "pg/jsonb";
+                  readonly codecId: "pg/jsonb@1";
+                  readonly nullable: true;
                   readonly many: false;
                 };
                 readonly created_at: {
@@ -3756,6 +3763,10 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: { readonly kind: "scalar"; readonly codecId: "pg/text@1" };
               };
+              readonly contract: {
+                readonly nullable: true;
+                readonly type: { readonly kind: "scalar"; readonly codecId: "pg/jsonb@1" };
+              };
               readonly createdAt: {
                 readonly nullable: false;
                 readonly type: {
@@ -3832,6 +3843,7 @@ type ContractBase = Omit<
               readonly namespaceId: "public";
               readonly fields: {
                 readonly body: { readonly column: "body" };
+                readonly contract: { readonly column: "contract" };
                 readonly createdAt: { readonly column: "created_at" };
                 readonly deletedAt: { readonly column: "deleted_at" };
                 readonly description: { readonly column: "description" };
