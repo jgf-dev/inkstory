@@ -7,6 +7,8 @@ import {
   generateText,
   isAiConfigured,
 } from "../src/lib/ai/generate";
+import { POST as inspectRoute } from "../src/app/api/context/assemble/route";
+import type { ContextInspection } from "../src/lib/codex/context-inspection";
 import { POST as generateRoute } from "../src/app/api/ai/generate/route";
 import * as codexService from "../src/lib/codex/service";
 import * as writingService from "../src/lib/writing/service";
@@ -358,6 +360,55 @@ describe("AI generation (scene continuation / beat expansion)", () => {
       expect(res.status).toBe(200);
       const gatewayBody = JSON.parse(fetchMock.mock.calls[0][1].body);
       expect(gatewayBody.max_tokens).toBe(500);
+    });
+
+    it("Context Inspector matches Generate's post-budget XML for Free and Pro", async () => {
+      for (const limits of [PLANS.FREE, PLANS.PRO]) {
+        vi.mocked(entitlements.getEntitlements).mockResolvedValue(limits);
+        vi.spyOn(writingService, "getSceneForEditor").mockResolvedValue(editorScene);
+        vi.spyOn(codexService, "assembleCodexContextForScene").mockResolvedValue({
+          entries: [
+            {
+              id: "long",
+              name: "Mara",
+              type: "CHARACTER",
+              aliases: [],
+              description: "Long resolved description. ".repeat(2000),
+              source: "always",
+              trackingMode: "always",
+              appliedProgressionIds: ["p1"],
+            },
+          ],
+          meta: { sceneId, totalCandidates: 1, finalCount: 1, truncated: false },
+        });
+        const generated = await generateRoute(
+          makeRequest({ sceneId, mode: "continuation", content: "Live prose" }),
+        );
+        expect(generated.status).toBe(503); // no gateway call or spend
+        const generatedBody = await generated.json<any>();
+        const inspectionResponse = await inspectRoute(
+          new NextRequest("http://localhost:3000/api/context/assemble", {
+            method: "POST",
+            body: JSON.stringify({
+              sceneId,
+              novelId: editorScene.novelId,
+              recentProse: "Live prose",
+              beatText: editorScene.summary || undefined,
+            }),
+          }),
+        );
+        expect(inspectionResponse.status).toBe(200);
+        const inspected = (await inspectionResponse.json()) as ContextInspection;
+        const xml = generatedBody.prompt.system.match(
+          /<codex_context>[\s\S]*?<\/codex_context>/,
+        )?.[0];
+        expect(inspected.inspection.formattedContext).toBe(xml);
+        expect(inspected.inspection.context.meta.maxTokens).toBe(limits.maxContextTokens);
+        expect(inspected.inspection.context.meta.truncatedEntryIds).toEqual(["long"]);
+        expect(inspected.inspection.telemetry.formattedTokens).toBeLessThanOrEqual(
+          limits.maxContextTokens,
+        );
+      }
     });
 
     it("rejects malformed credential/model selections before resolving secrets", async () => {
