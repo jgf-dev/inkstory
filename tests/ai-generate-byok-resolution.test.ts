@@ -57,8 +57,11 @@ function row(extra: Record<string, unknown> = {}) {
     id: "credential",
     ownerId: "owner",
     provider: "OPENAI",
+    label: "Default",
+    keyHint: "1234",
     deletedAt: null,
     baseUrl: null,
+    updatedAt: { toString: () => "2026-11-09T00:00:00" },
     ...encryptSecret(apiKey),
     ...extra,
   };

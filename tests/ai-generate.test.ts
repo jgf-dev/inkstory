@@ -227,12 +227,23 @@ describe("AI generation (scene continuation / beat expansion)", () => {
       vi.restoreAllMocks();
     });
 
-    function prepareByok() {
+    function prepareByok(
+      provider: "openrouter" | "openai" | "anthropic" | "ollama" | "lmstudio" = "openrouter",
+    ) {
       vi.spyOn(writingService, "getSceneForEditor").mockResolvedValue(editorScene);
       vi.spyOn(codexService, "assembleCodexContextForScene").mockResolvedValue({
         entries: [],
         meta: {},
       } as any);
+      vi.spyOn(credentials, "getCredential").mockResolvedValue({
+        id: "saved",
+        provider: credentials.providerNameFromId(provider),
+        label: "saved",
+        keyHint: null,
+        hasKey: true,
+        baseUrl: null,
+        updatedAt: "2026-11-09T00:00:00",
+      });
       return vi.spyOn(credentials, "createProviderFromCredential");
     }
 
@@ -425,7 +436,7 @@ describe("AI generation (scene continuation / beat expansion)", () => {
     it.each(["openrouter", "openai", "anthropic", "ollama", "lmstudio"] as const)(
       "dispatches through the existing %s adapter without transport changes",
       async (provider) => {
-        const resolve = prepareByok();
+        const resolve = prepareByok(provider);
         const fetchMock = vi
           .fn()
           .mockResolvedValue(
@@ -513,6 +524,7 @@ describe("AI generation (scene continuation / beat expansion)", () => {
       });
       expect((await generateRoute(makeRequest(input))).status).toBe(403);
       expect(resolve).not.toHaveBeenCalled();
+      expect(credentials.getCredential).not.toHaveBeenCalled();
     });
 
     it("caps the prompt context at the user's tier token ceiling", async () => {

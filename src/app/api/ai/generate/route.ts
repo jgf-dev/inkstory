@@ -33,9 +33,11 @@ import {
   ByokCryptoError,
   CredentialError,
   createProviderFromCredential,
+  getCredential,
   handleCredentialApiError,
+  providerIdFromName,
 } from "@/lib/ai/credentials";
-import { ProviderError } from "@/lib/ai/providers";
+import { isCustomOpenRouterBaseUrl, ProviderError } from "@/lib/ai/providers";
 
 export const dynamic = "force-dynamic";
 
@@ -229,21 +231,28 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Never silently fall back to platform spend when an explicit credential fails.
-    const provider = await createProviderFromCredential(user.id, body.credentialId!.trim());
+    // Gate controls on stored credential metadata only (no decrypt, no DNS).
+    // resolveProviderConfig's SSRF lookup must not run first, or an
+    // unresolvable custom OpenRouter base would 400 before the 422.
     const model = body.model!.trim();
+    const credentialId = body.credentialId!.trim();
+    const credential = await getCredential(user.id, credentialId);
+    const providerId = providerIdFromName(credential.provider);
     const profile = await resolveCapabilities(
       {
-        provider: provider.id,
+        provider: providerId,
         model,
         endpoint: controls.endpoint,
-        customBaseUrl: provider.customBaseUrl,
+        customBaseUrl: providerId === "openrouter" && isCustomOpenRouterBaseUrl(credential.baseUrl),
       },
       { useCatalog: needsCatalog(controls), signal: request.signal },
     );
     // Unsupported/unknown controls fail here, before the provider is called.
     assertControlsSupported(controls, profile);
     const temperature = profile.controls.temperature.usable ? DEFAULT_TEMPERATURE : undefined;
+
+    // Never silently fall back to platform spend when an explicit credential fails.
+    const provider = await createProviderFromCredential(user.id, credentialId);
 
     const result = await provider.chat({
       model,
