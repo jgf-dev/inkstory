@@ -1,5 +1,5 @@
 import { Temporal } from "temporal-polyfill";
-import { db } from "@/lib/prisma";
+import { db, type DbClient } from "@/lib/prisma";
 import {
   assembleContext,
   type AssembledContext,
@@ -26,6 +26,7 @@ import type {
 
 import { ensureCodexEntryQuota } from "@/lib/billing/entitlements";
 import { CodexError, handleCodexApiError } from "./errors";
+import { protectReservedEnvelope, stripReservedEnvelope } from "./interchange/validate";
 
 export { CodexError, handleCodexApiError };
 
@@ -36,17 +37,18 @@ function nowTimestamp(): Temporal.PlainDateTime {
 /**
  * Validates ownership and resolves scope for a Codex Entry.
  */
-async function resolveAndValidateScope(
+export async function resolveAndValidateScope(
   userId: string,
   seriesScoped: boolean,
   novelId?: string | null,
   seriesId?: string | null,
+  client: { orm: DbClient["orm"] } = db,
 ): Promise<{ resolvedNovelId: string | null; resolvedSeriesId: string | null }> {
   if (seriesScoped) {
     if (!seriesId) {
       throw new CodexError("Series-scoped codex entries require a seriesId", "SCOPING_ERROR", 422);
     }
-    const series = await db.orm.public.Series.where({ id: seriesId }).first();
+    const series = await client.orm.public.Series.where({ id: seriesId }).first();
     if (!series || series.deletedAt !== null) {
       throw new CodexError("Series not found", "NOT_FOUND", 404);
     }
@@ -65,7 +67,7 @@ async function resolveAndValidateScope(
   if (!novelId) {
     throw new CodexError("Book-scoped codex entries require a novelId", "SCOPING_ERROR", 422);
   }
-  const novel = await db.orm.public.Novel.where({ id: novelId }).first();
+  const novel = await client.orm.public.Novel.where({ id: novelId }).first();
   if (!novel || novel.deletedAt !== null) {
     throw new CodexError("Novel not found", "NOT_FOUND", 404);
   }
@@ -147,7 +149,8 @@ async function insertCodexEntry(
     seriesScoped: Boolean(input.seriesScoped),
     novelId: resolvedNovelId,
     seriesId: resolvedSeriesId,
-    customFields: (input.customFields as any) ?? null,
+    // The interchange envelope is written only by the interchange service.
+    customFields: (stripReservedEnvelope(input.customFields) as any) ?? null,
     color: input.color ?? null,
     thumbnailUrl: input.thumbnailUrl ?? null,
     position: input.position ?? 0,
@@ -381,6 +384,13 @@ export async function updateCodexEntry(
     updatedAt: nowTimestamp(),
     ...buildCodexEntryFieldUpdates(input),
   };
+  if (input.customFields !== undefined) {
+    // Generic edits cannot forge or drop interchange metadata (STO-1262).
+    updateData.customFields = protectReservedEnvelope(
+      input.customFields ?? null,
+      entry.customFields,
+    );
+  }
 
   if (
     input.seriesScoped !== undefined ||
