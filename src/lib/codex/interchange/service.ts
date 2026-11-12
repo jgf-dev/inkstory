@@ -23,6 +23,7 @@ import {
   type LorebookImportOptions,
   type LorebookPreview,
   type LorebookEntryDraft,
+  type ParsedLorebook,
 } from "./types";
 import { invalid, isPlainObject, readInterchangeEnvelope } from "./validate";
 
@@ -83,10 +84,142 @@ export interface LorebookImportResult {
   warnings: InterchangeWarning[];
 }
 
+/** One native entry (plus aliases) to create inside an interchange import batch. */
+export interface InterchangeBatchEntry {
+  id: string;
+  name: string;
+  type: CodexType;
+  description: string;
+  trackingMode: CodexTrackingMode;
+  customFields: Record<string, unknown>;
+  position: number;
+  aliases: string[];
+}
+
+export interface InterchangeScope {
+  novelId?: string | null;
+  seriesId?: string | null;
+  seriesScoped?: boolean;
+}
+
+/**
+ * Creates a batch of imported Codex entries and aliases in one transaction.
+ * Scope, ownership and the plan's entry quota are checked inside it, so a
+ * failure leaves no partial import. Shared by lorebook and card imports.
+ */
+export async function commitInterchangeBatch(
+  userId: string,
+  scope: InterchangeScope,
+  entries: readonly InterchangeBatchEntry[],
+): Promise<void> {
+  const now = Temporal.Now.plainDateTimeISO();
+  const seriesScoped = Boolean(scope.seriesScoped);
+
+  await db.transaction(async (tx) => {
+    // Serialize concurrent imports/creates for this user so the quota check holds.
+    await tx.orm.public.User.where({ id: userId }).forNoKeyUpdate().first();
+    const { resolvedNovelId, resolvedSeriesId } = await resolveAndValidateScope(
+      userId,
+      seriesScoped,
+      scope.novelId,
+      scope.seriesId,
+      tx,
+    );
+
+    const limits = await getEntitlements(userId, tx);
+    if (limits.maxCodexEntries !== Number.POSITIVE_INFINITY) {
+      const existing = await tx.orm.public.CodexEntry.where((e) => e.ownerId.eq(userId))
+        .where((e) => e.deletedAt.isNull())
+        .all();
+      if (existing.length + entries.length > limits.maxCodexEntries) {
+        throw new CodexError(
+          `Plan limit reached: importing ${entries.length} entries would exceed ${limits.maxCodexEntries} codex entries. Upgrade for unlimited entries.`,
+          "QUOTA_EXCEEDED",
+          402,
+        );
+      }
+    }
+
+    await tx.orm.public.CodexEntry.createAndCount(
+      entries.map((entry) => ({
+        id: entry.id,
+        ownerId: userId,
+        name: entry.name,
+        type: entry.type,
+        description: entry.description,
+        notes: null,
+        trackingMode: entry.trackingMode,
+        seriesScoped,
+        novelId: resolvedNovelId,
+        seriesId: resolvedSeriesId,
+        customFields: entry.customFields as any,
+        color: null,
+        thumbnailUrl: null,
+        position: entry.position,
+        createdAt: now,
+        updatedAt: now,
+        deletedAt: null,
+      })),
+    );
+
+    const aliasRows = entries.flatMap((entry) =>
+      entry.aliases.map((name) => ({
+        id: crypto.randomUUID(),
+        entryId: entry.id,
+        name,
+        createdAt: now,
+        updatedAt: now,
+        deletedAt: null,
+      })),
+    );
+    if (aliasRows.length > 0) {
+      await tx.orm.public.CodexAlias.createAndCount(aliasRows);
+    }
+  });
+}
+
+/**
+ * Turns parsed lorebook drafts into batch entries with their envelopes.
+ * Activation overrides are applied here (after the parsed modes are recorded,
+ * because export compares against the mode the file's own flags imply).
+ */
+export function prepareLorebookBatch(
+  parsed: ParsedLorebook,
+  options: { type: CodexType; groupId: string; activationOverrides?: unknown },
+  warnings: InterchangeWarning[],
+): InterchangeBatchEntry[] {
+  const parsedModes = new Map(parsed.drafts.map((d) => [d, d.trackingMode]));
+  applyActivationOverrides(parsed.drafts, options.activationOverrides, warnings);
+  return parsed.drafts.map((draft) => {
+    const envelope: InterchangeEnvelope = {
+      schemaVersion: INTERCHANGE_SCHEMA_VERSION,
+      format: LOREBOOK_FORMAT,
+      sourceVersion: parsed.preview.sourceVersion,
+      groupId: options.groupId,
+      sourceEntryKey: draft.sourceEntryKey,
+      sourceOrder: draft.sourceOrder,
+      originalEntry: draft.originalEntry,
+      bookMetadata: parsed.bookMetadata,
+      mappingVersion: LOREBOOK_MAPPING_VERSION,
+      importedTrackingMode: parsedModes.get(draft) ?? draft.trackingMode,
+      unsupportedFeatures: draft.unsupportedFeatures,
+    };
+    return {
+      id: crypto.randomUUID(),
+      name: draft.name,
+      type: options.type,
+      description: draft.description,
+      trackingMode: draft.trackingMode,
+      customFields: { [INTERCHANGE_ENVELOPE_KEY]: envelope },
+      position: draft.sourceOrder,
+      aliases: draft.aliases,
+    };
+  });
+}
+
 /**
  * Imports a lorebook as new Codex entries (create-copy; never overwrites).
- * The whole batch commits in one transaction: scope, ownership and the plan's
- * entry quota are checked inside it, so a failure leaves no partial import.
+ * The whole batch commits in one transaction (see commitInterchangeBatch).
  */
 export async function importLorebook(
   userId: string,
@@ -100,101 +233,21 @@ export async function importLorebook(
   if (!CODEX_TYPES.has(type)) {
     throw invalid("type must be a valid Codex entry type");
   }
-  // Export compares against the mode the file's own flags imply, so record it
-  // before overrides change the drafts.
-  const parsedModes = new Map(parsed.drafts.map((d) => [d, d.trackingMode]));
-  applyActivationOverrides(parsed.drafts, options.activationOverrides, warnings);
-
   const groupId = crypto.randomUUID();
-  const now = Temporal.Now.plainDateTimeISO();
-  const seriesScoped = Boolean(options.seriesScoped);
-
-  const prepared = parsed.drafts.map((draft) => {
-    const envelope: InterchangeEnvelope = {
-      schemaVersion: INTERCHANGE_SCHEMA_VERSION,
-      format: LOREBOOK_FORMAT,
-      sourceVersion: parsed.preview.sourceVersion,
-      groupId,
-      sourceEntryKey: draft.sourceEntryKey,
-      sourceOrder: draft.sourceOrder,
-      originalEntry: draft.originalEntry,
-      bookMetadata: parsed.bookMetadata,
-      mappingVersion: LOREBOOK_MAPPING_VERSION,
-      importedTrackingMode: parsedModes.get(draft) ?? draft.trackingMode,
-      unsupportedFeatures: draft.unsupportedFeatures,
-    };
-    return { id: crypto.randomUUID(), draft, envelope };
-  });
-
-  await db.transaction(async (tx) => {
-    // Serialize concurrent imports/creates for this user so the quota check holds.
-    await tx.orm.public.User.where({ id: userId }).forNoKeyUpdate().first();
-    const { resolvedNovelId, resolvedSeriesId } = await resolveAndValidateScope(
-      userId,
-      seriesScoped,
-      options.novelId,
-      options.seriesId,
-      tx,
-    );
-
-    const limits = await getEntitlements(userId, tx);
-    if (limits.maxCodexEntries !== Number.POSITIVE_INFINITY) {
-      const existing = await tx.orm.public.CodexEntry.where((e) => e.ownerId.eq(userId))
-        .where((e) => e.deletedAt.isNull())
-        .all();
-      if (existing.length + prepared.length > limits.maxCodexEntries) {
-        throw new CodexError(
-          `Plan limit reached: importing ${prepared.length} entries would exceed ${limits.maxCodexEntries} codex entries. Upgrade for unlimited entries.`,
-          "QUOTA_EXCEEDED",
-          402,
-        );
-      }
-    }
-
-    await tx.orm.public.CodexEntry.createAndCount(
-      prepared.map(({ id, draft, envelope }) => ({
-        id,
-        ownerId: userId,
-        name: draft.name,
-        type,
-        description: draft.description,
-        notes: null,
-        trackingMode: draft.trackingMode,
-        seriesScoped,
-        novelId: resolvedNovelId,
-        seriesId: resolvedSeriesId,
-        customFields: { [INTERCHANGE_ENVELOPE_KEY]: envelope } as any,
-        color: null,
-        thumbnailUrl: null,
-        position: draft.sourceOrder,
-        createdAt: now,
-        updatedAt: now,
-        deletedAt: null,
-      })),
-    );
-
-    const aliasRows = prepared.flatMap(({ id, draft }) =>
-      draft.aliases.map((name) => ({
-        id: crypto.randomUUID(),
-        entryId: id,
-        name,
-        createdAt: now,
-        updatedAt: now,
-        deletedAt: null,
-      })),
-    );
-    if (aliasRows.length > 0) {
-      await tx.orm.public.CodexAlias.createAndCount(aliasRows);
-    }
-  });
+  const batch = prepareLorebookBatch(
+    parsed,
+    { type, groupId, activationOverrides: options.activationOverrides },
+    warnings,
+  );
+  await commitInterchangeBatch(userId, options, batch);
 
   return {
     groupId,
-    created: prepared.map(({ id, draft }) => ({
-      id,
-      name: draft.name,
-      sourceEntryKey: draft.sourceEntryKey,
-      trackingMode: draft.trackingMode,
+    created: batch.map((entry, i) => ({
+      id: entry.id,
+      name: entry.name,
+      sourceEntryKey: parsed.drafts[i]!.sourceEntryKey,
+      trackingMode: entry.trackingMode,
     })),
     warnings,
   };
@@ -211,7 +264,11 @@ export interface LorebookExportResult {
   warnings: InterchangeWarning[];
 }
 
-function exportFilename(name: string | null): string {
+export function exportFilename(
+  name: string | null,
+  extension = "json",
+  fallback = "lorebook",
+): string {
   const slug = (name ?? "")
     .normalize("NFKD")
     .replace(/[^\w\s-]/g, "")
@@ -219,34 +276,14 @@ function exportFilename(name: string | null): string {
     .replace(/[\s_]+/g, "-")
     .toLowerCase()
     .slice(0, 80);
-  return `${slug || "lorebook"}.json`;
+  return `${slug || fallback}.${extension}`;
 }
 
 /**
- * Exports the selected Codex entries as SillyTavern lorebook JSON. Every id
- * must be an active entry owned by the caller in a live novel/series;
- * anything else is reported as not found.
+ * Loads active entries owned by the caller in a live novel/series. Any id that
+ * is missing, foreign, deleted or under a deleted ancestor is a 404.
  */
-export async function exportLorebook(
-  userId: string,
-  input: LorebookExportInput,
-): Promise<LorebookExportResult> {
-  const { entryIds, name } = input;
-  if (
-    !Array.isArray(entryIds) ||
-    entryIds.length === 0 ||
-    !entryIds.every((id) => typeof id === "string" && id.length > 0)
-  ) {
-    throw invalid("entryIds must be a non-empty list of entry ids");
-  }
-  const ids = [...new Set(entryIds as string[])];
-  if (ids.length > LOREBOOK_LIMITS.maxEntries) {
-    throw invalid(`Cannot export more than ${LOREBOOK_LIMITS.maxEntries} entries at once`);
-  }
-  if (name !== undefined && name !== null && typeof name !== "string") {
-    throw invalid("name must be text");
-  }
-
+export async function loadOwnedLiveEntries(userId: string, ids: string[]) {
   const rows = await db.orm.public.CodexEntry.where((e) => e.id.in(ids))
     .where((e) => e.ownerId.eq(userId))
     .where((e) => e.deletedAt.isNull())
@@ -278,6 +315,36 @@ export async function exportLorebook(
       throw new CodexError("One or more codex entries were not found", "NOT_FOUND", 404);
     }
   }
+
+  return rows;
+}
+
+/**
+ * Exports the selected Codex entries as SillyTavern lorebook JSON. Every id
+ * must be an active entry owned by the caller in a live novel/series;
+ * anything else is reported as not found.
+ */
+export async function exportLorebook(
+  userId: string,
+  input: LorebookExportInput,
+): Promise<LorebookExportResult> {
+  const { entryIds, name } = input;
+  if (
+    !Array.isArray(entryIds) ||
+    entryIds.length === 0 ||
+    !entryIds.every((id) => typeof id === "string" && id.length > 0)
+  ) {
+    throw invalid("entryIds must be a non-empty list of entry ids");
+  }
+  const ids = [...new Set(entryIds as string[])];
+  if (ids.length > LOREBOOK_LIMITS.maxEntries) {
+    throw invalid(`Cannot export more than ${LOREBOOK_LIMITS.maxEntries} entries at once`);
+  }
+  if (name !== undefined && name !== null && typeof name !== "string") {
+    throw invalid("name must be text");
+  }
+
+  const rows = await loadOwnedLiveEntries(userId, ids);
 
   const [aliases, tags, outgoing, incoming, progressions] = await Promise.all([
     db.orm.public.CodexAlias.where((a) => a.entryId.in(ids))

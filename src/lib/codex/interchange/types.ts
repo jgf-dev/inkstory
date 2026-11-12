@@ -1,5 +1,5 @@
 /**
- * Codex interchange types (STO-1261 / STO-1262).
+ * Codex interchange types (STO-1261 / STO-1262 / STO-1263).
  *
  * Third-party metadata is preserved in a reserved, versioned namespace of the
  * existing `CodexEntry.customFields` JSON (`_inkstoryInterchange`). No new
@@ -96,7 +96,16 @@ export interface InterchangeWarning {
     | "ENVELOPE_INVALID"
     | "MIXED_GROUPS"
     | "ACTIVATION_SEMANTICS_DIFFER"
-    | "NOT_PORTABLE";
+    | "NOT_PORTABLE"
+    // Character cards (STO-1263)
+    | "LEGACY_V1_CARD"
+    | "V3_PARTIAL_SUPPORT"
+    | "V3_FIELDS_NOT_EXPORTED"
+    | "SPEC_VERSION_UNKNOWN"
+    | "EMBEDDED_BOOK_INVALID"
+    | "EMBEDDED_BOOK_NOT_IMPORTED"
+    | "EMBEDDED_BOOK_FROM_IMPORT"
+    | "NOT_A_CHARACTER";
   message: string;
   sourceEntryKey?: string;
   entryId?: string;
@@ -162,5 +171,103 @@ export interface LorebookExportSource {
 
 export interface SerializedLorebook {
   lorebook: InterchangeObject;
+  warnings: InterchangeWarning[];
+}
+
+// ─── Character cards (STO-1263) ─────────────────────────────────────────────
+
+export const CARD_FORMAT = "character_card";
+export const CARD_MAPPING_VERSION = 1;
+
+/** Card variants inkstory recognizes. Only V2 is written on export. */
+export type CardSourceVersion = "v1" | "v2" | "v3";
+export type CardEncoding = "json" | "yaml" | "png";
+
+export const CARD_LIMITS = {
+  /** Raw JSON/YAML card text (UTF-8 bytes). */
+  maxFileBytes: 2 * 1024 * 1024,
+  /** Raw PNG bytes (card import and author-supplied export portrait). */
+  maxPngBytes: 8 * 1024 * 1024,
+  maxPngChunks: 4096,
+  maxPngDimension: 8192,
+  maxPngPixels: 8192 * 4096,
+  /** Base64 text inside one `chara` / `ccv3` tEXt chunk. */
+  maxCardTextBytes: 3 * 1024 * 1024,
+  maxDepth: 32,
+  maxStringLength: 200_000,
+  /** Serialized size of the preserved card (description excluded). */
+  maxOriginalCardBytes: 512 * 1024,
+  maxNameLength: 200,
+} as const;
+
+/** Stored under `customFields._inkstoryInterchange` on an imported character entry. */
+export interface CardEnvelope {
+  schemaVersion: typeof INTERCHANGE_SCHEMA_VERSION;
+  format: typeof CARD_FORMAT;
+  sourceVersion: CardSourceVersion;
+  sourceEncoding: CardEncoding;
+  /** Server-generated id; embedded-book entries imported with the card share it. */
+  groupId: string;
+  /** The original card minus the description (which lives in `description`). */
+  originalCard: InterchangeObject;
+  mappingVersion: number;
+  /** True when the embedded character_book was imported as separate entries. */
+  embeddedBookImported: boolean;
+}
+
+export interface CardEmbeddedBookPreview {
+  name: string | null;
+  entryCount: number;
+  entries: LorebookPreviewEntry[];
+  warnings: InterchangeWarning[];
+}
+
+export interface CardPreview {
+  format: typeof CARD_FORMAT;
+  sourceVersion: CardSourceVersion;
+  sourceEncoding: CardEncoding;
+  name: string;
+  description: string;
+  /** Card fields that become native Codex data and can reach generation. */
+  mappedFields: string[];
+  /** Card fields kept only as interchange metadata (never generation input). */
+  preservedFields: string[];
+  embeddedBook: CardEmbeddedBookPreview | null;
+  warnings: InterchangeWarning[];
+}
+
+export interface ParsedCard {
+  preview: CardPreview;
+  originalCard: InterchangeObject;
+  /** Parsed embedded character_book, ready for the lorebook import path. */
+  embeddedBook: ParsedLorebook | null;
+}
+
+export type CardInput =
+  | { encoding: "json" | "yaml"; content: string }
+  | { encoding: "png"; bytes: Uint8Array };
+
+export interface CardImportOptions {
+  novelId?: string | null;
+  seriesId?: string | null;
+  seriesScoped?: boolean;
+  /** Opt-in: also create LORE entries from the embedded character_book. */
+  importEmbeddedBook?: boolean;
+  /** Tracking-mode overrides for embedded-book entries, keyed by sourceEntryKey. */
+  bookActivationOverrides?: Record<string, CodexTrackingMode>;
+}
+
+export interface CardExportSource {
+  id: string;
+  name: string;
+  description: string;
+  type: CodexType;
+  aliases: string[];
+  tags: string[];
+  customFields: unknown;
+}
+
+export interface SerializedCard {
+  card: InterchangeObject;
   warnings: InterchangeWarning[];
 }

@@ -6,9 +6,11 @@
 import { CodexError } from "../errors";
 import type { JsonValue } from "../types";
 import {
+  CARD_FORMAT,
   INTERCHANGE_ENVELOPE_KEY,
   INTERCHANGE_SCHEMA_VERSION,
   LOREBOOK_FORMAT,
+  type CardEnvelope,
   type InterchangeEnvelope,
   type InterchangeObject,
 } from "./types";
@@ -58,6 +60,11 @@ function assertSafeJson(value: unknown, limits: JsonLimits, depth: number, path:
   }
 }
 
+/** Applies the depth/string/prototype-key checks to an already-parsed value. */
+export function assertBoundedValue(value: unknown, limits: JsonLimits): void {
+  assertSafeJson(value, limits, 0, "$");
+}
+
 /**
  * Parses untrusted file text as JSON within size, depth and string limits,
  * rejecting prototype-pollution keys. Throws 422 VALIDATION_FAILED.
@@ -82,7 +89,12 @@ export function parseBoundedJson(raw: unknown, limits: JsonLimits): JsonValue {
 export type EnvelopeRead =
   | { status: "absent" }
   | { status: "invalid" }
+  /** A valid envelope written by another interchange format (e.g. a character card). */
+  | { status: "other"; format: string }
   | { status: "ok"; envelope: InterchangeEnvelope };
+
+const CARD_VERSIONS = new Set(["v1", "v2", "v3"]);
+const CARD_ENCODINGS = new Set(["json", "yaml", "png"]);
 
 /**
  * Reads and validates the reserved interchange envelope from customFields.
@@ -93,6 +105,11 @@ export function readInterchangeEnvelope(customFields: unknown): EnvelopeRead {
     return { status: "absent" };
   }
   const env = customFields[INTERCHANGE_ENVELOPE_KEY];
+  if (isPlainObject(env) && env.format === CARD_FORMAT) {
+    return readCardEnvelope(customFields).status === "ok"
+      ? { status: "other", format: CARD_FORMAT }
+      : { status: "invalid" };
+  }
   if (
     !isPlainObject(env) ||
     env.schemaVersion !== INTERCHANGE_SCHEMA_VERSION ||
@@ -112,6 +129,38 @@ export function readInterchangeEnvelope(customFields: unknown): EnvelopeRead {
     return { status: "invalid" };
   }
   return { status: "ok", envelope: env as unknown as InterchangeEnvelope };
+}
+
+export type CardEnvelopeRead =
+  | { status: "absent" }
+  | { status: "invalid" }
+  | { status: "other"; format: string }
+  | { status: "ok"; envelope: CardEnvelope };
+
+/** Reads and validates a character-card envelope (STO-1263). Never trusts hand edits. */
+export function readCardEnvelope(customFields: unknown): CardEnvelopeRead {
+  if (!isPlainObject(customFields) || !(INTERCHANGE_ENVELOPE_KEY in customFields)) {
+    return { status: "absent" };
+  }
+  const env = customFields[INTERCHANGE_ENVELOPE_KEY];
+  if (isPlainObject(env) && typeof env.format === "string" && env.format !== CARD_FORMAT) {
+    return { status: "other", format: env.format };
+  }
+  if (
+    !isPlainObject(env) ||
+    env.schemaVersion !== INTERCHANGE_SCHEMA_VERSION ||
+    typeof env.sourceVersion !== "string" ||
+    !CARD_VERSIONS.has(env.sourceVersion) ||
+    typeof env.sourceEncoding !== "string" ||
+    !CARD_ENCODINGS.has(env.sourceEncoding) ||
+    typeof env.groupId !== "string" ||
+    !isPlainObject(env.originalCard) ||
+    typeof env.mappingVersion !== "number" ||
+    typeof env.embeddedBookImported !== "boolean"
+  ) {
+    return { status: "invalid" };
+  }
+  return { status: "ok", envelope: env as unknown as CardEnvelope };
 }
 
 /** Returns a copy of customFields without the reserved envelope key. */
