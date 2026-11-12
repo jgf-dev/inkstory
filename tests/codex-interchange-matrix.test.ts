@@ -157,6 +157,17 @@ describe("STO-1261 interchange variant matrix", () => {
     });
   });
 
+  it("does not claim an overlay when no embedded book entry is still live", () => {
+    const parsed = parseCharacterCard({ encoding: "json", content: cardJson });
+    const book = (parsed.originalCard.data as InterchangeObject)
+      .character_book as InterchangeObject;
+    const { warnings } = overlayCharacterBook(book, []);
+
+    const codes = warnings.map((w) => w.code);
+    expect(codes).not.toContain("EMBEDDED_BOOK_OVERLAID");
+    expect(codes.every((code) => code === "EMBEDDED_BOOK_ENTRY_MISSING")).toBe(true);
+  });
+
   it("overlays Codex edits onto a preserved character_book and keeps missing entries", () => {
     const parsed = parseCharacterCard({ encoding: "json", content: cardJson });
     const book = (parsed.originalCard.data as InterchangeObject)

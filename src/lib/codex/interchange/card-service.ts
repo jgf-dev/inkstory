@@ -206,11 +206,7 @@ export async function exportCharacterCard(
       .where((t) => t.deletedAt.isNull())
       .all(),
     cardEnvelope.status === "ok" && cardEnvelope.envelope.embeddedBookImported
-      ? loadImportedGroupBookSources(userId, cardEnvelope.envelope.groupId, {
-          novelId: row!.novelId,
-          seriesId: row!.seriesId,
-          seriesScoped: row!.seriesScoped,
-        })
+      ? loadImportedGroupBookSources(userId, cardEnvelope.envelope.groupId)
       : Promise.resolve(undefined),
   ]);
 

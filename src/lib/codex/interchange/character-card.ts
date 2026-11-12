@@ -412,6 +412,7 @@ export function overlayCharacterBook(
   if (!Array.isArray(book.entries)) return { book, warnings };
 
   const byKey = new Map<string, LorebookExportSource>();
+  let overlaidCount = 0;
   for (const source of sources) {
     const read = readInterchangeEnvelope(source.customFields);
     if (read.status === "ok") byKey.set(read.envelope.sourceEntryKey, source);
@@ -437,15 +438,18 @@ export function overlayCharacterBook(
       read.status === "ok" ? read.envelope : null,
     );
     warnings.push(...overlaid.warnings);
+    overlaidCount += 1;
     return overlaid.entry;
   });
 
-  warnings.unshift({
-    code: "EMBEDDED_BOOK_OVERLAID",
-    message:
-      "The embedded character book includes current Codex edits to imported entries (name, description, aliases and activation).",
-    entryId: options.cardEntryId,
-  });
+  if (overlaidCount > 0) {
+    warnings.unshift({
+      code: "EMBEDDED_BOOK_OVERLAID",
+      message:
+        "The embedded character book includes current Codex edits to imported entries (name, description, aliases and activation).",
+      entryId: options.cardEntryId,
+    });
+  }
 
   return { book: { ...book, entries }, warnings };
 }

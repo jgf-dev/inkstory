@@ -321,27 +321,17 @@ export async function loadOwnedLiveEntries(userId: string, ids: string[]) {
 
 /**
  * Live lorebook entries that were imported with the same interchange group
- * (the card and its opted-in character_book, or one lorebook file). Restricted
- * to the same novel or series scope as `scope`.
+ * (the card and its opted-in character_book, or one lorebook file). The group
+ * id is unique per import, so entries are matched by owner and group only:
+ * moving the card or a book entry to another novel or series keeps the link.
  */
 export async function loadImportedGroupBookSources(
   userId: string,
   groupId: string,
-  scope: { novelId: string | null; seriesId: string | null; seriesScoped: boolean },
 ): Promise<LorebookExportSource[]> {
-  let query = db.orm.public.CodexEntry.where((e) => e.ownerId.eq(userId)).where((e) =>
-    e.deletedAt.isNull(),
-  );
-  if (scope.seriesScoped && scope.seriesId) {
-    query = query
-      .where((e) => e.seriesId.eq(scope.seriesId!))
-      .where((e) => e.seriesScoped.eq(true));
-  } else if (scope.novelId) {
-    query = query.where((e) => e.novelId.eq(scope.novelId!));
-  } else {
-    return [];
-  }
-  const rows = await query.all();
+  const rows = await db.orm.public.CodexEntry.where((e) => e.ownerId.eq(userId))
+    .where((e) => e.deletedAt.isNull())
+    .all();
   const bookRows = rows.filter((row) => {
     const read = readInterchangeEnvelope(row.customFields);
     return read.status === "ok" && read.envelope.groupId === groupId;
