@@ -7,6 +7,8 @@ import {
   generateText,
   isAiConfigured,
 } from "../src/lib/ai/generate";
+import { POST as inspectRoute } from "../src/app/api/context/assemble/route";
+import type { ContextInspection } from "../src/lib/codex/context-inspection";
 import { POST as generateRoute } from "../src/app/api/ai/generate/route";
 import * as codexService from "../src/lib/codex/service";
 import * as writingService from "../src/lib/writing/service";
@@ -15,6 +17,8 @@ import * as entitlements from "../src/lib/billing/entitlements";
 import { PLANS } from "../src/lib/billing/plans";
 import * as tokenBudgeter from "../src/lib/codex/token-budgeter";
 import * as prompts from "../src/lib/prompts";
+import * as credentials from "../src/lib/ai/credentials";
+import { createProvider, ProviderError, type LlmProvider } from "../src/lib/ai/providers";
 import { renderDefaultScenePrompt } from "../src/lib/prompts";
 
 const mockGetUser = vi.fn();
@@ -31,6 +35,7 @@ function fetchPayload(body: unknown, ok = true): Response {
     ok,
     status: ok ? 200 : 500,
     json: async () => body,
+    text: async () => JSON.stringify(body),
   } as unknown as Response;
 }
 
@@ -220,6 +225,30 @@ describe("AI generation (scene continuation / beat expansion)", () => {
       vi.stubEnv("AI_GATEWAY_API_KEY", "");
     });
 
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    function prepareByok(
+      provider: "openrouter" | "openai" | "anthropic" | "ollama" | "lmstudio" = "openrouter",
+    ) {
+      vi.spyOn(writingService, "getSceneForEditor").mockResolvedValue(editorScene);
+      vi.spyOn(codexService, "assembleCodexContextForScene").mockResolvedValue({
+        entries: [],
+        meta: {},
+      } as any);
+      vi.spyOn(credentials, "getCredential").mockResolvedValue({
+        id: "saved",
+        provider: credentials.providerNameFromId(provider),
+        label: "saved",
+        keyHint: null,
+        hasKey: true,
+        baseUrl: null,
+        updatedAt: "2026-11-09T00:00:00",
+      });
+      return vi.spyOn(credentials, "createProviderFromCredential");
+    }
+
     function makeRequest(body: unknown) {
       return new NextRequest("http://localhost:3000/api/ai/generate", {
         method: "POST",
@@ -331,6 +360,222 @@ describe("AI generation (scene continuation / beat expansion)", () => {
       expect(res.status).toBe(200);
       const gatewayBody = JSON.parse(fetchMock.mock.calls[0][1].body);
       expect(gatewayBody.max_tokens).toBe(500);
+    });
+
+    it("Context Inspector matches Generate's post-budget XML for Free and Pro", async () => {
+      for (const limits of [PLANS.FREE, PLANS.PRO]) {
+        vi.mocked(entitlements.getEntitlements).mockResolvedValue(limits);
+        vi.spyOn(writingService, "getSceneForEditor").mockResolvedValue(editorScene);
+        vi.spyOn(codexService, "assembleCodexContextForScene").mockResolvedValue({
+          entries: [
+            {
+              id: "long",
+              name: "Mara",
+              type: "CHARACTER",
+              aliases: [],
+              description: "Long resolved description. ".repeat(2000),
+              source: "always",
+              trackingMode: "always",
+              appliedProgressionIds: ["p1"],
+            },
+          ],
+          meta: { sceneId, totalCandidates: 1, finalCount: 1, truncated: false },
+        });
+        const generated = await generateRoute(
+          makeRequest({ sceneId, mode: "continuation", content: "Live prose" }),
+        );
+        expect(generated.status).toBe(503); // no gateway call or spend
+        const generatedBody = await generated.json<any>();
+        const inspectionResponse = await inspectRoute(
+          new NextRequest("http://localhost:3000/api/context/assemble", {
+            method: "POST",
+            body: JSON.stringify({
+              sceneId,
+              novelId: editorScene.novelId,
+              recentProse: "Live prose",
+              beatText: editorScene.summary || undefined,
+            }),
+          }),
+        );
+        expect(inspectionResponse.status).toBe(200);
+        const inspected = (await inspectionResponse.json()) as ContextInspection;
+        const xml = generatedBody.prompt.system.match(
+          /<codex_context>[\s\S]*?<\/codex_context>/,
+        )?.[0];
+        expect(inspected.inspection.formattedContext).toBe(xml);
+        expect(inspected.inspection.context.meta.maxTokens).toBe(limits.maxContextTokens);
+        expect(inspected.inspection.context.meta.truncatedEntryIds).toEqual(["long"]);
+        expect(inspected.inspection.telemetry.formattedTokens).toBeLessThanOrEqual(
+          limits.maxContextTokens,
+        );
+      }
+    });
+
+    it("rejects malformed credential/model selections before resolving secrets", async () => {
+      const resolve = vi.spyOn(credentials, "createProviderFromCredential");
+      for (const extra of [
+        { credentialId: null },
+        { credentialId: 1 },
+        { credentialId: "" },
+        { credentialId: " " },
+        { credentialId: "x".repeat(129), model: "m" },
+        { credentialId: "saved" },
+        { credentialId: "saved", model: null },
+        { credentialId: "saved", model: 12 },
+        { credentialId: "saved", model: " " },
+        { credentialId: "saved", model: "m".repeat(257) },
+        { model: "model-without-credential" },
+      ]) {
+        const response = await generateRoute(
+          makeRequest({ sceneId, mode: "continuation", ...extra }),
+        );
+        expect(response.status).toBe(400);
+        expect((await response.json<any>()).code).toBe("VALIDATION_FAILED");
+      }
+      expect(resolve).not.toHaveBeenCalled();
+    });
+
+    it.each(["", "platform-key"])(
+      "uses selected credential, not gateway (gateway key=%s)",
+      async (gatewayKey) => {
+        vi.stubEnv("AI_GATEWAY_API_KEY", gatewayKey);
+        const resolve = prepareByok();
+        const chat = vi.fn().mockResolvedValue({
+          text: "BYOK prose",
+          model: "served-model",
+          apiKey: "must-not-leak",
+          ciphertext: "must-not-leak",
+        });
+        resolve.mockResolvedValue({ id: "openrouter", chat } as unknown as LlmProvider);
+        const fetchMock = vi.fn();
+        vi.stubGlobal("fetch", fetchMock);
+        const request = makeRequest({
+          sceneId,
+          mode: "beat_expansion",
+          credentialId: "saved",
+          model: "  vendor/model  ",
+          content: "Fresh prose",
+          maxTokens: 256,
+        });
+        const response = await generateRoute(request);
+        expect(response.status).toBe(200);
+        const json = await response.json<any>();
+        expect(json).toMatchObject({ text: "BYOK prose", model: "served-model" });
+        expect(json.applied).toEqual({
+          provider: "openrouter",
+          requestedModel: "vendor/model",
+          model: "served-model",
+          endpoint: null,
+          parameters: { max_tokens: 256, temperature: 0.7 },
+          routing: null,
+          avoidanceGuidance: "none",
+        });
+        expect(JSON.stringify(json)).not.toContain("must-not-leak");
+        expect(resolve).toHaveBeenCalledExactlyOnceWith("ai-user", "saved");
+        expect(chat).toHaveBeenCalledWith({
+          model: "vendor/model",
+          messages: expect.any(Array),
+          maxOutputTokens: 256,
+          temperature: 0.7,
+          signal: request.signal,
+        });
+        expect(chat.mock.calls[0][0].messages[1].content).toContain("Fresh prose");
+        expect(fetchMock).not.toHaveBeenCalled();
+      },
+    );
+
+    it.each(["openrouter", "openai", "anthropic", "ollama", "lmstudio"] as const)(
+      "dispatches through the existing %s adapter without transport changes",
+      async (provider) => {
+        const resolve = prepareByok(provider);
+        const fetchMock = vi
+          .fn()
+          .mockResolvedValue(
+            fetchPayload(
+              provider === "anthropic"
+                ? { model: "native-model", content: [{ type: "text", text: "Adapter prose" }] }
+                : { model: "native-model", choices: [{ message: { content: "Adapter prose" } }] },
+            ),
+          );
+        vi.stubGlobal("fetch", fetchMock);
+        resolve.mockResolvedValue(createProvider({ provider, apiKey: "saved-key" }));
+        const response = await generateRoute(
+          makeRequest({
+            sceneId,
+            mode: "continuation",
+            credentialId: "saved",
+            model: "native-model",
+          }),
+        );
+        expect(response.status).toBe(200);
+        const json = await response.json<any>();
+        expect(json).toMatchObject({ text: "Adapter prose", model: "native-model" });
+        expect(json.applied.provider).toBe(provider);
+        expect(JSON.stringify(json)).not.toContain("saved-key");
+        expect(fetchMock).toHaveBeenCalledTimes(1);
+        const [url, init] = fetchMock.mock.calls[0];
+        expect(url).not.toContain("ai-gateway.vercel.sh");
+        const sent = JSON.parse(init.body);
+        expect(sent.model).toBe("native-model");
+        expect(sent.max_tokens).toBe(1024);
+        expect(sent.temperature).toBe(0.7);
+        expect(sent.messages.at(-1).content).toContain("Mara reached the quay.");
+      },
+    );
+
+    it.each(["KEY_MISSING", "DECRYPT_FAILED"] as const)(
+      "handles crypto failure %s without leaking or falling back",
+      async (code) => {
+        vi.stubEnv("AI_GATEWAY_API_KEY", "platform-key");
+        prepareByok().mockRejectedValue(new credentials.ByokCryptoError("secret ciphertext", code));
+        const fetchMock = vi.fn();
+        vi.stubGlobal("fetch", fetchMock);
+        const response = await generateRoute(
+          makeRequest({ sceneId, mode: "continuation", credentialId: "saved", model: "m" }),
+        );
+        expect(response.status).toBe(code === "KEY_MISSING" ? 503 : 500);
+        expect(await response.json()).toEqual({
+          error: "Credential encryption is not available",
+          code: "CRYPTO_ERROR",
+        });
+        expect(fetchMock).not.toHaveBeenCalled();
+      },
+    );
+
+    it.each(["AUTH_FAILED", "INVALID_REQUEST", "RATE_LIMITED"] as const)(
+      "reports provider failure %s without upstream secrets",
+      async (code) => {
+        vi.stubEnv("AI_GATEWAY_API_KEY", "platform-key");
+        const chat = vi
+          .fn()
+          .mockRejectedValue(new ProviderError("secret key/ciphertext", code, "openai"));
+        prepareByok().mockResolvedValue({ id: "openai", chat } as unknown as LlmProvider);
+        const fetchMock = vi.fn();
+        vi.stubGlobal("fetch", fetchMock);
+        const response = await generateRoute(
+          makeRequest({ sceneId, mode: "continuation", credentialId: "saved", model: "m" }),
+        );
+        expect(response.status).toBe(code === "INVALID_REQUEST" ? 400 : 502);
+        expect(await response.json()).toEqual({
+          error: "Selected provider generation failed",
+          code,
+        });
+        expect(fetchMock).not.toHaveBeenCalled();
+      },
+    );
+
+    it("does not resolve a credential for unauthenticated or excluded scenes", async () => {
+      const resolve = prepareByok();
+      const input = { sceneId, mode: "continuation", credentialId: "saved", model: "m" };
+      mockGetUser.mockResolvedValueOnce({ data: { user: null } });
+      expect((await generateRoute(makeRequest(input))).status).toBe(401);
+      vi.mocked(writingService.getSceneForEditor).mockResolvedValueOnce({
+        ...editorScene,
+        excludeFromAi: true,
+      });
+      expect((await generateRoute(makeRequest(input))).status).toBe(403);
+      expect(resolve).not.toHaveBeenCalled();
+      expect(credentials.getCredential).not.toHaveBeenCalled();
     });
 
     it("caps the prompt context at the user's tier token ceiling", async () => {

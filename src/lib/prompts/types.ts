@@ -1,5 +1,6 @@
 import type { GenerationMode } from "@/lib/ai/generate";
 import type { PromptBindings, PromptVariableToken } from "./catalog";
+import type { CraftInputKey, PromptComponentContract } from "./contracts";
 
 export type PromptRoleName = "SYSTEM" | "USER";
 export type PromptScopeName = "SYSTEM_DEFAULT" | "USER" | "NOVEL";
@@ -18,6 +19,8 @@ export interface RenderedPrompt {
   unresolved: PromptVariableToken[];
   /** Tokens that appeared but are not in the closed catalog. */
   unknownTokens: string[];
+  /** Craft input tokens left unbound; present only when craft inputs were supplied (STO-1275). */
+  unresolvedInputs?: CraftInputKey[];
 }
 
 export interface PromptDto {
@@ -42,6 +45,8 @@ export interface PromptComponentDto {
   description: string | null;
   body: string;
   role: PromptRoleName;
+  /** Validated contract (STO-1275); null = legacy component without a contract. */
+  contract: PromptComponentContract | null;
   ownerId: string | null;
   updatedAt: string;
 }
@@ -84,6 +89,8 @@ export interface CreateComponentInput {
   description?: string | null;
   body: string;
   role?: PromptRoleName;
+  /** Raw contract (validated server-side); omitted/null = legacy component. */
+  contract?: unknown;
 }
 
 export interface UpdateComponentInput {
@@ -91,6 +98,8 @@ export interface UpdateComponentInput {
   description?: string | null;
   body?: string;
   role?: PromptRoleName;
+  /** Raw contract; omitted = unchanged, null = clear, object = validate + replace. */
+  contract?: unknown;
 }
 
 export interface ScenePromptBindingInput {

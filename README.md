@@ -144,7 +144,8 @@ Error payload: `{ error, code }`. Codes: `NOT_FOUND`, `FORBIDDEN`, `VALIDATION_F
 | `bun run lint`                                | oxlint via `vp lint --fix`                                   |
 | `bun run format` / `format:check`             | `vp fmt`                                                     |
 | `bun run typecheck`                           | `vp check --no-fmt --no-lint`                                |
-| `bun run test` / `test:cov`                   | Vitest via `vp test`                                         |
+| `bun run test` / `test:cov`                   | Vitest via `vp test` (loads `.env.test` only; see below)     |
+| `bun run test:db`                             | Start local test Postgres, apply schema, run Vitest          |
 | `bun run test:e2e`                            | Playwright (`tests/e2e`, Chrome at `/usr/bin/google-chrome`) |
 | `bun run contract:emit`                       | `prisma contract emit`                                       |
 | `bun run db:update` / `db:verify` / `db:sign` | Prisma 8 schema apply / verify / sign                        |
@@ -153,23 +154,58 @@ Error payload: `{ error, code }`. Codes: `NOT_FOUND`, `FORBIDDEN`, `VALIDATION_F
 ## Tests
 
 ```bash
-bun run test          # unit / integration (Vitest)
+bun run test          # unit / integration (Vitest). Loads `.env.test` only.
+bun run test:db       # start disposable Postgres, apply schema, run Vitest
 bun run test:e2e      # Playwright; sets NEXT_PUBLIC_E2E=true and starts `npm run dev`
 ```
 
 E2E launches Chromium with `executablePath: /usr/bin/google-chrome`. Codex tests that share a database can race; isolate fixtures rather than pointing every suite at one live DB.
 
+### Local test database
+
+Integration tests issue live Prisma queries. They must use a disposable local Postgres, never the repo `.env` / `.env.local` or a hosted Supabase project (prod ref `wntgnjrrzfndunqaiobo`, preview ref `oobhhexdoufnwdltoren`).
+
+The setup matches the Sonar CI job in `.github/workflows/sonarqube.yml`: Postgres 17, database `inkstory_test`, user/password `postgres`/`postgres`, on `localhost:5432`.
+
+```bash
+# One command: start the DB, apply the Prisma contract (`prisma db update`, same as CI), run tests
+bun run test:db
+
+# Or step by step
+docker compose -f docker-compose.test.yml up -d --wait
+# Then, with only `.env.test` loaded (do not export a URL from `.env`):
+./node_modules/.bin/prisma db update -y --db "$DATABASE_URL"
+bun run test
+
+# Stop the disposable DB when finished
+docker compose -f docker-compose.test.yml down
+```
+
+`bun run test` and `bun run test:cov` load **only** `.env.test`. They do not read `.env` or `.env.local`. A hard guard then refuses to run if `DATABASE_URL` or `DIRECT_URL` contains a blocked project ref or a non-local host (only `localhost`, `127.0.0.1`, and `::1` are allowed — the same host CI uses). If a URL is already set in your shell, that value wins over `.env.test` and will be rejected unless it is loopback.
+
+If a local Postgres 17 is already accepting the `.env.test` URL, `bun run test:db` reuses it and skips Compose (handy when port 5432 is taken). Otherwise it starts `docker-compose.test.yml`.
+
+The compose file defaults to `ghcr.io/jgf-dev/postgres:17`, the image CI uses (a mirror of official `postgres:17`). If a local pull of that tag fails because GHCR auth is missing, use the official image of the same major:
+
+```bash
+INKSTORY_TEST_POSTGRES_IMAGE=postgres:17 bun run test:db
+```
+
+`.env.test` is committed and contains only these local credentials. Never point it at prod, preview, or any other remote database.
+
 ## Troubleshooting
 
-| Symptom                                       | Likely cause                                                                                                                            |
-| --------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| `db:update` / seed hangs                      | Transaction pooler (port 6543) blocks DDL. Point `DIRECT_URL` at the **session** pooler (port 5432). Direct hostnames can be IPv6-only. |
-| `command not found: db:migrate` / `db:studio` | Those Prisma 7 scripts were removed. Use `db:update` and the contract files.                                                            |
-| Seed never exits                              | Historical: undrained `pg.Pool`. Current `prisma/seed.ts` should exit; if it hangs, check the pooler URL first.                         |
-| Server Components look logged-out             | `src/proxy.ts` must refresh the Supabase cookie; do not reintroduce a separate `middleware.ts` that skips `@supabase/ssr`.              |
-| Codex API 401                                 | No session cookie. Sign in via `/login`; there is no API-key auth.                                                                      |
-| Playwright cannot find Chrome                 | Config expects `/usr/bin/google-chrome`.                                                                                                |
-| `prisma contract emit` missing after install  | CI uses `bun install --ignore-scripts`; run `bun run contract:emit`.                                                                    |
+| Symptom                                               | Likely cause                                                                                                                            |
+| ----------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `db:update` / seed hangs                              | Transaction pooler (port 6543) blocks DDL. Point `DIRECT_URL` at the **session** pooler (port 5432). Direct hostnames can be IPv6-only. |
+| `command not found: db:migrate` / `db:studio`         | Those Prisma 7 scripts were removed. Use `db:update` and the contract files.                                                            |
+| Seed never exits                                      | Historical: undrained `pg.Pool`. Current `prisma/seed.ts` should exit; if it hangs, check the pooler URL first.                         |
+| Server Components look logged-out                     | `src/proxy.ts` must refresh the Supabase cookie; do not reintroduce a separate `middleware.ts` that skips `@supabase/ssr`.              |
+| Codex API 401                                         | No session cookie. Sign in via `/login`; there is no API-key auth.                                                                      |
+| Playwright cannot find Chrome                         | Config expects `/usr/bin/google-chrome`.                                                                                                |
+| `prisma contract emit` missing after install          | CI uses `bun install --ignore-scripts`; run `bun run contract:emit`.                                                                    |
+| Tests refuse to run / `INKSTORY_UNSAFE_TEST_DATABASE` | `DATABASE_URL` or `DIRECT_URL` points at a remote or Supabase host. Unset them and use `.env.test` / `bun run test:db`.                 |
+| `bun run test:db` cannot pull the GHCR image          | Use `INKSTORY_TEST_POSTGRES_IMAGE=postgres:17 bun run test:db` (official Postgres 17).                                                  |
 
 ## What's next (Epic 1)
 

@@ -12,6 +12,7 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { WritingWorkspace } from "../src/app/dashboard/novels/[id]/_components/WritingWorkspace";
 import { AiAssistantDrawer } from "../src/app/dashboard/novels/[id]/_components/AiAssistantDrawer";
+import { inspectAssembledContext } from "../src/lib/codex/context-inspection";
 import type { NovelOutline } from "../src/lib/writing/service";
 
 vi.mock("../src/app/dashboard/novels/[id]/_components/RichTextEditor", () => ({
@@ -94,7 +95,11 @@ type Handler = (url: string, init: any) => { status: number; body: unknown } | u
 
 function routeFetch(handler: Handler) {
   const fn = vi.fn(async (url: string, init: any = {}) => {
-    const r = handler(url, init) ?? { status: 200, body: {} };
+    const r =
+      handler(url, init) ??
+      (url === "/api/ai/credentials"
+        ? { status: 200, body: { credentials: [] } }
+        : { status: 200, body: {} });
     return {
       ok: r.status < 300,
       status: r.status,
@@ -117,6 +122,39 @@ afterEach(() => {
 });
 
 describe("WritingWorkspace", () => {
+  it("opens the read-only Context Inspector for the active scene and live prose", async () => {
+    const fetchMock = routeFetch((url) => {
+      if (url === "/api/scenes/scene-1")
+        return { status: 200, body: { scene: { ...makeScene(), summary: "Scene summary" } } };
+      if (url === "/api/context/assemble")
+        return {
+          status: 200,
+          body: inspectAssembledContext(
+            {
+              entries: [],
+              meta: { sceneId: "scene-1", totalCandidates: 0, finalCount: 0, truncated: false },
+            },
+            4000,
+          ),
+        };
+      return undefined;
+    });
+    render(
+      React.createElement(WritingWorkspace, { outline: makeOutline(), initialSceneId: "scene-1" }),
+    );
+    await screen.findByTestId("scene-editor");
+    fireEvent.change(screen.getByTestId("scene-text"), { target: { value: "Unsaved live prose" } });
+    fireEvent.click(screen.getByText("Context Inspector", { selector: "button" }));
+    await screen.findByText("No Codex entries in this context.");
+    const call = fetchMock.mock.calls.find(([url]) => url === "/api/context/assemble");
+    expect(JSON.parse(call![1].body)).toEqual({
+      sceneId: "scene-1",
+      recentProse: "Unsaved live prose",
+      beatText: "Scene summary",
+    });
+    fireEvent.click(screen.getByLabelText("Close context inspector"));
+    expect(screen.queryByRole("dialog", { name: "Context Inspector" })).toBeNull();
+  });
   it("loads the initial scene, scans mentions and toggles the AI drawer", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     const fetchMock = routeFetch((url) => {
@@ -434,6 +472,7 @@ describe("WritingWorkspace", () => {
   it("rolls saved word counts into the outline and appends AI text", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     routeFetch((url, init) => {
+      if (url === "/api/ai/credentials") return { status: 200, body: { credentials: [] } };
       if (url === "/api/scenes/scene-1" && init.method === "GET")
         return { status: 200, body: { scene: makeScene() } };
       if (url === "/api/scenes/scene-1" && init.method === "PATCH")
@@ -639,14 +678,19 @@ describe("AiAssistantDrawer", () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     const writeText = vi.fn().mockResolvedValue(undefined);
     vi.stubGlobal("navigator", { clipboard: { writeText } });
-    const fetchMock = routeFetch(() => ({ status: 200, body: { text: "Out", model: "m" } }));
+    const fetchMock = routeFetch((url) => {
+      if (url === "/api/ai/credentials") return { status: 200, body: { credentials: [] } };
+      return { status: 200, body: { text: "Out", model: "m" } };
+    });
     const p = setup();
     fireEvent.click(screen.getByText("Expand beat"));
     expect(screen.getByText("Beat to expand")).toBeTruthy();
     fireEvent.change(screen.getByPlaceholderText(/Mara confronts/), { target: { value: "beat" } });
     fireEvent.click(screen.getByText("Generate"));
     await screen.findByTestId("ai-result");
-    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({
+    const generateCall = fetchMock.mock.calls.find((c) => c[0] === "/api/ai/generate");
+    expect(generateCall).toBeTruthy();
+    expect(JSON.parse(generateCall![1].body)).toEqual({
       sceneId: "scene-1",
       mode: "beat_expansion",
       beatText: "beat",
