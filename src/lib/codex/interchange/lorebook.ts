@@ -376,6 +376,23 @@ export function activationFlags(mode: CodexTrackingMode): { constant: boolean; d
   return { constant: false, disable: false };
 }
 
+export function activationSemanticsWarning(
+  source: { id?: string; name: string; trackingMode: CodexTrackingMode },
+  env: { unsupportedFeatures: readonly string[]; sourceEntryKey?: string },
+): InterchangeWarning | null {
+  if (source.trackingMode === "NEVER") return null;
+  const blocking = env.unsupportedFeatures.filter((f) =>
+    BLOCKING_LOREBOOK_FEATURES.has(f as LorebookFeature),
+  );
+  if (blocking.length === 0) return null;
+  return {
+    code: "ACTIVATION_SEMANTICS_DIFFER",
+    message: `"${source.name}" still carries ${blocking.join(", ")}; SillyTavern will apply them on top of the ${source.trackingMode} mode chosen in inkstory.`,
+    entryId: source.id,
+    ...(env.sourceEntryKey ? { sourceEntryKey: env.sourceEntryKey } : {}),
+  };
+}
+
 /**
  * Serializes Codex entries as SillyTavern lorebook JSON. Entries imported from
  * a lorebook start from their preserved original and overlay native edits;
@@ -414,16 +431,8 @@ export function serializeLorebook(
 
       if (source.trackingMode !== env.importedTrackingMode) {
         Object.assign(entry, activationFlags(source.trackingMode));
-        const blocking = env.unsupportedFeatures.filter((f) =>
-          BLOCKING_LOREBOOK_FEATURES.has(f as LorebookFeature),
-        );
-        if (source.trackingMode !== "NEVER" && blocking.length > 0) {
-          warnings.push({
-            code: "ACTIVATION_SEMANTICS_DIFFER",
-            message: `"${source.name}" still carries ${blocking.join(", ")}; SillyTavern will apply them on top of the ${source.trackingMode} mode chosen in inkstory.`,
-            entryId: source.id,
-          });
-        }
+        const warning = activationSemanticsWarning(source, env);
+        if (warning) warnings.push(warning);
       }
     } else {
       if (read.status === "invalid") {

@@ -20,10 +20,15 @@
  */
 
 import { parseDocument } from "yaml";
-import { activationFlags, normalizePrimaryKeys, parseLorebook, sameStringSet } from "./lorebook";
+import {
+  activationFlags,
+  activationSemanticsWarning,
+  normalizePrimaryKeys,
+  parseLorebook,
+  sameStringSet,
+} from "./lorebook";
 import { extractCardText, readPng, base64ToUtf8 } from "./png";
 import {
-  BLOCKING_LOREBOOK_FEATURES,
   CARD_FORMAT,
   CARD_LIMITS,
   type CardEncoding,
@@ -383,17 +388,8 @@ function overlayCharacterBookEntry(
     const flags = activationFlags(source.trackingMode);
     next.constant = flags.constant;
     next.enabled = !flags.disable;
-    const blocking = env.unsupportedFeatures.filter((feature) =>
-      BLOCKING_LOREBOOK_FEATURES.has(feature),
-    );
-    if (source.trackingMode !== "NEVER" && blocking.length > 0) {
-      warnings.push({
-        code: "ACTIVATION_SEMANTICS_DIFFER",
-        message: `"${source.name}" still carries ${blocking.join(", ")}; SillyTavern will apply them on top of the ${source.trackingMode} mode chosen in inkstory.`,
-        entryId: source.id,
-        sourceEntryKey: env.sourceEntryKey,
-      });
-    }
+    const warning = activationSemanticsWarning(source, env);
+    if (warning) warnings.push(warning);
   }
   return { entry: next, warnings };
 }
