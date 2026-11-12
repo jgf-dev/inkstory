@@ -41,6 +41,7 @@ export default defineConfig({
     },
   },
   test: {
+    setupFiles: ["./tests/setup-env.ts"],
     exclude: ["tests/e2e/**", "node_modules/**", "dist/**"],
     coverage: {
       provider: "v8",

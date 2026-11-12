@@ -3,9 +3,8 @@
  *
  * Avoids creating a new connection per request in dev where Next.js hot-reloads
  */
-import { config } from "dotenv";
-config({ path: ".env.local", override: false });
-config({ path: ".env", override: false });
+import { loadAppDatabaseEnv } from "./database-env";
+loadAppDatabaseEnv();
 
 import "temporal-polyfill/full/global";
 import postgres from "@prisma/orm-postgres/runtime";
