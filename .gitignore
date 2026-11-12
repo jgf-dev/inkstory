@@ -5,6 +5,7 @@ node_modules
 .env*.local
 .env.*.local
 !.env.example
+!.env.test
 *.log
 .DS_Store
 .vercel
@@ -35,6 +36,7 @@ next-env.d.ts
 **/.temp/*
 .repo_memory
 .env*
+!.env.test
 .remember
 .mcp.json
 

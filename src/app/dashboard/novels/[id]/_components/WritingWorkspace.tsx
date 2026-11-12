@@ -12,6 +12,7 @@ import { apiDelete, apiGet, apiPatch, apiPost, ApiRequestError } from "./api";
 import { Outliner } from "./Outliner";
 import { SceneEditor, type SaveStatus } from "./SceneEditor";
 import { MentionsPanel } from "./MentionsPanel";
+import { ContextInspectorDrawer } from "./ContextInspectorDrawer";
 import { AiAssistantDrawer } from "./AiAssistantDrawer";
 import { ModeSwitcher } from "./ModeSwitcher";
 import { ProseFontToggle } from "./ProseFontToggle";
@@ -87,6 +88,7 @@ export function WritingWorkspace({
   const [timelineOpen, setTimelineOpen] = useState(false);
   const [linkerSource, setLinkerSource] = useState<{ id: string; name: string } | null>(null);
   const [importOpen, setImportOpen] = useState(false);
+  const [inspectorOpen, setInspectorOpen] = useState(false);
 
   const scanTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const activeSceneIdRef = useRef<string | null>(initialSceneId);
@@ -449,6 +451,15 @@ export function WritingWorkspace({
           )}
           <button
             type="button"
+            disabled={!scene || sceneLoading}
+            onClick={() => setInspectorOpen(true)}
+            aria-expanded={inspectorOpen}
+            className="min-h-11 rounded-md border border-subtle px-2.5 py-1.5 text-xs font-medium text-primary hover:bg-elevated disabled:opacity-50"
+          >
+            Context Inspector
+          </button>
+          <button
+            type="button"
             onClick={() => setImportOpen(true)}
             className="min-h-11 rounded-md border border-ink-200 px-2.5 py-1.5 text-xs font-medium text-ink-700 hover:bg-ink-50"
           >
@@ -614,6 +625,15 @@ export function WritingWorkspace({
       )}
 
       {/* Overlays shared by all modes */}
+      {inspectorOpen && scene && !sceneLoading && (
+        <ContextInspectorDrawer
+          key={scene.id}
+          sceneId={scene.id}
+          recentProse={prose}
+          beatText={scene.summary ?? ""}
+          onClose={() => setInspectorOpen(false)}
+        />
+      )}
       <ProgressionTimelineDrawer
         isOpen={timelineOpen}
         novelId={novelId}
