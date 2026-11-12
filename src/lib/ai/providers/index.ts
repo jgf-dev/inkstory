@@ -17,7 +17,11 @@ export { createLMStudioProvider, LMSTUDIO_DEFAULT_BASE_URL } from "./lmstudio";
 export { createOllamaProvider, OLLAMA_DEFAULT_BASE_URL } from "./ollama";
 export { createOpenAIProvider, OPENAI_DEFAULT_BASE_URL } from "./openai";
 export { createOpenAICompatibleProvider } from "./openai-compatible";
-export { createOpenRouterProvider, OPENROUTER_DEFAULT_BASE_URL } from "./openrouter";
+export {
+  createOpenRouterProvider,
+  isCustomOpenRouterBaseUrl,
+  OPENROUTER_DEFAULT_BASE_URL,
+} from "./openrouter";
 
 export const SUPPORTED_PROVIDERS: readonly ProviderId[] = [
   "openrouter",

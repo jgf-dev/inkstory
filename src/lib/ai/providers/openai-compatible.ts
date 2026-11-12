@@ -1,3 +1,4 @@
+import { applyOpenRouterAdvanced, assertAdvancedControlsMappable } from "./advanced";
 import { createTransportError, readJsonResponse, stripTrailingSlashes } from "./http";
 import {
   ProviderError,
@@ -33,6 +34,15 @@ export interface OpenAICompatibleProviderOptions {
   includeBaseUrlInNetworkErrors?: boolean;
   /** Injected for tests; defaults to the global fetch. */
   fetch?: typeof fetch;
+  /**
+   * STO-1265: map `minP` → `min_p` and `endpoint` → OpenRouter `provider`
+   * routing with `require_parameters: true`. Only OpenRouter sets this; for
+   * every other compatible runtime (OpenAI, Ollama, LM Studio on
+   * `/v1/chat/completions`) Min-P stays off and requests carrying it fail.
+   */
+  openRouterRouting?: boolean;
+  /** Whether `baseUrl` was supplied by the author rather than the adapter default. */
+  customBaseUrl?: boolean;
 }
 
 interface ChatChoice {
@@ -156,11 +166,15 @@ export function createOpenAICompatibleProvider(
     return body;
   }
 
+  const openRouterRouting = options.openRouterRouting === true;
+
   return {
     id: providerId,
+    customBaseUrl: options.customBaseUrl === true,
 
     async chat(request: ChatCompletionRequest): Promise<ChatCompletionResult> {
       validateRequest(request, providerId);
+      assertAdvancedControlsMappable(request, providerId, label, openRouterRouting);
       const payload: Record<string, unknown> = {
         model: request.model,
         messages: request.messages.map((m) => ({ role: m.role, content: m.content })),
@@ -170,6 +184,7 @@ export function createOpenAICompatibleProvider(
       if (request.temperature !== undefined) payload.temperature = request.temperature;
       if (request.topP !== undefined) payload.top_p = request.topP;
       if (request.stop?.length) payload.stop = request.stop;
+      if (openRouterRouting) applyOpenRouterAdvanced(payload, request);
 
       const body = (await send("/chat/completions", {
         method: "POST",
