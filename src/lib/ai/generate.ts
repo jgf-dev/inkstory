@@ -97,9 +97,22 @@ export function buildSceneMessages(input: BuildScenePromptInput): ChatMessage[] 
 /** Re-export for callers that still reference the old constant. */
 export const DEFAULT_MAX_CONTENT_CHARS_FOR_PROMPT = 8000;
 
+/** Internal default temperature, sent only where the resolved route accepts it. */
+export const DEFAULT_TEMPERATURE = 0.7;
+
+/** Model the platform gateway will be called with. */
+export function resolveGatewayModel(): string {
+  return process.env.AI_MODEL || DEFAULT_AI_MODEL;
+}
+
 export interface GenerateTextOptions {
   messages: ChatMessage[];
   maxTokens?: number;
+  /**
+   * Sampling temperature. Omitted → {@link DEFAULT_TEMPERATURE}; `null` →
+   * not sent (for models that reject sampling parameters, STO-1265).
+   */
+  temperature?: number | null;
   signal?: AbortSignal;
 }
 
@@ -137,7 +150,8 @@ export async function generateText(
     /\/+$/,
     "",
   );
-  const model = process.env.AI_MODEL || DEFAULT_AI_MODEL;
+  const model = resolveGatewayModel();
+  const temperature = options.temperature === undefined ? DEFAULT_TEMPERATURE : options.temperature;
 
   let response: Response;
   try {
@@ -151,7 +165,7 @@ export async function generateText(
         model,
         messages: options.messages,
         max_tokens: options.maxTokens ?? DEFAULT_MAX_OUTPUT_TOKENS,
-        temperature: 0.7,
+        ...(temperature === null ? {} : { temperature }),
         stream: false,
       }),
       signal: options.signal,
