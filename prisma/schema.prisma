@@ -490,6 +490,8 @@ model PromptComponent {
   description String?    @db.Text
   body        String     @db.Text
   role        PromptRole @default(SYSTEM)
+  /// Versioned craft/portability contract (STO-1275). Null = legacy STO-1158 behavior.
+  contract    Json?      @map("contract")
 
   ownerId     String?    @map("owner_id")
   owner       User?      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
