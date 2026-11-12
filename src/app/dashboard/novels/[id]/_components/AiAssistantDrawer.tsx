@@ -3,6 +3,13 @@
 import { useEffect, useState } from "react";
 import type { GenerationMode } from "@/lib/ai/generate";
 import type { CredentialDto } from "@/lib/ai/credentials/service";
+import type { AppliedGenerationMetadata } from "@/lib/ai/capabilities/applied";
+import type { CapabilitySummary } from "@/lib/ai/capabilities/resolve";
+import {
+  AVAILABILITY_LABELS,
+  describeApplied,
+  parseMinPDraft,
+} from "@/lib/ai/capabilities/display";
 import { apiGet, apiPost, ApiRequestError } from "./api";
 
 export interface AiAssistantDrawerProps {
@@ -21,6 +28,7 @@ interface PromptPreview {
 interface GenerateSuccess {
   text: string;
   model: string;
+  applied?: AppliedGenerationMetadata;
 }
 
 interface PreviewResult {
@@ -68,6 +76,42 @@ export function AiAssistantDrawer({
   const [credentialId, setCredentialId] = useState("");
   const [model, setModel] = useState("");
 
+  /** STO-1265 advanced controls (per request; nothing persisted). */
+  const [avoidanceGuidance, setAvoidanceGuidance] = useState("");
+  const [minPDraft, setMinPDraft] = useState("");
+  const [capabilities, setCapabilities] = useState<CapabilitySummary | null>(null);
+
+  useEffect(() => {
+    if (credentialId && !model.trim()) {
+      setCapabilities(null);
+      return;
+    }
+    let active = true;
+    const query = credentialId
+      ? `?${new URLSearchParams({ credentialId, model: model.trim() }).toString()}`
+      : "";
+    const timer = setTimeout(() => {
+      apiGet<{ capabilities?: CapabilitySummary }>(`/api/ai/capabilities${query}`)
+        .then((result) => {
+          if (active) setCapabilities(result?.capabilities ?? null);
+        })
+        .catch(() => {
+          if (active) setCapabilities(null);
+        });
+    }, 300);
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [credentialId, model]);
+
+  const minPCapability = capabilities?.usable.find((c) => c.id === "minP") ?? null;
+  const minPValue = parseMinPDraft(minPDraft);
+  const minPInvalid = minPDraft.trim() !== "" && minPValue === null;
+  /** Untouched (empty) Min-P is omitted — never sent as 0. */
+  const sendMinP = minPCapability && minPValue !== null ? minPValue : undefined;
+  const guidance = avoidanceGuidance.trim() || undefined;
+
   useEffect(() => {
     let active = true;
     apiGet<{ credentials: CredentialDto[] }>("/api/ai/credentials")
@@ -84,7 +128,8 @@ export function AiAssistantDrawer({
     };
   }, []);
 
-  const canGenerate = !busy && (!credentialId || Boolean(model.trim()));
+  const canGenerate =
+    !busy && (!credentialId || Boolean(model.trim())) && !(minPCapability && minPInvalid);
 
   async function generate() {
     setBusy(true);
@@ -98,9 +143,14 @@ export function AiAssistantDrawer({
           beatText: beatText || undefined,
           content,
           ...(credentialId ? { credentialId, model: model.trim() } : {}),
+          ...(guidance ? { avoidanceGuidance: guidance } : {}),
+          ...(sendMinP !== undefined ? { minP: sendMinP } : {}),
         },
       );
-      setOutcome({ kind: "generated", result: { text: res.text, model: res.model } });
+      setOutcome({
+        kind: "generated",
+        result: { text: res.text, model: res.model, applied: res.applied },
+      });
       setDraft(res.text);
       setAccepted(false);
     } catch (err) {
@@ -132,6 +182,7 @@ export function AiAssistantDrawer({
         mode,
         beatText: beatText || undefined,
         content,
+        ...(guidance ? { avoidanceGuidance: guidance } : {}),
       });
       setOutcome({ kind: "preview", result: res });
       setAccepted(false);
@@ -269,6 +320,63 @@ export function AiAssistantDrawer({
           />
         </label>
 
+        <details className="text-xs text-muted" data-testid="ai-advanced-controls">
+          <summary className="cursor-pointer font-medium">Advanced controls</summary>
+          <div className="mt-2 space-y-2">
+            <label className="block">
+              Avoidance / anti-trope guidance (instructions)
+              <textarea
+                aria-label="Avoidance / anti-trope guidance (instructions)"
+                value={avoidanceGuidance}
+                maxLength={4000}
+                rows={2}
+                disabled={busy}
+                onChange={(e) => setAvoidanceGuidance(e.target.value)}
+                placeholder="e.g. avoid clichés like 'a breath she didn't know she was holding'"
+                className="mt-1 w-full rounded border border-subtle bg-card p-2 text-primary"
+              />
+              Included in the prompt. The model may not follow every preference; this is not a hard
+              ban.
+            </label>
+            {minPCapability && (
+              <label className="block">
+                Min-P (0–1)
+                <input
+                  aria-label="Min-P"
+                  type="number"
+                  min={0}
+                  max={1}
+                  step={0.01}
+                  value={minPDraft}
+                  disabled={busy}
+                  onChange={(e) => setMinPDraft(e.target.value)}
+                  placeholder="Leave empty to not send Min-P"
+                  className="mt-1 w-full rounded border border-subtle bg-card p-2 text-primary"
+                />
+                {minPInvalid ? "Min-P must be a number from 0 to 1." : minPCapability.reason}
+              </label>
+            )}
+            {!minPCapability && minPDraft.trim() !== "" && (
+              <p role="status">
+                Min-P is set but unavailable for this model, so it will not be sent.
+              </p>
+            )}
+            {capabilities && capabilities.unavailable.length > 0 && (
+              <details data-testid="ai-unavailable-controls">
+                <summary className="cursor-pointer">Unavailable for this model</summary>
+                <ul className="mt-1 space-y-1">
+                  {capabilities.unavailable.map((c) => (
+                    <li key={c.id}>
+                      <span className="font-medium">{c.label}</span> —{" "}
+                      {AVAILABILITY_LABELS[c.availability]}. {c.reason}
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            )}
+          </div>
+        </details>
+
         <div className="flex gap-2">
           <button
             type="button"
@@ -317,6 +425,11 @@ export function AiAssistantDrawer({
               Generated with {outcome.result.model}
               {edited ? " · edited" : ""}
             </p>
+            {outcome.result.applied && (
+              <p data-testid="ai-applied" className="text-ink-400 text-[11px]">
+                Applied: {describeApplied(outcome.result.applied)}
+              </p>
+            )}
             <label className="block">
               <span className="sr-only">Generated prose (editable)</span>
               <textarea

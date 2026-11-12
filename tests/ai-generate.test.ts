@@ -229,12 +229,23 @@ describe("AI generation (scene continuation / beat expansion)", () => {
       vi.restoreAllMocks();
     });
 
-    function prepareByok() {
+    function prepareByok(
+      provider: "openrouter" | "openai" | "anthropic" | "ollama" | "lmstudio" = "openrouter",
+    ) {
       vi.spyOn(writingService, "getSceneForEditor").mockResolvedValue(editorScene);
       vi.spyOn(codexService, "assembleCodexContextForScene").mockResolvedValue({
         entries: [],
         meta: {},
       } as any);
+      vi.spyOn(credentials, "getCredential").mockResolvedValue({
+        id: "saved",
+        provider: credentials.providerNameFromId(provider),
+        label: "saved",
+        keyHint: null,
+        hasKey: true,
+        baseUrl: null,
+        updatedAt: "2026-11-09T00:00:00",
+      });
       return vi.spyOn(credentials, "createProviderFromCredential");
     }
 
@@ -448,7 +459,18 @@ describe("AI generation (scene continuation / beat expansion)", () => {
         });
         const response = await generateRoute(request);
         expect(response.status).toBe(200);
-        expect(await response.json()).toEqual({ text: "BYOK prose", model: "served-model" });
+        const json = await response.json<any>();
+        expect(json).toMatchObject({ text: "BYOK prose", model: "served-model" });
+        expect(json.applied).toEqual({
+          provider: "openrouter",
+          requestedModel: "vendor/model",
+          model: "served-model",
+          endpoint: null,
+          parameters: { max_tokens: 256, temperature: 0.7 },
+          routing: null,
+          avoidanceGuidance: "none",
+        });
+        expect(JSON.stringify(json)).not.toContain("must-not-leak");
         expect(resolve).toHaveBeenCalledExactlyOnceWith("ai-user", "saved");
         expect(chat).toHaveBeenCalledWith({
           model: "vendor/model",
@@ -465,7 +487,7 @@ describe("AI generation (scene continuation / beat expansion)", () => {
     it.each(["openrouter", "openai", "anthropic", "ollama", "lmstudio"] as const)(
       "dispatches through the existing %s adapter without transport changes",
       async (provider) => {
-        const resolve = prepareByok();
+        const resolve = prepareByok(provider);
         const fetchMock = vi
           .fn()
           .mockResolvedValue(
@@ -486,7 +508,10 @@ describe("AI generation (scene continuation / beat expansion)", () => {
           }),
         );
         expect(response.status).toBe(200);
-        expect(await response.json()).toEqual({ text: "Adapter prose", model: "native-model" });
+        const json = await response.json<any>();
+        expect(json).toMatchObject({ text: "Adapter prose", model: "native-model" });
+        expect(json.applied.provider).toBe(provider);
+        expect(JSON.stringify(json)).not.toContain("saved-key");
         expect(fetchMock).toHaveBeenCalledTimes(1);
         const [url, init] = fetchMock.mock.calls[0];
         expect(url).not.toContain("ai-gateway.vercel.sh");
@@ -550,6 +575,7 @@ describe("AI generation (scene continuation / beat expansion)", () => {
       });
       expect((await generateRoute(makeRequest(input))).status).toBe(403);
       expect(resolve).not.toHaveBeenCalled();
+      expect(credentials.getCredential).not.toHaveBeenCalled();
     });
 
     it("caps the prompt context at the user's tier token ceiling", async () => {
