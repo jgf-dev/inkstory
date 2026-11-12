@@ -1,5 +1,6 @@
 /**
  * Prompt + component CRUD, resolution, and preview (STO-1158).
+ * Component contracts + portable import/export (STO-1275).
  *
  * Resolution order (EL): novel active → user default for mode → SYSTEM_DEFAULT.
  * SYSTEM_DEFAULT rows are read-only; use duplicatePromptToLibrary.
@@ -9,7 +10,14 @@ import { Temporal } from "temporal-polyfill";
 import { db, type DbClient } from "@/lib/prisma";
 import type { GenerationMode } from "@/lib/ai/generate";
 import { GENERATION_MODES } from "@/lib/ai/generate";
+import { normalizePromptContract, readStoredContract } from "./contracts";
 import { SYSTEM_DEFAULT_SEED } from "./defaults";
+import { PromptError } from "./errors";
+import {
+  parsePortableEnvelope,
+  toPortableEnvelope,
+  type PortablePromptComponentEnvelope,
+} from "./portable";
 import { buildSceneBindings, renderPrompt } from "./render";
 import type {
   CreateComponentInput,
@@ -25,35 +33,7 @@ import type {
   UpdatePromptInput,
 } from "./types";
 
-export class PromptError extends Error {
-  constructor(
-    message: string,
-    public readonly code:
-      | "NOT_FOUND"
-      | "FORBIDDEN"
-      | "VALIDATION_FAILED"
-      | "CONFLICT"
-      | "READ_ONLY"
-      | "UNRESOLVED_VARS",
-    public readonly status: number = 400,
-  ) {
-    super(message);
-    this.name = "PromptError";
-  }
-}
-
-export function handlePromptApiError(err: unknown): Response {
-  if (err instanceof SyntaxError) {
-    return Response.json(
-      { error: "Malformed or invalid JSON body", code: "INVALID_JSON" },
-      { status: 400 },
-    );
-  }
-  if (err instanceof PromptError) {
-    return Response.json({ error: err.message, code: err.code }, { status: err.status });
-  }
-  return Response.json({ error: "Internal server error" }, { status: 500 });
-}
+export { PromptError, handlePromptApiError } from "./errors";
 
 type PromptRow = {
   id: string;
@@ -78,6 +58,7 @@ type ComponentRow = {
   description: string | null;
   body: string;
   role: PromptRoleName;
+  contract: unknown;
   ownerId: string | null;
   createdAt: Temporal.PlainDateTime;
   updatedAt: Temporal.PlainDateTime;
@@ -123,6 +104,7 @@ function toComponentDto(row: ComponentRow): PromptComponentDto {
     description: row.description,
     body: row.body,
     role: row.role,
+    contract: readStoredContract(row.contract),
     ownerId: row.ownerId,
     updatedAt: row.updatedAt.toString(),
   };
@@ -546,6 +528,17 @@ export async function duplicatePromptToLibrary(
   const source = await getPrompt(userId, promptId);
   const now = Temporal.Now.plainDateTimeISO();
 
+  // Re-validate contracts of components that will be copied. The DTO contract is
+  // read leniently (invalid → null), so read the stored value and reject an
+  // invalid one rather than silently copying it as a legacy component.
+  const copiedContracts = new Map<string, ReturnType<typeof normalizePromptContract>>();
+  for (const link of source.components ?? []) {
+    const src = link.component;
+    if (!src || src.ownerId === userId || copiedContracts.has(src.id)) continue;
+    const row = await loadComponentRow(src.id);
+    copiedContracts.set(src.id, normalizePromptContract(row?.contract ?? null));
+  }
+
   const createdId = await db.transaction(async (tx) => {
     const created = (await tx.orm.public.Prompt.create({
       id: crypto.randomUUID(),
@@ -577,6 +570,8 @@ export async function duplicatePromptToLibrary(
         description: src.description,
         body: src.body,
         role: src.role,
+        // Contract (incl. attribution) is copied; ownership moves to the duplicating user.
+        contract: (copiedContracts.get(src.id) ?? null) as any,
         ownerId: userId,
         updatedAt: now,
       })) as ComponentRow;
@@ -608,6 +603,7 @@ export async function createComponent(
   if (typeof input.body !== "string") {
     throw new PromptError("body is required", "VALIDATION_FAILED", 400);
   }
+  const contract = normalizePromptContract(input.contract);
   const now = Temporal.Now.plainDateTimeISO();
   const created = (await db.orm.public.PromptComponent.create({
     id: crypto.randomUUID(),
@@ -615,6 +611,8 @@ export async function createComponent(
     description: input.description ?? null,
     body: input.body,
     role: input.role ?? "SYSTEM",
+    contract: contract as any,
+    // Session identity only; never taken from the request body.
     ownerId: userId,
     updatedAt: now,
   })) as ComponentRow;
@@ -638,15 +636,63 @@ export async function updateComponent(
   if (row.ownerId !== userId) {
     throw new PromptError("Component not found", "NOT_FOUND", 404);
   }
+  // undefined → unchanged; null → cleared (legacy); object → validated before persistence.
+  const contract =
+    input.contract !== undefined ? normalizePromptContract(input.contract) : undefined;
   const now = Temporal.Now.plainDateTimeISO();
   const updated = (await db.orm.public.PromptComponent.where({ id: componentId }).update({
     ...(input.name !== undefined ? { name: input.name.trim() } : {}),
     ...(input.description !== undefined ? { description: input.description } : {}),
     ...(input.body !== undefined ? { body: input.body } : {}),
     ...(input.role !== undefined ? { role: input.role } : {}),
+    ...(contract !== undefined ? { contract: contract as any } : {}),
     updatedAt: now,
   })) as ComponentRow;
   return toComponentDto(updated);
+}
+
+/** Readable = own library component or a read-only system (owner-null) component. */
+async function loadReadableComponent(userId: string, componentId: string): Promise<ComponentRow> {
+  const row = await loadComponentRow(componentId);
+  if (!row || (row.ownerId !== null && row.ownerId !== userId)) {
+    throw new PromptError("Component not found", "NOT_FOUND", 404);
+  }
+  return row;
+}
+
+/**
+ * Portable export (STO-1275): component data only — no ids, owner, novel,
+ * timestamps or account data. A persisted contract that no longer validates is
+ * rejected rather than silently dropped.
+ */
+export async function exportComponent(
+  userId: string,
+  componentId: string,
+): Promise<PortablePromptComponentEnvelope> {
+  const row = await loadReadableComponent(userId, componentId);
+  return toPortableEnvelope({
+    name: row.name,
+    description: row.description,
+    body: row.body,
+    role: row.role,
+    contract: normalizePromptContract(row.contract),
+  });
+}
+
+/**
+ * Portable import (STO-1275): validates the envelope and always creates a NEW
+ * component owned by the importing user. Never overwrites by id/name and never
+ * creates owner-null/system components.
+ */
+export async function importComponent(userId: string, raw: unknown): Promise<PromptComponentDto> {
+  const component = parsePortableEnvelope(raw);
+  return createComponent(userId, {
+    name: component.name,
+    description: component.description,
+    body: component.body,
+    role: component.role,
+    contract: component.contract,
+  });
 }
 
 export async function softDeleteComponent(userId: string, componentId: string): Promise<void> {
