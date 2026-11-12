@@ -350,6 +350,8 @@ namespace public {
     description String?
     body        String
     role        pg.enum(PromptRole) @default("SYSTEM")
+    // Versioned craft/portability contract (STO-1275). Null = legacy STO-1158 behavior.
+    contract    Jsonb?              @map("contract")
     ownerId     String?             @map("owner_id")
     createdAt   Timestamp(3)        @default(now()) @map("created_at")
     updatedAt   Timestamp(3)        @map("updated_at")
