@@ -1,6 +1,8 @@
 export {
   AI_PROVIDERS,
   assertNoSecretFields,
+  assertSafeBaseUrl,
+  assertSafeBaseUrlResolved,
   createProviderFromCredential,
   getCredential,
   handleCredentialApiError,
@@ -12,6 +14,7 @@ export {
   providerNameFromId,
   resolveProviderConfig,
   SECRET_FIELD_NAMES,
+  setHostResolver,
   softDeleteCredential,
   upsertCredential,
   validateCredentialFields,
@@ -21,6 +24,7 @@ export {
   type PatchCredentialInput,
   type UpsertCredentialInput,
 } from "./service";
+export { defaultHostResolver, type HostResolver } from "./host-resolver";
 export { getAuthenticatedUser } from "./auth";
 export {
   ByokCryptoError,
