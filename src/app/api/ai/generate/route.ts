@@ -9,19 +9,27 @@ import { getSceneForEditor } from "@/lib/writing/service";
 import { POV_LABELS, TENSE_LABELS } from "@/lib/writing/meta";
 import {
   AiError,
+  DEFAULT_MAX_OUTPUT_TOKENS,
   generateText,
   handleAiApiError,
   isGenerationMode,
   MAX_OUTPUT_TOKENS,
 } from "@/lib/ai/generate";
 import { PromptError, handlePromptApiError, renderResolvedScenePrompt } from "@/lib/prompts";
+import {
+  ByokCryptoError,
+  CredentialError,
+  createProviderFromCredential,
+  handleCredentialApiError,
+} from "@/lib/ai/credentials";
+import { ProviderError } from "@/lib/ai/providers";
 
 export const dynamic = "force-dynamic";
 
 /**
  * Generates scene prose from the assembled Codex context. When the gateway is
- * not configured, responds 503 `AI_NOT_CONFIGURED` **with the assembled
- * prompt** so the author can still copy it into any LLM (zero cost path).
+ * not configured and no stored credential is selected, responds 503
+ * `AI_NOT_CONFIGURED` **with the assembled prompt** so the author can still copy it into any LLM (zero cost path).
  */
 export async function POST(request: NextRequest) {
   try {
@@ -41,6 +49,10 @@ export async function POST(request: NextRequest) {
       /** Client-side current prose; overrides the stored scene content. */
       content?: string;
       maxTokens?: number;
+      /** Explicit opt-in to an owned stored credential; omitted means platform gateway. */
+      credentialId?: string;
+      /** Provider-specific model ID, required only for BYOK. */
+      model?: string;
     };
 
     if (typeof body.sceneId !== "string" || !body.sceneId) {
@@ -77,6 +89,24 @@ export async function POST(request: NextRequest) {
       return Response.json(
         {
           error: `maxTokens must be a positive integer up to ${MAX_OUTPUT_TOKENS}`,
+          code: "VALIDATION_FAILED",
+        },
+        { status: 400 },
+      );
+    }
+
+    if (
+      (body.credentialId !== undefined &&
+        (typeof body.credentialId !== "string" ||
+          !body.credentialId.trim() ||
+          body.credentialId.length > 128)) ||
+      (body.credentialId !== undefined &&
+        (typeof body.model !== "string" || !body.model.trim() || body.model.length > 256)) ||
+      (body.credentialId === undefined && body.model !== undefined)
+    ) {
+      return Response.json(
+        {
+          error: "BYOK requires a credentialId and provider-specific model (up to 256 characters)",
           code: "VALIDATION_FAILED",
         },
         { status: 400 },
@@ -130,7 +160,7 @@ export async function POST(request: NextRequest) {
 
     const messages = rendered.messages;
 
-    if (!process.env.AI_GATEWAY_API_KEY) {
+    if (body.credentialId === undefined && !process.env.AI_GATEWAY_API_KEY) {
       return Response.json(
         {
           error: "AI generation is not configured on this deployment (missing AI_GATEWAY_API_KEY)",
@@ -143,13 +173,33 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const result = await generateText({
-      messages,
-      maxTokens: body.maxTokens,
-    });
+    // Never silently fall back to platform spend when an explicit credential fails.
+    const provider =
+      body.credentialId !== undefined
+        ? await createProviderFromCredential(user.id, body.credentialId.trim())
+        : null;
+    const result = provider
+      ? await provider.chat({
+          model: body.model!.trim(),
+          messages,
+          maxOutputTokens: body.maxTokens ?? DEFAULT_MAX_OUTPUT_TOKENS,
+          temperature: 0.7,
+          signal: request.signal,
+        })
+      : await generateText({ messages, maxTokens: body.maxTokens, signal: request.signal });
 
     return Response.json({ text: result.text, model: result.model });
   } catch (err) {
+    if (err instanceof CredentialError || err instanceof ByokCryptoError) {
+      return handleCredentialApiError(err);
+    }
+    if (err instanceof ProviderError) {
+      // No upstream text/config in responses, even if a vendor echoes request details.
+      return Response.json(
+        { error: "Selected provider generation failed", code: err.code },
+        { status: err.code === "INVALID_REQUEST" ? 400 : 502 },
+      );
+    }
     if (err instanceof AiError) {
       return handleAiApiError(err);
     }

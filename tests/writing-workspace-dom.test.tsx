@@ -94,7 +94,11 @@ type Handler = (url: string, init: any) => { status: number; body: unknown } | u
 
 function routeFetch(handler: Handler) {
   const fn = vi.fn(async (url: string, init: any = {}) => {
-    const r = handler(url, init) ?? { status: 200, body: {} };
+    const r =
+      handler(url, init) ??
+      (url === "/api/ai/credentials"
+        ? { status: 200, body: { credentials: [] } }
+        : { status: 200, body: {} });
     return {
       ok: r.status < 300,
       status: r.status,
@@ -434,6 +438,7 @@ describe("WritingWorkspace", () => {
   it("rolls saved word counts into the outline and appends AI text", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     routeFetch((url, init) => {
+      if (url === "/api/ai/credentials") return { status: 200, body: { credentials: [] } };
       if (url === "/api/scenes/scene-1" && init.method === "GET")
         return { status: 200, body: { scene: makeScene() } };
       if (url === "/api/scenes/scene-1" && init.method === "PATCH")
@@ -639,14 +644,19 @@ describe("AiAssistantDrawer", () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     const writeText = vi.fn().mockResolvedValue(undefined);
     vi.stubGlobal("navigator", { clipboard: { writeText } });
-    const fetchMock = routeFetch(() => ({ status: 200, body: { text: "Out", model: "m" } }));
+    const fetchMock = routeFetch((url) => {
+      if (url === "/api/ai/credentials") return { status: 200, body: { credentials: [] } };
+      return { status: 200, body: { text: "Out", model: "m" } };
+    });
     const p = setup();
     fireEvent.click(screen.getByText("Expand beat"));
     expect(screen.getByText("Beat to expand")).toBeTruthy();
     fireEvent.change(screen.getByPlaceholderText(/Mara confronts/), { target: { value: "beat" } });
     fireEvent.click(screen.getByText("Generate"));
     await screen.findByTestId("ai-result");
-    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({
+    const generateCall = fetchMock.mock.calls.find((c) => c[0] === "/api/ai/generate");
+    expect(generateCall).toBeTruthy();
+    expect(JSON.parse(generateCall![1].body)).toEqual({
       sceneId: "scene-1",
       mode: "beat_expansion",
       beatText: "beat",
