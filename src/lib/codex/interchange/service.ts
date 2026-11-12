@@ -320,6 +320,66 @@ export async function loadOwnedLiveEntries(userId: string, ids: string[]) {
 }
 
 /**
+ * Live lorebook entries that were imported with the same interchange group
+ * (the card and its opted-in character_book, or one lorebook file). Restricted
+ * to the same novel or series scope as `scope`.
+ */
+export async function loadImportedGroupBookSources(
+  userId: string,
+  groupId: string,
+  scope: { novelId: string | null; seriesId: string | null; seriesScoped: boolean },
+): Promise<LorebookExportSource[]> {
+  let query = db.orm.public.CodexEntry.where((e) => e.ownerId.eq(userId)).where((e) =>
+    e.deletedAt.isNull(),
+  );
+  if (scope.seriesScoped && scope.seriesId) {
+    query = query
+      .where((e) => e.seriesId.eq(scope.seriesId!))
+      .where((e) => e.seriesScoped.eq(true));
+  } else if (scope.novelId) {
+    query = query.where((e) => e.novelId.eq(scope.novelId!));
+  } else {
+    return [];
+  }
+  const rows = await query.all();
+  const bookRows = rows.filter((row) => {
+    const read = readInterchangeEnvelope(row.customFields);
+    return read.status === "ok" && read.envelope.groupId === groupId;
+  });
+  if (bookRows.length === 0) return [];
+
+  const ids = bookRows.map((row) => row.id);
+  const aliases = await db.orm.public.CodexAlias.where((a) => a.entryId.in(ids))
+    .where((a) => a.deletedAt.isNull())
+    .all();
+  const aliasesByEntry = new Map<string, string[]>();
+  for (const alias of aliases) {
+    const list = aliasesByEntry.get(alias.entryId) ?? [];
+    list.push(alias.name);
+    aliasesByEntry.set(alias.entryId, list);
+  }
+  bookRows.sort((a, b) => {
+    const order = (customFields: unknown): number => {
+      const read = readInterchangeEnvelope(customFields);
+      return read.status === "ok" ? read.envelope.sourceOrder : 0;
+    };
+    return (
+      a.position - b.position ||
+      order(a.customFields) - order(b.customFields) ||
+      a.name.localeCompare(b.name)
+    );
+  });
+  return bookRows.map((row) => ({
+    id: row.id,
+    name: row.name,
+    description: row.description ?? "",
+    trackingMode: row.trackingMode,
+    aliases: aliasesByEntry.get(row.id) ?? [],
+    customFields: row.customFields,
+  }));
+}
+
+/**
  * Exports the selected Codex entries as SillyTavern lorebook JSON. Every id
  * must be an active entry owned by the caller in a live novel/series;
  * anything else is reported as not found.

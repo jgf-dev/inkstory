@@ -177,7 +177,8 @@ function looksLikeCharacterBook(entries: unknown[]): boolean {
   );
 }
 
-function sourceKeyOf(entry: InterchangeObject, fallback: string): string {
+/** Original uid, or the container key when the entry has none. */
+export function lorebookSourceKey(entry: InterchangeObject, fallback: string): string {
   if (typeof entry.uid === "number" && Number.isFinite(entry.uid)) return String(entry.uid);
   if (typeof entry.uid === "string" && entry.uid.trim() !== "") return entry.uid.trim();
   return fallback;
@@ -234,7 +235,7 @@ export function parseLorebook(raw: unknown): ParsedLorebook {
     if (!isPlainObject(value)) {
       throw invalid(`Entry ${containerKey} is not an object`);
     }
-    const sourceEntryKey = sourceKeyOf(value, containerKey);
+    const sourceEntryKey = lorebookSourceKey(value, containerKey);
     if (seenKeys.has(sourceEntryKey)) {
       throw invalid(`Duplicate entry uid "${sourceEntryKey}"`);
     }
@@ -363,13 +364,13 @@ export function parseLorebook(raw: unknown): ParsedLorebook {
   };
 }
 
-function sameStringSet(a: readonly string[], b: readonly string[]): boolean {
+export function sameStringSet(a: readonly string[], b: readonly string[]): boolean {
   if (a.length !== b.length) return false;
   const set = new Set(a);
   return b.every((v) => set.has(v));
 }
 
-function activationFlags(mode: CodexTrackingMode): { constant: boolean; disable: boolean } {
+export function activationFlags(mode: CodexTrackingMode): { constant: boolean; disable: boolean } {
   if (mode === "ALWAYS") return { constant: true, disable: false };
   if (mode === "NEVER") return { constant: false, disable: true };
   return { constant: false, disable: false };
