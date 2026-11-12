@@ -20,23 +20,29 @@ const cardJson = JSON.stringify({
   spec: "chara_card_v2",
   spec_version: "2.0",
   data: {
-    name: "Mara Vey",
-    description: "Harbor captain.",
-    personality: "Stern",
+    name: "Kaelen Voss",
+    description: "Sentry warden.",
+    personality: "Watchful",
     character_book: {
-      name: "Harbor",
+      name: "Outpost",
       entries: [
-        { keys: ["Lighthouse"], content: "Old tower", enabled: true, insertion_order: 1, id: 7 },
         {
-          keys: ["Storm"],
-          secondary_keys: ["night"],
+          keys: ["Bastion"],
+          content: "Ancient rampart",
+          enabled: true,
+          insertion_order: 1,
+          id: 21,
+        },
+        {
+          keys: ["Wildfire"],
+          secondary_keys: ["embers"],
           selective: true,
-          content: "Rare storm",
+          content: "Sudden blaze",
           enabled: true,
           insertion_order: 2,
-          comment: "Storm",
-          id: 8,
-          extensions: { probability: 50, sticky: 2 },
+          comment: "Blaze",
+          id: 22,
+          extensions: { probability: 40, sticky: 3 },
         },
       ],
     },
@@ -58,10 +64,10 @@ function loreSource(
   } = overrides;
   return {
     id: `book-${sourceEntryKey}`,
-    name: "Lighthouse",
-    description: "Old tower",
+    name: "Bastion",
+    description: "Ancient rampart",
     trackingMode: "DETECTED",
-    aliases: ["Lighthouse"],
+    aliases: ["Bastion"],
     customFields: {
       [INTERCHANGE_ENVELOPE_KEY]: {
         schemaVersion: 1,
@@ -70,8 +76,8 @@ function loreSource(
         groupId: "g1",
         sourceEntryKey,
         sourceOrder: Number(sourceEntryKey) || 0,
-        originalEntry: { key: ["Lighthouse"], comment: "Lighthouse" },
-        bookMetadata: { name: "Harbor" },
+        originalEntry: { key: ["Bastion"], comment: "Bastion" },
+        bookMetadata: { name: "Outpost" },
         mappingVersion: 1,
         importedTrackingMode,
         unsupportedFeatures,
@@ -85,8 +91,8 @@ function cardSource(extra: object, overrides: Partial<CardExportSource> = {}): C
   const parsed = parseCharacterCard({ encoding: "json", content: cardJson });
   return {
     id: "card-1",
-    name: "Mara Vey",
-    description: "Harbor captain.",
+    name: "Kaelen Voss",
+    description: "Sentry warden.",
     type: "CHARACTER",
     aliases: [],
     tags: [],
@@ -173,10 +179,10 @@ describe("STO-1261 interchange variant matrix", () => {
     const book = (parsed.originalCard.data as InterchangeObject)
       .character_book as InterchangeObject;
     const { book: overlaid, warnings } = overlayCharacterBook(book, [
-      loreSource("7", {
-        name: "North Light",
-        description: "Rebuilt tower",
-        aliases: ["Lighthouse", "Beacon"],
+      loreSource("21", {
+        name: "North Bastion",
+        description: "Reinforced rampart",
+        aliases: ["Bastion", "Redoubt"],
         trackingMode: "ALWAYS",
       }),
     ]);
@@ -187,18 +193,18 @@ describe("STO-1261 interchange variant matrix", () => {
     ]);
     const entries = overlaid.entries as InterchangeObject[];
     expect(entries[0]).toMatchObject({
-      comment: "North Light",
-      content: "Rebuilt tower",
-      keys: ["Lighthouse", "Beacon"],
+      comment: "North Bastion",
+      content: "Reinforced rampart",
+      keys: ["Bastion", "Redoubt"],
       constant: true,
       enabled: true,
-      id: 7,
+      id: 21,
     });
     expect(entries[1]).toMatchObject({
-      comment: "Storm",
-      content: "Rare storm",
-      keys: ["Storm"],
-      id: 8,
+      comment: "Blaze",
+      content: "Sudden blaze",
+      keys: ["Wildfire"],
+      id: 22,
     });
   });
 
@@ -208,12 +214,12 @@ describe("STO-1261 interchange variant matrix", () => {
     expect(
       ((withoutSources.card.data as InterchangeObject).character_book as InterchangeObject)
         .entries as InterchangeObject[],
-    ).toMatchObject([{ content: "Old tower" }, { content: "Rare storm" }]);
+    ).toMatchObject([{ content: "Ancient rampart" }, { content: "Sudden blaze" }]);
 
-    const storm = loreSource("8", {
-      name: "Tempest",
-      description: "Edited storm",
-      aliases: ["Storm"],
+    const blaze = loreSource("22", {
+      name: "Inferno",
+      description: "Intense blaze",
+      aliases: ["Wildfire"],
       trackingMode: "DETECTED",
       importedTrackingMode: "NEVER",
       unsupportedFeatures: ["secondaryKeys", "probability", "sticky"],
@@ -223,13 +229,13 @@ describe("STO-1261 interchange variant matrix", () => {
         {},
         {
           embeddedBookEntries: [
-            loreSource("7", {
-              name: "North Light",
-              description: "Rebuilt tower",
-              aliases: ["Lighthouse"],
+            loreSource("21", {
+              name: "North Bastion",
+              description: "Reinforced rampart",
+              aliases: ["Bastion"],
               trackingMode: "ALWAYS",
             }),
-            storm,
+            blaze,
           ],
         },
       ),
@@ -242,15 +248,15 @@ describe("STO-1261 interchange variant matrix", () => {
       (withSources.card.data as InterchangeObject).character_book as InterchangeObject
     ).entries as InterchangeObject[];
     expect(entries[0]).toMatchObject({
-      comment: "North Light",
-      content: "Rebuilt tower",
+      comment: "North Bastion",
+      content: "Reinforced rampart",
       constant: true,
     });
     expect(entries[1]).toMatchObject({
-      comment: "Tempest",
-      content: "Edited storm",
+      comment: "Inferno",
+      content: "Intense blaze",
       enabled: true,
-      keys: ["Storm"],
+      keys: ["Wildfire"],
     });
   });
 });

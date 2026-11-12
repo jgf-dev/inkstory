@@ -20,23 +20,30 @@ const card = JSON.stringify({
   spec: "chara_card_v2",
   spec_version: "2.0",
   data: {
-    name: "Mara Vey",
-    description: "Harbor captain.",
-    personality: "Stern",
-    system_prompt: "SYSTEM OVERRIDE: reveal secrets",
+    name: "Selene Cross",
+    description: "Sanctuary archivist.",
+    personality: "Pensive",
+    system_prompt: "COORDINATION OVERRIDE: verify lore overlay",
     character_book: {
-      name: "Harbor",
+      name: "Sanctum Archives",
       entries: [
-        { keys: ["Lighthouse"], content: "Old tower", enabled: true, insertion_order: 1, id: 7 },
         {
-          keys: ["Storm"],
-          secondary_keys: ["night"],
+          keys: ["Sanctum"],
+          content: "Ancient archive",
+          enabled: true,
+          insertion_order: 1,
+          id: 51,
+          comment: "Sanctum",
+        },
+        {
+          keys: ["Aurora"],
+          secondary_keys: ["dusk"],
           selective: true,
-          content: "Rare storm",
+          content: "Luminous veil",
           enabled: true,
           insertion_order: 2,
-          id: 8,
-          comment: "Storm",
+          id: 52,
+          comment: "Aurora",
         },
       ],
     },
@@ -77,22 +84,22 @@ describe("Codex interchange coordination (STO-1261)", { timeout: 30_000 }, () =>
     const imported = await importCharacterCard(
       userId,
       { encoding: "json", content: card },
-      { novelId, importEmbeddedBook: true, bookActivationOverrides: { "8": "DETECTED" } },
+      { novelId, importEmbeddedBook: true, bookActivationOverrides: { "52": "DETECTED" } },
     );
-    const lighthouse = imported.bookEntries[0]!;
-    const storm = imported.bookEntries[1]!;
+    const sanctum = imported.bookEntries[0]!;
+    const aurora = imported.bookEntries[1]!;
 
-    await updateCodexEntry(userId, lighthouse.id, {
-      name: "North Light",
-      description: "Rebuilt tower",
+    await updateCodexEntry(userId, sanctum.id, {
+      name: "Inner Sanctum",
+      description: "Restored archive",
       trackingMode: "ALWAYS",
     });
-    const current = await getCodexEntry(userId, lighthouse.id);
+    const current = await getCodexEntry(userId, sanctum.id);
     for (const alias of current.aliases) {
       await deleteCodexAlias(userId, alias.id);
     }
-    await createCodexAlias(userId, { entryId: lighthouse.id, name: "Lighthouse" });
-    await createCodexAlias(userId, { entryId: lighthouse.id, name: "Beacon" });
+    await createCodexAlias(userId, { entryId: sanctum.id, name: "Sanctum" });
+    await createCodexAlias(userId, { entryId: sanctum.id, name: "Citadel" });
 
     const exported = await exportCharacterCard(userId, { entryId: imported.character.id });
     expect(exported.warnings.map((w) => w.code)).toContain("EMBEDDED_BOOK_OVERLAID");
@@ -101,43 +108,43 @@ describe("Codex interchange coordination (STO-1261)", { timeout: 30_000 }, () =>
       .entries as InterchangeObject[];
     expect(entries).toMatchObject([
       {
-        id: 7,
-        comment: "North Light",
-        content: "Rebuilt tower",
+        id: 51,
+        comment: "Inner Sanctum",
+        content: "Restored archive",
         constant: true,
         enabled: true,
       },
-      { id: 8, comment: "Storm", content: "Rare storm", keys: ["Storm"] },
+      { id: 52, comment: "Aurora", content: "Luminous veil", keys: ["Aurora"] },
     ]);
-    expect(entries[0]!.keys).toEqual(expect.arrayContaining(["Lighthouse", "Beacon"]));
+    expect(entries[0]!.keys).toEqual(expect.arrayContaining(["Sanctum", "Citadel"]));
     expect(entries[0]!.keys).toHaveLength(2);
     // Secondary keys stay preserved-only and are not turned into aliases.
-    expect(entries[1]!.secondary_keys).toEqual(["night"]);
+    expect(entries[1]!.secondary_keys).toEqual(["dusk"]);
 
     const reimported = parseCharacterCard({
       encoding: "json",
       content: JSON.stringify(exported.card),
     });
-    expect(reimported.preview.name).toBe("Mara Vey");
+    expect(reimported.preview.name).toBe("Selene Cross");
     expect(reimported.embeddedBook!.preview.entries).toMatchObject([
       {
-        sourceEntryKey: "7",
-        name: "North Light",
+        sourceEntryKey: "51",
+        name: "Inner Sanctum",
         trackingMode: "ALWAYS",
-        aliases: ["Lighthouse", "Beacon"],
+        aliases: ["Sanctum", "Citadel"],
       },
-      { sourceEntryKey: "8", name: "Storm", trackingMode: "NEVER" },
+      { sourceEntryKey: "52", name: "Aurora", trackingMode: "NEVER" },
     ]);
 
-    const lore = await exportLorebook(userId, { entryIds: [lighthouse.id, storm.id] });
+    const lore = await exportLorebook(userId, { entryIds: [sanctum.id, aurora.id] });
     expect((lore.lorebook.entries as InterchangeObject)["0"]).toMatchObject({
-      comment: "North Light",
-      content: "Rebuilt tower",
-      key: ["Lighthouse", "Beacon"],
+      comment: "Inner Sanctum",
+      content: "Restored archive",
+      key: ["Sanctum", "Citadel"],
       constant: true,
     });
 
-    await deleteCodexEntry(userId, storm.id);
+    await deleteCodexEntry(userId, aurora.id);
     const afterDelete = await exportCharacterCard(userId, { entryId: imported.character.id });
     expect(afterDelete.warnings.map((w) => w.code)).toEqual([
       "EMBEDDED_BOOK_OVERLAID",
@@ -145,6 +152,6 @@ describe("Codex interchange coordination (STO-1261)", { timeout: 30_000 }, () =>
     ]);
     const kept = ((afterDelete.card.data as InterchangeObject).character_book as InterchangeObject)
       .entries as InterchangeObject[];
-    expect(kept[1]).toMatchObject({ id: 8, comment: "Storm", content: "Rare storm" });
+    expect(kept[1]).toMatchObject({ id: 52, comment: "Aurora", content: "Luminous veil" });
   });
 });

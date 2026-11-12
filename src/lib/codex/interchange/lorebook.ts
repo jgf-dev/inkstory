@@ -375,11 +375,14 @@ export function sameStringSet(a: readonly string[], b: readonly string[]): boole
 }
 
 export function overlayPrimaryKeys(rawKeys: unknown, newAliases: readonly string[]): string[] {
-  const originalKeys = Array.isArray(rawKeys)
-    ? rawKeys.filter((k): k is string => typeof k === "string")
-    : typeof rawKeys === "string"
-      ? [rawKeys]
-      : [];
+  let originalKeys: string[];
+  if (Array.isArray(rawKeys)) {
+    originalKeys = rawKeys.filter((k): k is string => typeof k === "string");
+  } else if (typeof rawKeys === "string") {
+    originalKeys = [rawKeys];
+  } else {
+    originalKeys = [];
+  }
   const normalized = normalizePrimaryKeys(originalKeys);
   return sameStringSet(normalized.aliases, newAliases)
     ? originalKeys

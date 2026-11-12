@@ -224,7 +224,7 @@ jobs:
             -Dsonar.tests=tests
             -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
             -Dsonar.coverage.exclusions=**/*.d.ts,**/supabase/types.ts
-            -Dsonar.cpd.exclusions=**/tests/**,**/*.test.ts,**/*.test.tsx
+            -Dsonar.cpd.exclusions=tests/**,**/tests/**,**/*.test.ts,**/*.test.tsx
 
       - name: Analyze with SonarQube
         id: sonar_scan
@@ -242,7 +242,7 @@ jobs:
             -Dsonar.tests=tests
             -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
             -Dsonar.coverage.exclusions=**/*.d.ts,**/supabase/types.ts
-            -Dsonar.cpd.exclusions=**/tests/**,**/*.test.ts,**/*.test.tsx
+            -Dsonar.cpd.exclusions=tests/**,**/tests/**,**/*.test.ts,**/*.test.tsx
 
       - name: Enforce Sonar result
         if: always() && steps.sonar_scan.outcome != 'skipped'

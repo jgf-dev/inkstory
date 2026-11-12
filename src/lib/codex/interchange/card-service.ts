@@ -198,13 +198,15 @@ export async function exportCharacterCard(
 
   const [row] = await loadOwnedLiveEntries(userId, [entryId]);
   const cardEnvelope = readCardEnvelope(row!.customFields);
+  const aliasQuery = db.orm.public.CodexAlias.where((a) => a.entryId.eq(entryId)).where((a) =>
+    a.deletedAt.isNull(),
+  );
+  const tagQuery = db.orm.public.CodexTag.where((t) => t.entryId.eq(entryId)).where((t) =>
+    t.deletedAt.isNull(),
+  );
   const [aliases, tags, embeddedBookEntries] = await Promise.all([
-    db.orm.public.CodexAlias.where((a) => a.entryId.eq(entryId))
-      .where((a) => a.deletedAt.isNull())
-      .all(),
-    db.orm.public.CodexTag.where((t) => t.entryId.eq(entryId))
-      .where((t) => t.deletedAt.isNull())
-      .all(),
+    aliasQuery.all(),
+    tagQuery.all(),
     cardEnvelope.status === "ok" && cardEnvelope.envelope.embeddedBookImported
       ? loadImportedGroupBookSources(userId, cardEnvelope.envelope.groupId)
       : Promise.resolve(undefined),
