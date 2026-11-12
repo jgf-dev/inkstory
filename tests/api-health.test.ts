@@ -13,7 +13,7 @@ describe("GET /api/health", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("content-type")).toContain("application/json");
 
-    const data = await response.json();
+    const data = await response.json<any>();
     expect(data.status).toBe("ok");
     expect(data.service).toBe("inkstory");
     expect(typeof data.version).toBe("string");
@@ -29,7 +29,7 @@ describe("GET /api/health", () => {
 
     try {
       const response = GET();
-      const data = await response.json();
+      const data = await response.json<any>();
       expect(data.version).toBe("0.1.0");
     } finally {
       if (originalVersion !== undefined) {

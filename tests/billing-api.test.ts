@@ -124,7 +124,7 @@ describe("billing routes", { timeout: 20_000 }, () => {
         }),
       );
       expect(res.status).toBe(400);
-      expect((await res.json()).code).toBe("VALIDATION_FAILED");
+      expect((await res.json<any>()).code).toBe("VALIDATION_FAILED");
     });
 
     it("returns 400 when Studio is requested with annual billing", async () => {
@@ -135,7 +135,7 @@ describe("billing routes", { timeout: 20_000 }, () => {
         }),
       );
       expect(res.status).toBe(400);
-      const body = await res.json();
+      const body = await res.json<any>();
       expect(body.code).toBe("VALIDATION_FAILED");
       expect(body.error).toMatch(/monthly/i);
       expect(createCheckoutSession).not.toHaveBeenCalled();
@@ -150,7 +150,7 @@ describe("billing routes", { timeout: 20_000 }, () => {
         }),
       );
       expect(res.status).toBe(503);
-      expect((await res.json()).code).toBe("BILLING_NOT_CONFIGURED");
+      expect((await res.json<any>()).code).toBe("BILLING_NOT_CONFIGURED");
     });
 
     it("returns 503 when the plan has no configured price", async () => {
@@ -175,7 +175,7 @@ describe("billing routes", { timeout: 20_000 }, () => {
       );
 
       expect(res.status).toBe(200);
-      expect(await res.json()).toEqual({ checkoutUrl: "https://stripe.test/checkout" });
+      expect(await res.json<any>()).toEqual({ checkoutUrl: "https://stripe.test/checkout" });
       expect(createCheckoutSession).toHaveBeenCalledWith(
         expect.objectContaining({
           mode: "subscription",
@@ -228,7 +228,7 @@ describe("billing routes", { timeout: 20_000 }, () => {
     it("returns 400 for authors without a Stripe customer", async () => {
       const res = await portal();
       expect(res.status).toBe(400);
-      expect((await res.json()).code).toBe("NO_CUSTOMER");
+      expect((await res.json<any>()).code).toBe("NO_CUSTOMER");
     });
 
     it("returns a portal URL for customers", async () => {
@@ -243,7 +243,7 @@ describe("billing routes", { timeout: 20_000 }, () => {
 
       const res = await portal();
       expect(res.status).toBe(200);
-      expect(await res.json()).toEqual({ portalUrl: "https://stripe.test/portal" });
+      expect(await res.json<any>()).toEqual({ portalUrl: "https://stripe.test/portal" });
       expect(createPortalSession).toHaveBeenCalledWith(
         expect.objectContaining({
           customer: "cus_portal",
@@ -307,7 +307,7 @@ describe("billing routes", { timeout: 20_000 }, () => {
         data: { object: {} },
       });
       const replay = await webhookRequest({});
-      expect((await replay.json()).duplicate).toBe(true);
+      expect((await replay.json<any>()).duplicate).toBe(true);
     });
 
     it("applies tier changes on customer.subscription.updated", async () => {
@@ -412,7 +412,7 @@ describe("billing routes", { timeout: 20_000 }, () => {
       });
       const res = await webhookRequest({});
       expect(res.status).toBe(200);
-      expect((await res.json()).received).toBe(true);
+      expect((await res.json<any>()).received).toBe(true);
     });
 
     it("returns 500 and does not record the event when processing fails", async () => {
@@ -436,7 +436,7 @@ describe("billing routes", { timeout: 20_000 }, () => {
       });
       retrieveSubscription.mockResolvedValueOnce(subscriptionFixture());
       const retry = await webhookRequest({});
-      expect((await retry.json()).duplicate).toBeUndefined();
+      expect((await retry.json<any>()).duplicate).toBeUndefined();
     });
 
     it("acks a duplicate delivery of the same event with 200 without re-processing", async () => {
@@ -455,12 +455,12 @@ describe("billing routes", { timeout: 20_000 }, () => {
 
       const first = await webhookRequest({});
       expect(first.status).toBe(200);
-      expect((await first.json()).duplicate).toBeUndefined();
+      expect((await first.json<any>()).duplicate).toBeUndefined();
       expect(syncSpy).toHaveBeenCalledTimes(1);
 
       const second = await webhookRequest({});
       expect(second.status).toBe(200);
-      expect((await second.json()).duplicate).toBe(true);
+      expect((await second.json<any>()).duplicate).toBe(true);
       expect(syncSpy).toHaveBeenCalledTimes(1);
 
       const rows = await db.orm.public.StripeWebhookEvent.where({ eventId: event.id }).all();
@@ -481,7 +481,7 @@ describe("billing routes", { timeout: 20_000 }, () => {
       const syncSpy = vi.spyOn(subscriptionSync, "applySubscriptionToUser");
       const res = await webhookRequest({});
       expect(res.status).toBe(409);
-      expect((await res.json()).code).toBe("EVENT_IN_FLIGHT");
+      expect((await res.json<any>()).code).toBe("EVENT_IN_FLIGHT");
       expect(syncSpy).not.toHaveBeenCalled();
 
       // The first delivery fails and releases its claim: Stripe's retry is processed.
@@ -489,7 +489,7 @@ describe("billing routes", { timeout: 20_000 }, () => {
       constructEventAsync.mockResolvedValueOnce(event);
       const retry = await webhookRequest({});
       expect(retry.status).toBe(200);
-      expect((await retry.json()).duplicate).toBeUndefined();
+      expect((await retry.json<any>()).duplicate).toBeUndefined();
       expect(syncSpy).toHaveBeenCalledTimes(1);
       syncSpy.mockRestore();
 
@@ -511,7 +511,7 @@ describe("billing routes", { timeout: 20_000 }, () => {
       });
       const res = await webhookRequest({});
       expect(res.status).toBe(200);
-      expect((await res.json()).duplicate).toBeUndefined();
+      expect((await res.json<any>()).duplicate).toBeUndefined();
 
       const rows = await db.orm.public.StripeWebhookEvent.where({ eventId }).all();
       expect(rows).toHaveLength(1);
@@ -549,7 +549,7 @@ describe("billing routes", { timeout: 20_000 }, () => {
         data: { object: {} },
       });
       const res = await webhookRequest({});
-      expect((await res.json()).duplicate).toBe(true);
+      expect((await res.json<any>()).duplicate).toBe(true);
     });
   });
 });
