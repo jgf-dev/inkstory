@@ -9,6 +9,13 @@ import { getSceneForEditor } from "@/lib/writing/service";
 import { POV_LABELS, TENSE_LABELS } from "@/lib/writing/meta";
 import { AiError, handleAiApiError, isGenerationMode } from "@/lib/ai/generate";
 import { PromptError, handlePromptApiError, renderResolvedScenePrompt } from "@/lib/prompts";
+import {
+  CapabilityError,
+  applyAvoidanceGuidance,
+  handleCapabilityApiError,
+  joinPromptMessages,
+  parseAdvancedControls,
+} from "@/lib/ai/capabilities";
 
 export const dynamic = "force-dynamic";
 
@@ -32,6 +39,8 @@ export async function POST(request: NextRequest) {
       mode?: string;
       beatText?: string;
       content?: string;
+      /** STO-1265: rendered exactly as Generate will send it. */
+      avoidanceGuidance?: string;
     };
 
     if (typeof body.sceneId !== "string" || !body.sceneId) {
@@ -46,6 +55,9 @@ export async function POST(request: NextRequest) {
         { status: 400 },
       );
     }
+
+    // Same shape rules as Generate so Preview never shows a block Generate would reject.
+    const controls = parseAdvancedControls(body as Record<string, unknown>);
 
     const scene = await getSceneForEditor(user.id, body.sceneId);
     if (scene.excludeFromAi) {
@@ -84,11 +96,15 @@ export async function POST(request: NextRequest) {
       codexPrompt,
     });
 
+    const messages = applyAvoidanceGuidance(rendered.messages, controls.avoidanceGuidance);
+
     return Response.json({
-      messages: rendered.messages,
-      joined: rendered.joined,
+      messages,
+      joined:
+        controls.avoidanceGuidance !== undefined ? joinPromptMessages(messages) : rendered.joined,
       unresolved: rendered.unresolved,
       unknownTokens: rendered.unknownTokens,
+      avoidanceGuidance: controls.avoidanceGuidance !== undefined ? "included" : "none",
       prompt: {
         id: rendered.prompt.id,
         name: rendered.prompt.name,
@@ -97,6 +113,7 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (err) {
+    if (err instanceof CapabilityError) return handleCapabilityApiError(err);
     if (err instanceof AiError) return handleAiApiError(err);
     if (err instanceof PromptError) return handlePromptApiError(err);
     return handleCodexApiError(err);
