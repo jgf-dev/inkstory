@@ -20,7 +20,13 @@
  */
 
 import { parseDocument } from "yaml";
-import { parseLorebook } from "./lorebook";
+import {
+  activationFlags,
+  activationSemanticsWarning,
+  entrySourceKey,
+  overlayPrimaryKeys,
+  parseLorebook,
+} from "./lorebook";
 import { extractCardText, readPng, base64ToUtf8 } from "./png";
 import {
   CARD_FORMAT,
@@ -29,8 +35,10 @@ import {
   type CardExportSource,
   type CardInput,
   type CardSourceVersion,
+  type InterchangeEnvelope,
   type InterchangeObject,
   type InterchangeWarning,
+  type LorebookExportSource,
   type ParsedCard,
   type ParsedLorebook,
   type SerializedCard,
@@ -42,6 +50,7 @@ import {
   jsonByteLength,
   parseBoundedJson,
   readCardEnvelope,
+  readInterchangeEnvelope,
 } from "./validate";
 
 const V1_FIELDS = ["name", "description", "personality", "scenario", "first_mes", "mes_example"];
@@ -343,6 +352,93 @@ function v2DataFrom(fields: InterchangeObject): InterchangeObject {
   return data;
 }
 
+/** Source key used when an embedded book entry is imported through the lorebook codec. */
+export function characterBookEntrySourceKey(entry: InterchangeObject, index: number): string {
+  const rawId = typeof entry.id === "number" || typeof entry.id === "string" ? entry.id : index;
+  return entrySourceKey(rawId, index);
+}
+
+function overlayCharacterBookEntry(
+  original: InterchangeObject,
+  source: LorebookExportSource,
+  env: InterchangeEnvelope | null,
+): { entry: InterchangeObject; warnings: InterchangeWarning[] } {
+  const next: InterchangeObject = { ...original };
+  const warnings: InterchangeWarning[] = [];
+  const commentTitle = typeof original.comment === "string" ? original.comment.trim() : "";
+  const nameTitle = typeof original.name === "string" ? original.name.trim() : "";
+  const originalTitle = commentTitle || nameTitle;
+  if (originalTitle !== source.name) next.comment = source.name;
+  next.content = source.description;
+
+  next.keys = overlayPrimaryKeys(original.keys, source.aliases);
+
+  if (env && source.trackingMode !== env.importedTrackingMode) {
+    const flags = activationFlags(source.trackingMode);
+    next.constant = flags.constant;
+    next.enabled = !flags.disable;
+    const warning = activationSemanticsWarning(source, env);
+    if (warning) warnings.push(warning);
+  }
+  return { entry: next, warnings };
+}
+
+/**
+ * Overlays current Codex fields of imported book entries onto a preserved
+ * `character_book`. Missing live entries keep their imported text (with a
+ * warning). This is a semantic overlay, not a byte-identical rewrite.
+ */
+export function overlayCharacterBook(
+  book: InterchangeObject,
+  sources: readonly LorebookExportSource[],
+  options: { cardEntryId?: string } = {},
+): { book: InterchangeObject; warnings: InterchangeWarning[] } {
+  const warnings: InterchangeWarning[] = [];
+  if (!Array.isArray(book.entries)) return { book, warnings };
+
+  const byKey = new Map<string, LorebookExportSource>();
+  let overlaidCount = 0;
+  for (const source of sources) {
+    const read = readInterchangeEnvelope(source.customFields);
+    if (read.status === "ok") byKey.set(read.envelope.sourceEntryKey, source);
+  }
+
+  const entries = book.entries.map((raw, index) => {
+    if (!isPlainObject(raw)) return raw;
+    const key = characterBookEntrySourceKey(raw, index);
+    const source = byKey.get(key);
+    if (!source) {
+      warnings.push({
+        code: "EMBEDDED_BOOK_ENTRY_MISSING",
+        message: `Embedded book entry "${key}" has no live Codex entry; the imported text was kept.`,
+        sourceEntryKey: key,
+        entryId: options.cardEntryId,
+      });
+      return raw;
+    }
+    const read = readInterchangeEnvelope(source.customFields);
+    const overlaid = overlayCharacterBookEntry(
+      raw,
+      source,
+      read.status === "ok" ? read.envelope : null,
+    );
+    warnings.push(...overlaid.warnings);
+    overlaidCount += 1;
+    return overlaid.entry;
+  });
+
+  if (overlaidCount > 0) {
+    warnings.unshift({
+      code: "EMBEDDED_BOOK_OVERLAID",
+      message:
+        "The embedded character book includes current Codex edits to imported entries (name, description, aliases and activation).",
+      entryId: options.cardEntryId,
+    });
+  }
+
+  return { book: { ...book, entries }, warnings };
+}
+
 /**
  * Serializes one Codex entry as a Character Card V2 object. Entries imported
  * from a card start from the preserved card and overlay the native name and
@@ -387,16 +483,22 @@ export function serializeCharacterCard(source: CardExportSource): SerializedCard
     }
     card.spec = "chara_card_v2";
     card.spec_version = "2.0";
-    if (
-      env.embeddedBookImported &&
-      isPlainObject((card.data as InterchangeObject).character_book)
-    ) {
-      warnings.push({
-        code: "EMBEDDED_BOOK_FROM_IMPORT",
-        message:
-          "The embedded character book is exported as it was imported; edits to its Codex entries are not included.",
-        entryId: source.id,
-      });
+    const preservedBook = (card.data as InterchangeObject).character_book;
+    if (env.embeddedBookImported && isPlainObject(preservedBook)) {
+      if (source.embeddedBookEntries) {
+        const overlaid = overlayCharacterBook(preservedBook, source.embeddedBookEntries, {
+          cardEntryId: source.id,
+        });
+        (card.data as InterchangeObject).character_book = overlaid.book;
+        warnings.push(...overlaid.warnings);
+      } else {
+        warnings.push({
+          code: "EMBEDDED_BOOK_FROM_IMPORT",
+          message:
+            "The embedded character book is exported as it was imported; Codex entry edits were not supplied.",
+          entryId: source.id,
+        });
+      }
     }
   } else {
     if (read.status === "invalid") {

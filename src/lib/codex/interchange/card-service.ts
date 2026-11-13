@@ -10,6 +10,7 @@ import { bytesToBase64, embedCardText, readPng, utf8ToBase64, base64ToBytes } fr
 import {
   commitInterchangeBatch,
   exportFilename,
+  loadImportedGroupBookSources,
   loadOwnedLiveEntries,
   prepareLorebookBatch,
   type InterchangeBatchEntry,
@@ -27,7 +28,7 @@ import {
   type InterchangeObject,
   type InterchangeWarning,
 } from "./types";
-import { invalid } from "./validate";
+import { invalid, readCardEnvelope } from "./validate";
 
 /** Raw request fields describing an uploaded card. */
 export interface CardUpload {
@@ -196,13 +197,19 @@ export async function exportCharacterCard(
   }
 
   const [row] = await loadOwnedLiveEntries(userId, [entryId]);
-  const [aliases, tags] = await Promise.all([
-    db.orm.public.CodexAlias.where((a) => a.entryId.eq(entryId))
-      .where((a) => a.deletedAt.isNull())
-      .all(),
-    db.orm.public.CodexTag.where((t) => t.entryId.eq(entryId))
-      .where((t) => t.deletedAt.isNull())
-      .all(),
+  const cardEnvelope = readCardEnvelope(row!.customFields);
+  const aliasQuery = db.orm.public.CodexAlias.where((a) => a.entryId.eq(entryId)).where((a) =>
+    a.deletedAt.isNull(),
+  );
+  const tagQuery = db.orm.public.CodexTag.where((t) => t.entryId.eq(entryId)).where((t) =>
+    t.deletedAt.isNull(),
+  );
+  const [aliases, tags, embeddedBookEntries] = await Promise.all([
+    aliasQuery.all(),
+    tagQuery.all(),
+    cardEnvelope.status === "ok" && cardEnvelope.envelope.embeddedBookImported
+      ? loadImportedGroupBookSources(userId, cardEnvelope.envelope.groupId)
+      : Promise.resolve(undefined),
   ]);
 
   const { card, warnings } = serializeCharacterCard({
@@ -213,6 +220,7 @@ export async function exportCharacterCard(
     aliases: aliases.map((a) => a.name),
     tags: tags.map((t) => t.name),
     customFields: row!.customFields,
+    embeddedBookEntries,
   });
 
   if (!portraitBytes) {

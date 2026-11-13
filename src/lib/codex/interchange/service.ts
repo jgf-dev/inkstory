@@ -319,6 +319,82 @@ export async function loadOwnedLiveEntries(userId: string, ids: string[]) {
   return rows;
 }
 
+export function sourceOrderOf(customFields: unknown): number {
+  const read = readInterchangeEnvelope(customFields);
+  return read.status === "ok" ? read.envelope.sourceOrder : 0;
+}
+
+export function sortInterchangeRows<
+  T extends { position: number; name: string; customFields: unknown },
+>(rows: readonly T[]): T[] {
+  return [...rows].sort(
+    (a, b) =>
+      a.position - b.position ||
+      sourceOrderOf(a.customFields) - sourceOrderOf(b.customFields) ||
+      a.name.localeCompare(b.name),
+  );
+}
+
+export function mapAliasesByEntry(
+  aliases: readonly { entryId: string; name: string }[],
+): Map<string, string[]> {
+  const map = new Map<string, string[]>();
+  for (const alias of aliases) {
+    const list = map.get(alias.entryId) ?? [];
+    list.push(alias.name);
+    map.set(alias.entryId, list);
+  }
+  return map;
+}
+
+export function buildLorebookExportSources(
+  rows: readonly {
+    id: string;
+    name: string;
+    description: string | null;
+    trackingMode: CodexTrackingMode;
+    customFields: unknown;
+  }[],
+  aliasesByEntry: Map<string, string[]>,
+): LorebookExportSource[] {
+  return rows.map((row) => ({
+    id: row.id,
+    name: row.name,
+    description: row.description ?? "",
+    trackingMode: row.trackingMode,
+    aliases: aliasesByEntry.get(row.id) ?? [],
+    customFields: row.customFields,
+  }));
+}
+
+/**
+ * Live lorebook entries that were imported with the same interchange group
+ * (the card and its opted-in character_book, or one lorebook file). The group
+ * id is unique per import, so entries are matched by owner and group only:
+ * moving the card or a book entry to another novel or series keeps the link.
+ */
+export async function loadImportedGroupBookSources(
+  userId: string,
+  groupId: string,
+): Promise<LorebookExportSource[]> {
+  const rows = await db.orm.public.CodexEntry.where((e) => e.ownerId.eq(userId))
+    .where((e) => e.deletedAt.isNull())
+    .all();
+  const bookRows = rows.filter((row) => {
+    const read = readInterchangeEnvelope(row.customFields);
+    return read.status === "ok" && read.envelope.groupId === groupId;
+  });
+  if (bookRows.length === 0) return [];
+
+  const ids = bookRows.map((row) => row.id);
+  const aliases = await db.orm.public.CodexAlias.where((a) => a.entryId.in(ids))
+    .where((a) => a.deletedAt.isNull())
+    .all();
+  const aliasesByEntry = mapAliasesByEntry(aliases);
+  const ordered = sortInterchangeRows(bookRows);
+  return buildLorebookExportSources(ordered, aliasesByEntry);
+}
+
 /**
  * Exports the selected Codex entries as SillyTavern lorebook JSON. Every id
  * must be an active entry owned by the caller in a live novel/series;
@@ -363,32 +439,9 @@ export async function exportLorebook(
       .where((p) => p.deletedAt.isNull())
       .all(),
   ]);
-  const aliasesByEntry = new Map<string, string[]>();
-  for (const alias of aliases) {
-    const list = aliasesByEntry.get(alias.entryId) ?? [];
-    list.push(alias.name);
-    aliasesByEntry.set(alias.entryId, list);
-  }
-
-  const sourceOrderOf = (customFields: unknown): number => {
-    const read = readInterchangeEnvelope(customFields);
-    return read.status === "ok" ? read.envelope.sourceOrder : 0;
-  };
-  const ordered = [...rows].sort(
-    (a, b) =>
-      a.position - b.position ||
-      sourceOrderOf(a.customFields) - sourceOrderOf(b.customFields) ||
-      a.name.localeCompare(b.name),
-  );
-
-  const sources: LorebookExportSource[] = ordered.map((row) => ({
-    id: row.id,
-    name: row.name,
-    description: row.description ?? "",
-    trackingMode: row.trackingMode,
-    aliases: aliasesByEntry.get(row.id) ?? [],
-    customFields: row.customFields,
-  }));
+  const aliasesByEntry = mapAliasesByEntry(aliases);
+  const ordered = sortInterchangeRows(rows);
+  const sources = buildLorebookExportSources(ordered, aliasesByEntry);
 
   const exportName = typeof name === "string" ? name : null;
   const { lorebook, warnings } = serializeLorebook(sources, { name: exportName });

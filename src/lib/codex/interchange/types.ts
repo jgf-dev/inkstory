@@ -105,6 +105,8 @@ export interface InterchangeWarning {
     | "EMBEDDED_BOOK_INVALID"
     | "EMBEDDED_BOOK_NOT_IMPORTED"
     | "EMBEDDED_BOOK_FROM_IMPORT"
+    | "EMBEDDED_BOOK_OVERLAID"
+    | "EMBEDDED_BOOK_ENTRY_MISSING"
     | "NOT_A_CHARACTER";
   message: string;
   sourceEntryKey?: string;
@@ -265,6 +267,12 @@ export interface CardExportSource {
   aliases: string[];
   tags: string[];
   customFields: unknown;
+  /**
+   * Live Codex entries imported from this card's character_book (same groupId).
+   * When provided (including an empty list), card export overlays their current
+   * native fields onto the preserved book. Omitted in codec-only tests.
+   */
+  embeddedBookEntries?: LorebookExportSource[];
 }
 
 export interface SerializedCard {

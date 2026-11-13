@@ -177,10 +177,15 @@ function looksLikeCharacterBook(entries: unknown[]): boolean {
   );
 }
 
-function sourceKeyOf(entry: InterchangeObject, fallback: string): string {
-  if (typeof entry.uid === "number" && Number.isFinite(entry.uid)) return String(entry.uid);
-  if (typeof entry.uid === "string" && entry.uid.trim() !== "") return entry.uid.trim();
-  return fallback;
+export function entrySourceKey(raw: unknown, fallback: string | number): string {
+  if (typeof raw === "number" && Number.isFinite(raw)) return String(raw);
+  if (typeof raw === "string" && raw.trim() !== "") return raw.trim();
+  return String(fallback);
+}
+
+/** Original uid, or the container key when the entry has none. */
+export function lorebookSourceKey(entry: InterchangeObject, fallback: string): string {
+  return entrySourceKey(entry.uid, fallback);
 }
 
 /**
@@ -234,7 +239,7 @@ export function parseLorebook(raw: unknown): ParsedLorebook {
     if (!isPlainObject(value)) {
       throw invalid(`Entry ${containerKey} is not an object`);
     }
-    const sourceEntryKey = sourceKeyOf(value, containerKey);
+    const sourceEntryKey = lorebookSourceKey(value, containerKey);
     if (seenKeys.has(sourceEntryKey)) {
       throw invalid(`Duplicate entry uid "${sourceEntryKey}"`);
     }
@@ -363,16 +368,48 @@ export function parseLorebook(raw: unknown): ParsedLorebook {
   };
 }
 
-function sameStringSet(a: readonly string[], b: readonly string[]): boolean {
+export function sameStringSet(a: readonly string[], b: readonly string[]): boolean {
   if (a.length !== b.length) return false;
   const set = new Set(a);
   return b.every((v) => set.has(v));
 }
 
-function activationFlags(mode: CodexTrackingMode): { constant: boolean; disable: boolean } {
+export function overlayPrimaryKeys(rawKeys: unknown, newAliases: readonly string[]): string[] {
+  let originalKeys: string[];
+  if (Array.isArray(rawKeys)) {
+    originalKeys = rawKeys.filter((k): k is string => typeof k === "string");
+  } else if (typeof rawKeys === "string") {
+    originalKeys = [rawKeys];
+  } else {
+    originalKeys = [];
+  }
+  const normalized = normalizePrimaryKeys(originalKeys);
+  return sameStringSet(normalized.aliases, newAliases)
+    ? originalKeys
+    : [...newAliases, ...normalized.regexKeys];
+}
+
+export function activationFlags(mode: CodexTrackingMode): { constant: boolean; disable: boolean } {
   if (mode === "ALWAYS") return { constant: true, disable: false };
   if (mode === "NEVER") return { constant: false, disable: true };
   return { constant: false, disable: false };
+}
+
+export function activationSemanticsWarning(
+  source: { id?: string; name: string; trackingMode: CodexTrackingMode },
+  env: { unsupportedFeatures: readonly string[]; sourceEntryKey?: string },
+): InterchangeWarning | null {
+  if (source.trackingMode === "NEVER") return null;
+  const blocking = env.unsupportedFeatures.filter((f) =>
+    BLOCKING_LOREBOOK_FEATURES.has(f as LorebookFeature),
+  );
+  if (blocking.length === 0) return null;
+  return {
+    code: "ACTIVATION_SEMANTICS_DIFFER",
+    message: `"${source.name}" still carries ${blocking.join(", ")}; SillyTavern will apply them on top of the ${source.trackingMode} mode chosen in inkstory.`,
+    entryId: source.id,
+    ...(env.sourceEntryKey ? { sourceEntryKey: env.sourceEntryKey } : {}),
+  };
 }
 
 /**
@@ -397,32 +434,15 @@ export function serializeLorebook(
       groups.set(env.groupId, env.bookMetadata);
       const original = env.originalEntry;
       entry = { ...DEFAULT_ENTRY, ...original };
-
-      const originalKeys = Array.isArray(original.key)
-        ? original.key.filter((k): k is string => typeof k === "string")
-        : typeof original.key === "string"
-          ? [original.key]
-          : [];
-      const normalized = normalizePrimaryKeys(originalKeys);
-      entry.key = sameStringSet(normalized.aliases, source.aliases)
-        ? originalKeys
-        : [...source.aliases, ...normalized.regexKeys];
+      entry.key = overlayPrimaryKeys(original.key, source.aliases);
 
       const originalTitle = typeof original.comment === "string" ? original.comment.trim() : "";
       if (originalTitle !== source.name) entry.comment = source.name;
 
       if (source.trackingMode !== env.importedTrackingMode) {
         Object.assign(entry, activationFlags(source.trackingMode));
-        const blocking = env.unsupportedFeatures.filter((f) =>
-          BLOCKING_LOREBOOK_FEATURES.has(f as LorebookFeature),
-        );
-        if (source.trackingMode !== "NEVER" && blocking.length > 0) {
-          warnings.push({
-            code: "ACTIVATION_SEMANTICS_DIFFER",
-            message: `"${source.name}" still carries ${blocking.join(", ")}; SillyTavern will apply them on top of the ${source.trackingMode} mode chosen in inkstory.`,
-            entryId: source.id,
-          });
-        }
+        const warning = activationSemanticsWarning(source, env);
+        if (warning) warnings.push(warning);
       }
     } else {
       if (read.status === "invalid") {
