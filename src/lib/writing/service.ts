@@ -875,6 +875,21 @@ export async function updateScene(userId: string, sceneId: string, input: Update
   return getSceneForEditor(userId, sceneId);
 }
 
+/**
+ * Takes an explicit MANUAL revision of the stored scene (STO-1266). Craft
+ * Apply calls this before changing the manuscript so the result can be undone
+ * from history, even when the apply itself is later collapsed into autosave.
+ */
+export async function checkpointScene(
+  userId: string,
+  sceneId: string,
+): Promise<SceneRevisionListItem> {
+  const { scene } = await assertSceneAccess(userId, sceneId);
+  await createSceneRevisionSnapshot(scene as SceneRowLike, "MANUAL");
+  const [latest] = await listSceneRevisions(userId, sceneId, 1);
+  return latest;
+}
+
 /** Lists recent scene revisions (newest first). Omits full contentDoc payloads. */
 export async function listSceneRevisions(
   userId: string,
