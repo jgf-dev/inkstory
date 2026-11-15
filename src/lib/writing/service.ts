@@ -728,8 +728,16 @@ function resolveContentDualWrite(
 
 async function createSceneRevisionSnapshot(
   scene: SceneRowLike,
+  reason: Exclude<SceneRevisionReasonValue, "AUTOSAVE">,
+): Promise<SceneRevisionListItem>;
+async function createSceneRevisionSnapshot(
+  scene: SceneRowLike,
   reason: SceneRevisionReasonValue,
-): Promise<void> {
+): Promise<SceneRevisionListItem | null>;
+async function createSceneRevisionSnapshot(
+  scene: SceneRowLike,
+  reason: SceneRevisionReasonValue,
+): Promise<SceneRevisionListItem | null> {
   const now = nowTimestamp();
 
   if (reason === "AUTOSAVE") {
@@ -741,11 +749,11 @@ async function createSceneRevisionSnapshot(
       recent.reason === "AUTOSAVE" &&
       Date.now() - toEpochMs(recent.createdAt) < AUTOSAVE_REVISION_COLLAPSE_MS
     ) {
-      return;
+      return null;
     }
   }
 
-  await db.orm.public.SceneRevision.create({
+  const created = await db.orm.public.SceneRevision.create({
     id: crypto.randomUUID(),
     sceneId: scene.id,
     title: scene.title,
@@ -769,6 +777,8 @@ async function createSceneRevisionSnapshot(
       await db.orm.public.SceneRevision.where({ id: row.id }).delete();
     }
   }
+
+  return toRevisionListItem(created);
 }
 
 function revisionPreview(content: string): string {
@@ -885,9 +895,7 @@ export async function checkpointScene(
   sceneId: string,
 ): Promise<SceneRevisionListItem> {
   const { scene } = await assertSceneAccess(userId, sceneId);
-  await createSceneRevisionSnapshot(scene as SceneRowLike, "MANUAL");
-  const [latest] = await listSceneRevisions(userId, sceneId, 1);
-  return latest;
+  return createSceneRevisionSnapshot(scene as SceneRowLike, "MANUAL");
 }
 
 /** Lists recent scene revisions (newest first). Omits full contentDoc payloads. */
