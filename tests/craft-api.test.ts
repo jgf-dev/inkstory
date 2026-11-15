@@ -119,6 +119,8 @@ describe("POST /api/craft/:tool — validation before spend", () => {
   });
 
   it.each([
+    [null, /JSON object/],
+    [[], /JSON object/],
     [{ inputs: {} }, /sceneId/],
     [{ sceneId: "scene", content: 7 }, /content must be a string/],
     [{ sceneId: "scene", dryRun: "yes" }, /dryRun must be a boolean/],

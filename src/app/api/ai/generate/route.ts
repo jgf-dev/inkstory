@@ -20,7 +20,7 @@ import {
   joinPromptMessages,
   parseAdvancedControls,
 } from "@/lib/ai/capabilities";
-import { PromptError, handlePromptApiError, renderResolvedScenePrompt } from "@/lib/prompts";
+import { PromptError, renderResolvedScenePrompt } from "@/lib/prompts";
 
 export const dynamic = "force-dynamic";
 
@@ -40,7 +40,14 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const body = (await request.json()) as {
+    const rawBody: unknown = await request.json();
+    if (typeof rawBody !== "object" || rawBody === null || Array.isArray(rawBody)) {
+      return Response.json(
+        { error: "Request body must be a JSON object", code: "VALIDATION_FAILED" },
+        { status: 400 },
+      );
+    }
+    const body = rawBody as {
       sceneId?: string;
       mode?: string;
       beatText?: string;
@@ -184,9 +191,6 @@ export async function POST(request: NextRequest) {
     });
     return Response.json(result);
   } catch (err) {
-    if (err instanceof PromptError) {
-      return handlePromptApiError(err);
-    }
     return handleGenerationApiError(err);
   }
 }

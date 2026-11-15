@@ -39,7 +39,11 @@ export async function POST(
     }
 
     const { tool } = await params;
-    const body = (await request.json()) as {
+    const rawBody: unknown = await request.json();
+    if (typeof rawBody !== "object" || rawBody === null || Array.isArray(rawBody)) {
+      return badRequest("Request body must be a JSON object");
+    }
+    const body = rawBody as {
       sceneId?: unknown;
       inputs?: unknown;
       content?: unknown;
