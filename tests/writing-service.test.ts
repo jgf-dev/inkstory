@@ -6,6 +6,7 @@ import {
   deleteOutlineNode,
   getNovelOutline,
   getSceneForEditor,
+  checkpointScene,
   getSceneRevision,
   listSceneRevisions,
   moveOutlineNode,
@@ -394,6 +395,18 @@ describe("Writing Service (outline, scenes, attachments)", { timeout: 30_000 }, 
 
     await expect(listSceneRevisions(otherUserId, sceneId)).rejects.toThrow(/do not have access/);
     await expect(restoreSceneRevision(userId, sceneId, "missing-rev")).rejects.toThrow(/not found/);
+  });
+
+  it("checkpoints the stored scene as a MANUAL revision without changing it", async () => {
+    const live = await updateScene(userId, sceneId, { content: "Checkpoint me" });
+    const revision = await checkpointScene(userId, sceneId);
+    expect(revision.reason).toBe("MANUAL");
+    expect(revision.contentPreview).toBe("Checkpoint me");
+    expect(revision.sceneId).toBe(sceneId);
+    const [latest] = await listSceneRevisions(userId, sceneId, 1);
+    expect(latest.id).toBe(revision.id);
+    expect((await getSceneForEditor(userId, sceneId)).updatedAt).toBe(live.updatedAt);
+    await expect(checkpointScene(otherUserId, sceneId)).rejects.toThrow(/do not have access/);
   });
 
   it("soft-deletes scenes, cascading chapters and acts", async () => {

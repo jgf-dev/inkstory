@@ -7,7 +7,10 @@ import {
   POST as postOutline,
 } from "../src/app/api/novels/[id]/outline/route";
 import { GET as getScene, PATCH as patchScene } from "../src/app/api/scenes/[id]/route";
-import { GET as getRevisions } from "../src/app/api/scenes/[id]/revisions/route";
+import {
+  GET as getRevisions,
+  POST as checkpointRevision,
+} from "../src/app/api/scenes/[id]/revisions/route";
 import { POST as restoreRevision } from "../src/app/api/scenes/[id]/revisions/[revisionId]/restore/route";
 import * as writingService from "../src/lib/writing/service";
 import { CodexError } from "../src/lib/codex/errors";
@@ -253,6 +256,39 @@ describe("Writing REST Route Handlers", () => {
       const json = await res.json<any>();
       expect(json.revisions).toHaveLength(1);
       expect(writingService.listSceneRevisions).toHaveBeenCalledWith(userId, sceneId, 5);
+    });
+
+    it("POST revisions takes a MANUAL checkpoint", async () => {
+      vi.spyOn(writingService, "checkpointScene").mockResolvedValueOnce({
+        id: "rev-9",
+        sceneId,
+        reason: "MANUAL",
+      } as any);
+      const req = new NextRequest(`http://localhost:3000/api/scenes/${sceneId}/revisions`, {
+        method: "POST",
+      });
+      const res = await checkpointRevision(req, { params: Promise.resolve({ id: sceneId }) });
+      expect(res.status).toBe(201);
+      const json = await res.json<any>();
+      expect(json.revision).toMatchObject({ id: "rev-9", reason: "MANUAL" });
+      expect(writingService.checkpointScene).toHaveBeenCalledWith(userId, sceneId);
+    });
+
+    it("POST revisions maps access errors and requires a session", async () => {
+      vi.spyOn(writingService, "checkpointScene").mockRejectedValueOnce(
+        new CodexError("You do not have access", "FORBIDDEN", 403),
+      );
+      const url = `http://localhost:3000/api/scenes/${sceneId}/revisions`;
+      const denied = await checkpointRevision(new NextRequest(url, { method: "POST" }), {
+        params: Promise.resolve({ id: sceneId }),
+      });
+      expect(denied.status).toBe(403);
+
+      mockGetUser.mockResolvedValueOnce({ data: { user: null } });
+      const anon = await checkpointRevision(new NextRequest(url, { method: "POST" }), {
+        params: Promise.resolve({ id: sceneId }),
+      });
+      expect(anon.status).toBe(401);
     });
 
     it("POST restore applies a revision", async () => {

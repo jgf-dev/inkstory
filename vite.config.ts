@@ -6,6 +6,27 @@ import { responseStoreAdapter } from "@vinext/cloudflare/cache/response-store-ad
 import { imagesOptimizer } from "@vinext/cloudflare/images/images-optimizer";
 import { responseStoreServiceBinding } from "./cloudflare.config";
 
+const DB_TEST_FILES = [
+  "tests/ai-credentials-api.test.ts",
+  "tests/ai-credentials-service.test.ts",
+  "tests/billing-api.test.ts",
+  "tests/billing-entitlements.test.ts",
+  "tests/codex-interchange-card-service.test.ts",
+  "tests/codex-interchange-coordination.test.ts",
+  "tests/codex-interchange-service.test.ts",
+  "tests/codex-service.test.ts",
+  "tests/codex-ui.test.ts",
+  "tests/export.test.ts",
+  "tests/import.test.ts",
+  "tests/library-service.test.ts",
+  "tests/novel-structure-lock.test.ts",
+  "tests/prisma-8.test.ts",
+  "tests/prompts-contracts-service.test.ts",
+  "tests/prompts-service.test.ts",
+  "tests/supabase-auth.test.ts",
+  "tests/writing-service.test.ts",
+];
+
 export default defineConfig({
   // vinext/Cloudflare plugins rewrite modules for the Workers runtime and break Vitest's module runner.
   plugins: process.env.VITEST
@@ -42,7 +63,12 @@ export default defineConfig({
   },
   test: {
     setupFiles: ["./tests/setup-env.ts"],
-    exclude: ["tests/e2e/**", "node_modules/**", "dist/**"],
+    exclude: [
+      "tests/e2e/**",
+      "node_modules/**",
+      "dist/**",
+      ...(process.env.INKSTORY_NO_DB === "1" ? DB_TEST_FILES : []),
+    ],
     coverage: {
       provider: "v8",
       reporter: ["text", "json", "html", "lcov"],

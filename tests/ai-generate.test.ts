@@ -263,6 +263,13 @@ describe("AI generation (scene continuation / beat expansion)", () => {
     });
 
     it("validates the body", async () => {
+      for (const nonObject of [null, []]) {
+        const res = await generateRoute(makeRequest(nonObject));
+        expect(res.status).toBe(400);
+        const json = await res.json<any>();
+        expect(json.code).toBe("VALIDATION_FAILED");
+      }
+
       const res1 = await generateRoute(makeRequest({ mode: "continuation" }));
       expect(res1.status).toBe(400);
       const res2 = await generateRoute(makeRequest({ sceneId, mode: "haiku" }));
