@@ -4,6 +4,18 @@ A novel-writing and world-building platform with an AI-aware Codex (story bible)
 
 Linear project: [novel-writing-app](https://linear.app/jgfdev/project/novel-writing-app-3c3f658f0d44).
 
+[![Quality gate status](https://sonarcloud.io/api/project_badges/measure?project=jgf-dev_inkstory&metric=alert_status&token=0973df7909e1908388d2c3a3bec0778d546cde79)](https://sonarcloud.io/summary/new_code?id=jgf-dev_inkstory)
+[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=jgf-dev_inkstory&metric=coverage&token=0973df7909e1908388d2c3a3bec0778d546cde79)](https://sonarcloud.io/summary/new_code?id=jgf-dev_inkstory)
+[![Duplicated Lines (%)](https://sonarcloud.io/api/project_badges/measure?project=jgf-dev_inkstory&metric=duplicated_lines_density&token=0973df7909e1908388d2c3a3bec0778d546cde79)](https://sonarcloud.io/summary/new_code?id=jgf-dev_inkstory)
+[![Lines of code](https://sonarcloud.io/api/project_badges/measure?project=jgf-dev_inkstory&metric=ncloc&token=0973df7909e1908388d2c3a3bec0778d546cde79)](https://sonarcloud.io/summary/new_code?id=jgf-dev_inkstory)
+[![Reliability Rating](https://sonarcloud.io/api/project_badges/measure?project=jgf-dev_inkstory&metric=reliability_rating&token=0973df7909e1908388d2c3a3bec0778d546cde79)](https://sonarcloud.io/summary/new_code?id=jgf-dev_inkstory)
+[![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=jgf-dev_inkstory&metric=security_rating&token=0973df7909e1908388d2c3a3bec0778d546cde79)](https://sonarcloud.io/summary/new_code?id=jgf-dev_inkstory)
+[![Maintainability issues](https://sonarcloud.io/api/project_badges/measure?project=jgf-dev_inkstory&metric=software_quality_maintainability_issues&token=0973df7909e1908388d2c3a3bec0778d546cde79)](https://sonarcloud.io/summary/new_code?id=jgf-dev_inkstory)
+[![Reliability issues](https://sonarcloud.io/api/project_badges/measure?project=jgf-dev_inkstory&metric=software_quality_reliability_issues&token=0973df7909e1908388d2c3a3bec0778d546cde79)](https://sonarcloud.io/summary/new_code?id=jgf-dev_inkstory)
+[![Security issues](https://sonarcloud.io/api/project_badges/measure?project=jgf-dev_inkstory&metric=software_quality_security_issues&token=0973df7909e1908388d2c3a3bec0778d546cde79)](https://sonarcloud.io/summary/new_code?id=jgf-dev_inkstory)
+[![Technical Debt](https://sonarcloud.io/api/project_badges/measure?project=jgf-dev_inkstory&metric=sqale_index&token=0973df7909e1908388d2c3a3bec0778d546cde79)](https://sonarcloud.io/summary/new_code?id=jgf-dev_inkstory)
+[![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=jgf-dev_inkstory&metric=sqale_rating&token=0973df7909e1908388d2c3a3bec0778d546cde79)](https://sonarcloud.io/summary/new_code?id=jgf-dev_inkstory)
+
 ## Stack
 
 | Layer     | Choice                                 | Why                                                               |
