@@ -55,12 +55,19 @@ export default defineConfig({
     "**/*.{ts,tsx}": "vp check --fix",
   },
   fmt: {
-    ignorePatterns: ["dist/*", ".agents/*", "node_modules/*", ".agents/claude/homunculus/**"],
+    ignorePatterns: [
+      "dist/*",
+      ".agents/*",
+      "node_modules/*",
+      ".agents/claude/homunculus/**",
+      "prisma/contract.d.ts",
+      "prisma/contract.json",
+    ],
   },
   lint: {
     jsPlugins: [{ name: "vite-plus", specifier: "vite-plus/oxlint-plugin" }],
     rules: { "vite-plus/prefer-vite-plus-imports": "error" },
     options: { typeAware: true, typeCheck: true },
-    ignorePatterns: ["dist/*", ".agents/*", "node_modules/*"],
+    ignorePatterns: ["dist/*", ".agents/*", "node_modules/*", "prisma/contract.d.ts"],
   },
 });
