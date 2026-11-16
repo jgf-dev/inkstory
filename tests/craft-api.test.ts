@@ -97,7 +97,7 @@ describe("GET /api/craft/tools", () => {
     const res = await listTools();
     expect(res.status).toBe(200);
     const json = await res.json<any>();
-    expect(json.tools.map((t: { id: string }) => t.id)).toEqual(["describe"]);
+    expect(json.tools.map((t: { id: string }) => t.id)).toEqual(["describe", "transition"]);
     expect(json.tools[0].contract.output.suggestedAction).toBe("replace_selection");
   });
 

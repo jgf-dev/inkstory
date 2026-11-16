@@ -1,11 +1,12 @@
 /**
- * Code-owned Craft Studio tool registry (STO-1266 scaffold, STO-1267 Describe).
+ * Code-owned Craft Studio tool registry (STO-1266 scaffold, STO-1267 Describe,
+ * STO-1271 Transition).
  *
  * Each tool is a built-in reusable Prompt Component: a validated STO-1275
  * contract (declared craft inputs, context slices, output behavior) plus
  * system/user bodies rendered through the same closed-catalog interpolation
  * as scene Generate. No tables: tools live in code. The remaining v1 tools
- * (Expand, Rewrite, Show Don't Tell, Transition, Brainstorm) register here in
+ * (Expand, Rewrite, Show Don't Tell, Brainstorm) register here in
  * EL build order.
  */
 
@@ -18,7 +19,7 @@ import {
 import { PromptError } from "@/lib/prompts/errors";
 import type { PromptPart } from "@/lib/prompts/types";
 
-export const CRAFT_TOOL_IDS = ["describe"] as const;
+export const CRAFT_TOOL_IDS = ["describe", "transition"] as const;
 export type CraftToolId = (typeof CRAFT_TOOL_IDS)[number];
 
 /** Default raw value per craft input, applied when the author leaves it blank. */
@@ -145,7 +146,77 @@ const DESCRIBE = defineTool({
   },
 });
 
-const CRAFT_TOOLS: Record<CraftToolId, CraftToolDefinition> = { describe: DESCRIBE };
+/** Default output-length target for Transition bridges (words). */
+export const TRANSITION_DEFAULT_TARGET_WORDS = 150;
+
+const TRANSITION_USER_BODY = [
+  "Write a short bridging passage that connects the end of the BEFORE passage to the start of the AFTER passage, as scene or chapter glue.",
+  "Carry any shift in time, place, point of view or mood smoothly so the reader arrives at the AFTER passage oriented and in the right emotional register.",
+  "Do not repeat, summarize or rewrite either passage. Do not introduce new plot events, characters or revelations: the bridge only connects what is already there.",
+  "Aim for roughly {{craft.target_words}} words.",
+  "",
+  'Author guidance:\n"""\n{{craft.instructions}}\n"""',
+  "",
+  "Surrounding scene, for continuity only (do not rewrite it):",
+  '"""',
+  "{{scene.content}}",
+  '"""',
+  "",
+  "BEFORE passage (the bridge starts where this ends):",
+  '"""',
+  "{{craft.before_passage}}",
+  '"""',
+  "",
+  "AFTER passage (the bridge must lead into this):",
+  '"""',
+  "{{craft.after_passage}}",
+  '"""',
+].join("\n");
+
+const TRANSITION = defineTool({
+  id: "transition",
+  name: "Transition",
+  summary: "Bridge two passages with connective prose that carries time, place, POV and mood.",
+  contract: {
+    schemaVersion: 1,
+    inputs: [
+      { key: "craft.before_passage", type: "text", required: true, label: "Passage before" },
+      { key: "craft.after_passage", type: "text", required: true, label: "Passage after" },
+      {
+        key: "craft.target_words",
+        type: "integer",
+        required: false,
+        label: "Target length (words)",
+        min: 10,
+        max: 1000,
+      },
+      {
+        key: "craft.instructions",
+        type: "text",
+        required: false,
+        label: "Extra guidance",
+        maxLength: 1000,
+      },
+    ],
+    contextSlices: DESCRIBE.contract.contextSlices.filter((slice) => slice !== "selection"),
+    output: { mode: "prose", suggestedAction: "insert_between" },
+    attribution: null,
+  },
+  parts: [
+    { role: "system", body: CRAFT_SYSTEM_BODY, name: "craft-transition-system" },
+    { role: "user", body: TRANSITION_USER_BODY, name: "craft-transition-user" },
+  ],
+  allowedContextSlices: DESCRIBE.allowedContextSlices,
+  defaults: {
+    "craft.target_words": TRANSITION_DEFAULT_TARGET_WORDS,
+    "craft.instructions": "None.",
+  },
+});
+
+const CRAFT_TOOLS: Record<CraftToolId, CraftToolDefinition> = {
+  describe: DESCRIBE,
+  transition: TRANSITION,
+};
 
 export function isCraftToolId(value: unknown): value is CraftToolId {
   return typeof value === "string" && (CRAFT_TOOL_IDS as readonly string[]).includes(value);

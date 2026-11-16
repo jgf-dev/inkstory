@@ -2,6 +2,7 @@ export {
   CRAFT_TOOL_IDS,
   DESCRIBE_DEFAULT_TARGET_WORDS,
   SENSORY_FOCUS_OPTIONS,
+  TRANSITION_DEFAULT_TARGET_WORDS,
   getCraftTool,
   isCraftToolId,
   listCraftTools,

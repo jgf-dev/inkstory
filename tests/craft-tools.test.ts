@@ -38,8 +38,8 @@ function sceneBindings() {
 
 describe("craft tool registry", () => {
   it("registers Describe first, with a valid contract inside its policy ceiling", () => {
-    expect(CRAFT_TOOL_IDS).toEqual(["describe"]);
-    expect(listCraftTools().map((t) => t.id)).toEqual(["describe"]);
+    expect(CRAFT_TOOL_IDS).toEqual(["describe", "transition"]);
+    expect(listCraftTools().map((t) => t.id)).toEqual(["describe", "transition"]);
     expect(validatePromptContract(describeTool.contract)).toEqual(describeTool.contract);
     for (const slice of describeTool.contract.contextSlices) {
       expect(describeTool.allowedContextSlices).toContain(slice);
