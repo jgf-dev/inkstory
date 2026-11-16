@@ -97,7 +97,7 @@ describe("GET /api/craft/tools", () => {
     const res = await listTools();
     expect(res.status).toBe(200);
     const json = await res.json<any>();
-    expect(json.tools.map((t: { id: string }) => t.id)).toEqual(["describe", "expand"]);
+    expect(json.tools.map((t: { id: string }) => t.id)).toEqual(["describe", "expand", "rewrite"]);
     expect(json.tools[0].contract.output.suggestedAction).toBe("replace_selection");
   });
 
@@ -210,6 +210,48 @@ describe("POST /api/craft/expand — reuses the scaffold", () => {
     );
     expect(res.status).toBe(422);
     expect((await res.json<any>()).code).toBe("VALIDATION_FAILED");
+    expect(getScene).not.toHaveBeenCalled();
+  });
+});
+
+describe("POST /api/craft/rewrite — reuses the scaffold", () => {
+  it("dryRun renders the Rewrite prompt with the chosen preset and instructions", async () => {
+    const fetchMock = chatFetch();
+    vi.stubGlobal("fetch", fetchMock);
+    const res = await craft(
+      {
+        sceneId: "scene",
+        dryRun: true,
+        inputs: {
+          "craft.selection": SELECTION,
+          "craft.rewrite_preset": "stronger_voice",
+          "craft.instructions": "Keep it wry.",
+        },
+      },
+      "rewrite",
+    );
+    expect(res.status).toBe(200);
+    const json = await res.json<any>();
+    expect(json.tool).toBe("rewrite");
+    expect(json.output).toEqual({ mode: "prose", suggestedAction: "replace_selection" });
+    expect(json.prompt.maxTokens).toBe(400);
+    const user = json.prompt.messages[1].content as string;
+    expect(user).toContain("Rewrite preset: stronger_voice.");
+    expect(user).toContain("Keep it wry.");
+    expect(user).toContain("roughly 200 words");
+    expect(user).toContain(SELECTION);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("422 for presets outside the code-owned list", async () => {
+    const res = await craft(
+      {
+        sceneId: "scene",
+        inputs: { "craft.selection": SELECTION, "craft.rewrite_preset": "make_it_pop" },
+      },
+      "rewrite",
+    );
+    expect(res.status).toBe(422);
     expect(getScene).not.toHaveBeenCalled();
   });
 });
