@@ -175,8 +175,8 @@ bun run test:db
 INKSTORY_TEST_POSTGRES_PORT=55432 bun run test:db
 # or: bun run test:db -- --port 55432
 
-# Or step by step
-INKSTORY_TEST_POSTGRES_PORT=55432 docker compose -f docker-compose.test.yml up -d --wait
+# Or step by step (default port 5432, matching `.env.test`)
+docker compose -f docker-compose.test.yml up -d --wait
 # Then, with only `.env.test` loaded (do not export a URL from `.env`):
 ./node_modules/.bin/prisma db update -y --db "$DATABASE_URL"
 bun run test
