@@ -43,7 +43,7 @@ async function isTestDatabaseReachable(connectionString: string): Promise<boolea
 
 const composeHelp =
   "If pulling ghcr.io/jgf-dev/postgres:17 fails, retry with:\n" +
-  "  INKSTORY_TEST_POSTGRES_IMAGE=postgres:17 bun run test:db";
+  "  INKSTORY_TEST_POSTGRES_IMAGE=postgres:17 bun run test";
 
 async function ensureTestDatabase(databaseUrl: string): Promise<void> {
   if (await isTestDatabaseReachable(databaseUrl)) {
@@ -55,7 +55,7 @@ async function ensureTestDatabase(databaseUrl: string): Promise<void> {
   if (docker.status !== 0) {
     fail(
       "No reachable local test database, and docker is not available.\n" +
-        "Install Docker, then run `bun run test:db` again, or start Postgres 17 yourself " +
+        "Install Docker, then run `bun run test` again, or start Postgres 17 yourself " +
         "with database inkstory_test and user/password postgres/postgres on localhost:5432.\n" +
         composeHelp,
     );
@@ -84,6 +84,7 @@ async function main(): Promise<void> {
 
   delete process.env.DATABASE_URL;
   delete process.env.DIRECT_URL;
+  delete process.env.INKSTORY_NO_DB;
 
   config({ path: ".env.test", override: true });
   process.env.INKSTORY_TEST_ENV = "1";
@@ -99,7 +100,7 @@ async function main(): Promise<void> {
 
   await ensureTestDatabase(databaseUrl);
   run("./node_modules/.bin/prisma", ["db", "update", "-y", "--db", databaseUrl]);
-  run("bun", ["run", "test", ...process.argv.slice(2)]);
+  run("./node_modules/.bin/vp", ["test", ...process.argv.slice(2)]);
 }
 
 await main();

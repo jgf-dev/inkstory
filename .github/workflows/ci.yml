@@ -26,9 +26,6 @@ jobs:
         env:
           DATABASE_URL: "postgresql://placeholder@localhost:5432/placeholder"
 
-      - name: Format generated Prisma contract
-        run: bun run format
-
       - run: bun run lint
       - run: bun run typecheck
       - run: bun run format:check
