@@ -1,12 +1,12 @@
 /**
  * Code-owned Craft Studio tool registry (STO-1266 scaffold, STO-1267 Describe,
- * STO-1268 Expand, STO-1269 Rewrite).
+ * STO-1268 Expand, STO-1269 Rewrite, STO-1270 Show Don't Tell).
  *
  * Each tool is a built-in reusable Prompt Component: a validated STO-1275
  * contract (declared craft inputs, context slices, output behavior) plus
  * system/user bodies rendered through the same closed-catalog interpolation
  * as scene Generate. No tables: tools live in code. The remaining v1 tools
- * (Show Don't Tell, Transition, Brainstorm) register here in EL build order.
+ * (Transition, Brainstorm) register here in EL build order.
  */
 
 import {
@@ -19,7 +19,7 @@ import {
 import { PromptError } from "@/lib/prompts/errors";
 import type { PromptPart } from "@/lib/prompts/types";
 
-export const CRAFT_TOOL_IDS = ["describe", "expand", "rewrite"] as const;
+export const CRAFT_TOOL_IDS = ["describe", "expand", "rewrite", "show_dont_tell"] as const;
 export type CraftToolId = (typeof CRAFT_TOOL_IDS)[number];
 
 /** Default raw value per craft input, applied when the author leaves it blank. */
@@ -62,6 +62,16 @@ export const REWRITE_PRESET_GUIDANCE: Record<(typeof REWRITE_PRESETS)[number], s
   stronger_voice:
     "strengthen the voice: give the narration and point-of-view character more personality and distinct diction",
 };
+
+/** Default output-length target for the Show Don't Tell replacement prose (words). */
+export const SHOW_DONT_TELL_DEFAULT_TARGET_WORDS = 200;
+
+/**
+ * Section markers the Show Don't Tell output must use. The diagnosis is shown
+ * to the author; only the text after the rewrite marker is ever applyable.
+ */
+export const DIAGNOSIS_MARKER = "DIAGNOSIS:";
+export const REWRITE_MARKER = "REWRITE:";
 
 const CRAFT_SYSTEM_BODY = [
   "You are a skilled fiction craft assistant embedded in InkStory, a novel-writing workspace.",
@@ -127,6 +137,32 @@ const REWRITE_USER_BODY = [
   '"""',
   "",
   "Selected passage to rewrite:",
+  '"""',
+  "{{craft.selection}}",
+  '"""',
+].join("\n");
+
+const SHOW_DONT_TELL_USER_BODY = [
+  "Find where the selected passage tells the reader what a character feels, thinks or is like (named emotions, stated traits, summarized reactions) instead of showing it.",
+  "Then rewrite the passage so those moments are shown through observable action, gesture, physical reaction, dialogue or concrete detail filtered through the point-of-view character.",
+  "Keep every event, line of dialogue and story fact from the selection, in the same order. Do not introduce new characters, events or revelations. Leave lines that already show untouched.",
+  "Aim for roughly {{craft.target_words}} words in the rewrite.",
+  "",
+  'Author guidance:\n"""\n{{craft.instructions}}\n"""',
+  "",
+  "For this tool the format below replaces the prose-only rule: the diagnosis is shown to the author and only the rewrite can be applied to the manuscript.",
+  "Answer in exactly this format and nothing else:",
+  `${DIAGNOSIS_MARKER}`,
+  "- One short bullet per instance of telling: quote the telling words, then name what could show it instead. At most five bullets. If nothing is told, write a single bullet saying so.",
+  `${REWRITE_MARKER}`,
+  "The rewritten passage only, as plain prose, with no commentary, headings or quotation marks around it.",
+  "",
+  "Surrounding scene, for continuity only (do not rewrite it):",
+  '"""',
+  "{{scene.content}}",
+  '"""',
+  "",
+  "Selected passage:",
   '"""',
   "{{craft.selection}}",
   '"""',
@@ -330,10 +366,70 @@ const REWRITE = defineTool({
   },
 });
 
+const SHOW_DONT_TELL = defineTool({
+  id: "show_dont_tell",
+  name: "Show Don't Tell",
+  summary:
+    "Spot where the selected prose tells instead of shows, and propose observable actions or reactions.",
+  contract: {
+    schemaVersion: 1,
+    inputs: [
+      { key: "craft.selection", type: "text", required: true, label: "Selected prose" },
+      {
+        key: "craft.target_words",
+        type: "integer",
+        required: false,
+        label: "Target length (words)",
+        min: 10,
+        max: 2000,
+      },
+      {
+        key: "craft.instructions",
+        type: "text",
+        required: false,
+        label: "Extra guidance",
+        maxLength: 1000,
+      },
+    ],
+    contextSlices: [
+      "selection",
+      "scene.content",
+      "scene.title",
+      "scene.pov",
+      "scene.tense",
+      "chapter.title",
+      "novel.title",
+      "codex.context",
+    ],
+    output: { mode: "diagnosis_and_prose", suggestedAction: "replace_selection" },
+    attribution: null,
+  },
+  parts: [
+    { role: "system", body: CRAFT_SYSTEM_BODY, name: "craft-show-dont-tell-system" },
+    { role: "user", body: SHOW_DONT_TELL_USER_BODY, name: "craft-show-dont-tell-user" },
+  ],
+  allowedContextSlices: [
+    "selection",
+    "scene.content",
+    "scene.summary",
+    "scene.title",
+    "scene.pov",
+    "scene.tense",
+    "chapter.title",
+    "novel.title",
+    "codex.context",
+  ],
+  defaults: {
+    "craft.target_words": SHOW_DONT_TELL_DEFAULT_TARGET_WORDS,
+    "craft.instructions": "None.",
+  },
+});
+
 const CRAFT_TOOLS: Record<CraftToolId, CraftToolDefinition> = {
   describe: DESCRIBE,
   expand: EXPAND,
   rewrite: REWRITE,
+  show_dont_tell: SHOW_DONT_TELL,
 };
 
 export function isCraftToolId(value: unknown): value is CraftToolId {
