@@ -1,10 +1,12 @@
 # Disposable Postgres for local Vitest runs. Matches the Sonar CI service in
 # .github/workflows/sonarqube.yml (Postgres 17, db inkstory_test, postgres/postgres,
-# published on localhost:5432).
+# published on localhost:${INKSTORY_TEST_POSTGRES_PORT:-5432}).
 #
 # Default image is the same GHCR mirror CI uses. If a local `docker pull` of that
 # tag fails (auth or rate limit), run:
 #   INKSTORY_TEST_POSTGRES_IMAGE=postgres:17 bun run test:db
+# Override the host port when 5432 is already taken:
+#   INKSTORY_TEST_POSTGRES_PORT=55432 bun run test:db
 # Do not introduce mirror.gcr.io unless CI is changed to use it.
 name: inkstory-test
 
@@ -16,7 +18,7 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: inkstory_test
     ports:
-      - "5432:5432"
+      - "${INKSTORY_TEST_POSTGRES_PORT:-5432}:5432"
     tmpfs:
       - /var/lib/postgresql/data
     healthcheck:

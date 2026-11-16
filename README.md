@@ -165,13 +165,17 @@ E2E launches Chromium with `executablePath: /usr/bin/google-chrome`. Codex tests
 
 Integration tests issue live Prisma queries. They must use a disposable local Postgres, never the repo `.env` / `.env.local` or a hosted Supabase project (prod ref `wntgnjrrzfndunqaiobo`, preview ref `oobhhexdoufnwdltoren`).
 
-The setup matches the Sonar CI job in `.github/workflows/sonarqube.yml`: Postgres 17, database `inkstory_test`, user/password `postgres`/`postgres`, on `localhost:5432`.
+The setup matches the Sonar CI job in `.github/workflows/sonarqube.yml`: Postgres 17, database `inkstory_test`, user/password `postgres`/`postgres`, on `localhost:5432` by default.
 
 ```bash
 # One command: start the DB, apply the Prisma contract (`prisma db update`, same as CI), run tests
 bun run test:db
 
-# Or step by step
+# Use a different host port when 5432 is already taken
+INKSTORY_TEST_POSTGRES_PORT=55432 bun run test:db
+# or: bun run test:db -- --port 55432
+
+# Or step by step (default port 5432, matching `.env.test`)
 docker compose -f docker-compose.test.yml up -d --wait
 # Then, with only `.env.test` loaded (do not export a URL from `.env`):
 ./node_modules/.bin/prisma db update -y --db "$DATABASE_URL"
@@ -183,7 +187,9 @@ docker compose -f docker-compose.test.yml down
 
 `bun run test` and `bun run test:cov` load **only** `.env.test`. They do not read `.env` or `.env.local`. A hard guard then refuses to run if `DATABASE_URL` or `DIRECT_URL` contains a blocked project ref or a non-local host (only `localhost`, `127.0.0.1`, and `::1` are allowed — the same host CI uses). If a URL is already set in your shell, that value wins over `.env.test` and will be rejected unless it is loopback.
 
-If a local Postgres 17 is already accepting the `.env.test` URL, `bun run test:db` reuses it and skips Compose (handy when port 5432 is taken). Otherwise it starts `docker-compose.test.yml`.
+If a local Postgres 17 is already accepting the test URL (after any port override), `bun run test:db` reuses it and skips Compose. Otherwise it starts `docker-compose.test.yml`.
+
+The host port defaults to `5432` to match CI and the committed `.env.test`. `bun run test:db` reloads `.env.test` with override, so exporting `DATABASE_URL` cannot change the port. Set `INKSTORY_TEST_POSTGRES_PORT` or pass `--port` instead; the script rewrites `DATABASE_URL` and `DIRECT_URL` and publishes Compose on that host port. The safety guard still allows only `localhost`, `127.0.0.1`, and `::1`.
 
 The compose file defaults to `ghcr.io/jgf-dev/postgres:17`, the image CI uses (a mirror of official `postgres:17`). If a local pull of that tag fails because GHCR auth is missing, use the official image of the same major:
 
@@ -206,6 +212,7 @@ INKSTORY_TEST_POSTGRES_IMAGE=postgres:17 bun run test:db
 | `prisma contract emit` missing after install          | CI uses `bun install --ignore-scripts`; run `bun run contract:emit`.                                                                    |
 | Tests refuse to run / `INKSTORY_UNSAFE_TEST_DATABASE` | `DATABASE_URL` or `DIRECT_URL` points at a remote or Supabase host. Unset them and use `.env.test` / `bun run test:db`.                 |
 | `bun run test:db` cannot pull the GHCR image          | Use `INKSTORY_TEST_POSTGRES_IMAGE=postgres:17 bun run test:db` (official Postgres 17).                                                  |
+| `bun run test:db` fails because port 5432 is in use   | Set `INKSTORY_TEST_POSTGRES_PORT=55432` or pass `--port 55432`. The leftover process on 5432 can stay running.                          |
 
 ## What's next (Epic 1)
 
