@@ -112,6 +112,18 @@ describe("Rewrite tool (STO-1269)", () => {
     expect(() =>
       resolveToolInputs(rewriteTool, { "craft.selection": "x", "craft.sensory_focus": "sound" }),
     ).toThrow(expect.objectContaining({ code: "VALIDATION_FAILED", status: 422 }));
+    expect(
+      resolveToolInputs(rewriteTool, {
+        "craft.selection": "x",
+        "craft.instructions": "x".repeat(1000),
+      })["craft.instructions"],
+    ).toHaveLength(1000);
+    expect(() =>
+      resolveToolInputs(rewriteTool, {
+        "craft.selection": "x",
+        "craft.instructions": "x".repeat(1001),
+      }),
+    ).toThrow(expect.objectContaining({ code: "VALIDATION_FAILED", status: 422 }));
   });
 
   it("renders the chosen preset with its guidance, selection and story context", () => {
