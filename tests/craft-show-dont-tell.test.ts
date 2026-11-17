@@ -126,6 +126,12 @@ describe("diagnosis_and_prose output parsing", () => {
     });
   });
 
+  it("drops the closing fence when the model fences the whole reply", () => {
+    expect(
+      parseDiagnosisAndProse("```markdown\nDIAGNOSIS:\n- told\nREWRITE:\nShown.\n```"),
+    ).toEqual({ diagnosis: "- told", text: "Shown." });
+  });
+
   it("rejects missing, duplicated, reordered, empty or oversized sections", () => {
     expectMalformed(() => parseDiagnosisAndProse("Her heel tapped."));
     expectMalformed(() => parseDiagnosisAndProse("DIAGNOSIS:\n- told\nHer heel tapped."));

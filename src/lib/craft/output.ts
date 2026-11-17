@@ -41,7 +41,13 @@ function markerPattern(marker: string): RegExp {
 function unwrap(section: string): string {
   let text = section.trim();
   const fence = /^```[^\n]*\n([\s\S]*?)\n?```$/.exec(text);
-  if (fence) text = fence[1].trim();
+  if (fence) {
+    text = fence[1].trim();
+  } else if ((text.match(/```/g) ?? []).length % 2 === 1) {
+    // A whole-reply fence opens before the first marker, leaving only its
+    // closing line here; drop that unmatched trailing fence so it is not applied.
+    text = text.replace(/\n?[ \t]*```[ \t]*$/, "").trim();
+  }
   if (text.startsWith('"""') && text.endsWith('"""') && text.length >= 6) {
     text = text.slice(3, -3).trim();
   }
