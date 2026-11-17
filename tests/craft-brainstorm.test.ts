@@ -146,6 +146,7 @@ describe("parseOptions", () => {
 
   it("caps to the requested count and unwraps a fenced reply", () => {
     expect(parseOptions("```\n1. a\n2. b\n3. c\n```", 2)).toEqual(["a", "b"]);
+    expect(parseOptions("Here you go:\n```\n1. a\n2. b\n```")).toEqual(["a", "b"]);
   });
 
   it("fails recoverably on unnumbered or oversized output", () => {

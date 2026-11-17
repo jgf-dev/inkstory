@@ -94,6 +94,8 @@ export function parseOptions(raw: string, maxOptions?: number): string[] {
   if (raw.length > MAX_CRAFT_OUTPUT_CHARS) throw malformed("output too long", "Brainstorm");
   const options: string[][] = [];
   for (const line of unwrap(raw).split("\n")) {
+    // A fence left by an intro before a fenced list is not part of any option.
+    if (/^[ \t]*```[^\n]*$/.test(line)) continue;
     const numbered = OPTION_LINE.exec(line);
     if (numbered) options.push([numbered[2] ?? ""]);
     else if (options.length) options[options.length - 1].push(line);
