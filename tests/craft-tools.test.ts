@@ -38,12 +38,19 @@ function sceneBindings() {
 
 describe("craft tool registry", () => {
   it("registers Describe first, with a valid contract inside its policy ceiling", () => {
-    expect(CRAFT_TOOL_IDS).toEqual(["describe", "expand", "rewrite", "show_dont_tell"]);
+    expect(CRAFT_TOOL_IDS).toEqual([
+      "describe",
+      "expand",
+      "rewrite",
+      "show_dont_tell",
+      "brainstorm",
+    ]);
     expect(listCraftTools().map((t) => t.id)).toEqual([
       "describe",
       "expand",
       "rewrite",
       "show_dont_tell",
+      "brainstorm",
     ]);
     expect(validatePromptContract(describeTool.contract)).toEqual(describeTool.contract);
     for (const slice of describeTool.contract.contextSlices) {
@@ -62,7 +69,8 @@ describe("craft tool registry", () => {
     expect(isCraftToolId("describe")).toBe(true);
     expect(isCraftToolId("expand")).toBe(true);
     expect(isCraftToolId("rewrite")).toBe(true);
-    expect(isCraftToolId("brainstorm")).toBe(false);
+    expect(isCraftToolId("brainstorm")).toBe(true);
+    expect(isCraftToolId("outline")).toBe(false);
     expect(isCraftToolId(42)).toBe(false);
     expect(() => getCraftTool("nope")).toThrow(
       expect.objectContaining({ code: "NOT_FOUND", status: 404 }),

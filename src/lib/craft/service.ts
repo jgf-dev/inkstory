@@ -23,7 +23,7 @@ import {
   resolveToolInputs,
 } from "./prompt";
 import { DIAGNOSIS_WORD_ALLOWANCE } from "./output";
-import { getCraftTool, type CraftToolId } from "./tools";
+import { getCraftTool, type CraftToolDefinition, type CraftToolId } from "./tools";
 
 export interface CraftRequestInput {
   sceneId: string;
@@ -43,6 +43,39 @@ export interface PreparedCraftPrompt {
   output: ContractOutput | null;
   contextSlices: ContextSlice[];
   inputs: CraftInputBindings;
+}
+
+/**
+ * The selection to drive Codex retrieval, ignoring a tool's "no selection"
+ * placeholder default (Brainstorm's selection is optional).
+ */
+export function retrievalSelection(
+  tool: CraftToolDefinition,
+  inputs: CraftInputBindings,
+): string | undefined {
+  const selection = inputs["craft.selection"];
+  if (!selection || selection === tool.defaults["craft.selection"]) return undefined;
+  return selection;
+}
+
+/**
+ * Words of completion the tool may need: the length target, plus a diagnosis
+ * allowance for diagnosis_and_prose, or per option × count for options.
+ */
+export function completionBudgetWords(
+  tool: CraftToolDefinition,
+  inputs: CraftInputBindings,
+): number | undefined {
+  const targetWords = Number(inputs["craft.target_words"]);
+  if (!targetWords) return undefined;
+  switch (tool.contract.output?.mode) {
+    case "diagnosis_and_prose":
+      return targetWords + DIAGNOSIS_WORD_ALLOWANCE;
+    case "options":
+      return targetWords * (Number(inputs["craft.brainstorm_count"]) || 1);
+    default:
+      return targetWords;
+  }
 }
 
 export async function prepareCraftPrompt(
@@ -69,7 +102,7 @@ export async function prepareCraftPrompt(
     const assembled = await assembleCodexContextForScene(userId, {
       sceneId: scene.id,
       novelId: scene.novelId,
-      beatText: craftInputs["craft.selection"] || scene.summary || undefined,
+      beatText: retrievalSelection(tool, craftInputs) || scene.summary || undefined,
       recentProse: prose || undefined,
     });
     const { maxContextTokens } = await getEntitlements(userId);
@@ -95,14 +128,7 @@ export async function prepareCraftPrompt(
     tool.contract.contextSlices,
   );
   const rendered = renderCraftPrompt(tool, bindings, craftInputs);
-  const targetWords = craftInputs["craft.target_words"];
-  // Diagnosis-and-prose tools also write a short diagnosis before the prose.
-  const budgetWords =
-    targetWords && tool.contract.output?.mode === "diagnosis_and_prose"
-      ? Number(targetWords) + DIAGNOSIS_WORD_ALLOWANCE
-      : targetWords
-        ? Number(targetWords)
-        : undefined;
+  const budgetWords = completionBudgetWords(tool, craftInputs);
 
   return {
     tool: tool.id,

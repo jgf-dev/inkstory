@@ -103,11 +103,16 @@ export async function POST(
 
     // Only `text` is applyable; a diagnosis_and_prose diagnosis travels
     // separately and malformed output fails (502) instead of reaching `text`.
-    const shaped = shapeCraftResult(prepared.output, result.text);
+    const shaped = shapeCraftResult(
+      prepared.output,
+      result.text,
+      Number(prepared.inputs["craft.brainstorm_count"]) || undefined,
+    );
     return Response.json({
       tool: prepared.tool,
       text: shaped.text,
       ...(shaped.kind === "diagnosis_and_prose" ? { diagnosis: shaped.diagnosis } : {}),
+      ...(shaped.kind === "options" ? { options: shaped.options } : {}),
       result: shaped,
       model: result.model,
       applied: result.applied,

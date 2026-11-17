@@ -102,6 +102,7 @@ describe("GET /api/craft/tools", () => {
       "expand",
       "rewrite",
       "show_dont_tell",
+      "brainstorm",
     ]);
     expect(json.tools[0].contract.output.suggestedAction).toBe("replace_selection");
   });
@@ -144,7 +145,7 @@ describe("POST /api/craft/:tool — validation before spend", () => {
   });
 
   it("404 for an unknown tool", async () => {
-    const res = await craft(describeBody(), "brainstorm");
+    const res = await craft(describeBody(), "outline");
     expect(res.status).toBe(404);
     expect((await res.json<any>()).code).toBe("NOT_FOUND");
   });

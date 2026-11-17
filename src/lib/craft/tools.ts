@@ -1,6 +1,6 @@
 /**
  * Code-owned Craft Studio tool registry (STO-1266 scaffold, STO-1267 Describe,
- * STO-1268 Expand, STO-1269 Rewrite, STO-1270 Show Don't Tell).
+ * STO-1268 Expand, STO-1269 Rewrite, STO-1272 Brainstorm, STO-1270 Show Don't Tell).
  *
  * Each tool is a built-in reusable Prompt Component: a validated STO-1275
  * contract (declared craft inputs, context slices, output behavior) plus
@@ -19,7 +19,13 @@ import {
 import { PromptError } from "@/lib/prompts/errors";
 import type { PromptPart } from "@/lib/prompts/types";
 
-export const CRAFT_TOOL_IDS = ["describe", "expand", "rewrite", "show_dont_tell"] as const;
+export const CRAFT_TOOL_IDS = [
+  "describe",
+  "expand",
+  "rewrite",
+  "show_dont_tell",
+  "brainstorm",
+] as const;
 export type CraftToolId = (typeof CRAFT_TOOL_IDS)[number];
 
 /** Default raw value per craft input, applied when the author leaves it blank. */
@@ -72,6 +78,28 @@ export const SHOW_DONT_TELL_DEFAULT_TARGET_WORDS = 200;
  */
 export const DIAGNOSIS_MARKER = "DIAGNOSIS:";
 export const REWRITE_MARKER = "REWRITE:";
+
+/** Code-owned Brainstorm kinds (EL 2026-11-08 registry: names / twists / dialogue). */
+export const BRAINSTORM_KINDS = ["names", "plot_twists", "dialogue"] as const;
+export type BrainstormKind = (typeof BRAINSTORM_KINDS)[number];
+
+/** Prompt guidance per Brainstorm kind. */
+export const BRAINSTORM_KIND_GUIDANCE: Record<BrainstormKind, string> = {
+  names:
+    "names for the characters, places, ships, organizations or things the brief asks for, fitting the setting's cultures, era and tone",
+  plot_twists:
+    "plot-twist ideas that grow out of facts and open threads already in the story, each a possibility for the author to consider, not something that has happened",
+  dialogue:
+    "alternative lines or short exchanges of dialogue for this moment, each in the speaking characters' established voices",
+};
+
+export const BRAINSTORM_DEFAULT_KIND: BrainstormKind = "names";
+/** Default number of alternatives returned. */
+export const BRAINSTORM_DEFAULT_COUNT = 5;
+/** Default length target per option (words); total budget scales with the count. */
+export const BRAINSTORM_DEFAULT_TARGET_WORDS = 40;
+/** Placeholder rendered when the author brainstorms without a selection. */
+export const BRAINSTORM_NO_SELECTION = "(No passage selected.)";
 
 const CRAFT_SYSTEM_BODY = [
   "You are a skilled fiction craft assistant embedded in InkStory, a novel-writing workspace.",
@@ -163,6 +191,30 @@ const SHOW_DONT_TELL_USER_BODY = [
   '"""',
   "",
   "Selected passage:",
+  '"""',
+  "{{craft.selection}}",
+  '"""',
+].join("\n");
+
+const BRAINSTORM_USER_BODY = [
+  "Brainstorm distinct alternatives the author can choose from.",
+  "Kind: {{craft.brainstorm_kind}}. Kinds:",
+  ...BRAINSTORM_KINDS.map((kind) => `- ${kind}: ${BRAINSTORM_KIND_GUIDANCE[kind]}.`),
+  "Make every option genuinely different from the others in approach, not a rewording. Stay consistent with the story bible and the scene summary.",
+  "Each option is only a suggestion: nothing you propose becomes part of the story unless the author picks it.",
+  "Keep each option to roughly {{craft.target_words}} words or fewer.",
+  "",
+  'Author brief:\n"""\n{{craft.instructions}}\n"""',
+  "",
+  "For this tool the format below replaces the prose-only rule.",
+  "Answer with exactly {{craft.brainstorm_count}} options as a numbered list (1., 2., 3., ...), one option per number, and nothing else: no introduction, no closing remarks, no headings.",
+  "",
+  "Scene summary:",
+  '"""',
+  "{{scene.summary}}",
+  '"""',
+  "",
+  "Selected passage the options should fit (may be empty):",
   '"""',
   "{{craft.selection}}",
   '"""',
@@ -406,11 +458,73 @@ const SHOW_DONT_TELL = defineTool({
   },
 });
 
+const BRAINSTORM = defineTool({
+  id: "brainstorm",
+  name: "Brainstorm",
+  summary:
+    "Get distinct name, plot-twist or dialogue options to pick from; nothing is applied on its own.",
+  contract: {
+    schemaVersion: 1,
+    inputs: [
+      {
+        key: "craft.brainstorm_kind",
+        type: "enum",
+        required: false,
+        label: "Brainstorm",
+        options: [...BRAINSTORM_KINDS],
+      },
+      {
+        key: "craft.brainstorm_count",
+        type: "integer",
+        required: false,
+        label: "How many",
+        min: 2,
+        max: 10,
+      },
+      { key: "craft.instructions", type: "text", required: false, label: "Brief", maxLength: 1000 },
+      { key: "craft.selection", type: "text", required: false, label: "Selected prose (optional)" },
+      {
+        key: "craft.target_words",
+        type: "integer",
+        required: false,
+        label: "Words per option",
+        min: 1,
+        max: 200,
+      },
+    ],
+    contextSlices: [
+      "selection",
+      "scene.summary",
+      "scene.title",
+      "scene.pov",
+      "scene.tense",
+      "chapter.title",
+      "novel.title",
+      "codex.context",
+    ],
+    output: { mode: "options", suggestedAction: "copy_only" },
+    attribution: null,
+  },
+  parts: [
+    { role: "system", body: CRAFT_SYSTEM_BODY, name: "craft-brainstorm-system" },
+    { role: "user", body: BRAINSTORM_USER_BODY, name: "craft-brainstorm-user" },
+  ],
+  allowedContextSlices: DESCRIBE.allowedContextSlices,
+  defaults: {
+    "craft.brainstorm_kind": BRAINSTORM_DEFAULT_KIND,
+    "craft.brainstorm_count": BRAINSTORM_DEFAULT_COUNT,
+    "craft.instructions": "None.",
+    "craft.selection": BRAINSTORM_NO_SELECTION,
+    "craft.target_words": BRAINSTORM_DEFAULT_TARGET_WORDS,
+  },
+});
+
 const CRAFT_TOOLS: Record<CraftToolId, CraftToolDefinition> = {
   describe: DESCRIBE,
   expand: EXPAND,
   rewrite: REWRITE,
   show_dont_tell: SHOW_DONT_TELL,
+  brainstorm: BRAINSTORM,
 };
 
 export function isCraftToolId(value: unknown): value is CraftToolId {
