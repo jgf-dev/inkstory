@@ -1,13 +1,12 @@
 /**
  * Code-owned Craft Studio tool registry (STO-1266 scaffold, STO-1267 Describe,
- * STO-1271 Transition).
+ * STO-1268 Expand, STO-1271 Transition).
  *
  * Each tool is a built-in reusable Prompt Component: a validated STO-1275
  * contract (declared craft inputs, context slices, output behavior) plus
  * system/user bodies rendered through the same closed-catalog interpolation
  * as scene Generate. No tables: tools live in code. The remaining v1 tools
- * (Expand, Rewrite, Show Don't Tell, Brainstorm) register here in
- * EL build order.
+ * (Rewrite, Show Don't Tell, Brainstorm) register here in EL build order.
  */
 
 import {
@@ -19,7 +18,7 @@ import {
 import { PromptError } from "@/lib/prompts/errors";
 import type { PromptPart } from "@/lib/prompts/types";
 
-export const CRAFT_TOOL_IDS = ["describe", "transition"] as const;
+export const CRAFT_TOOL_IDS = ["describe", "expand", "transition"] as const;
 export type CraftToolId = (typeof CRAFT_TOOL_IDS)[number];
 
 /** Default raw value per craft input, applied when the author leaves it blank. */
@@ -45,6 +44,9 @@ export const SENSORY_FOCUS_OPTIONS = ["any", "sight", "sound", "smell", "touch",
 /** Default output-length target for Describe (words). */
 export const DESCRIBE_DEFAULT_TARGET_WORDS = 150;
 
+/** Default output-length target for Expand (words). Expansion runs longer than Describe. */
+export const EXPAND_DEFAULT_TARGET_WORDS = 300;
+
 const CRAFT_SYSTEM_BODY = [
   "You are a skilled fiction craft assistant embedded in InkStory, a novel-writing workspace.",
   "Story: {{novel.title}} — {{chapter.title}} / {{scene.title}}.",
@@ -69,6 +71,25 @@ const DESCRIBE_USER_BODY = [
   '"""',
   "",
   "Selected passage to describe:",
+  '"""',
+  "{{craft.selection}}",
+  '"""',
+].join("\n");
+
+const EXPAND_USER_BODY = [
+  "Expand the selected passage by deepening its atmosphere and the point-of-view character's inner monologue.",
+  "Slow the moment down: layer in mood, setting and sensory atmosphere, and the viewpoint character's thoughts, feelings, memories and reactions, rendered in the scene's point of view.",
+  "Keep every event, action, line of dialogue and story fact from the selection, in the same order. Expand what is there, not the plot: do not introduce new characters, events or revelations, and do not move the story past the end of the selection.",
+  "Aim for roughly {{craft.target_words}} words in total.",
+  "",
+  'Author guidance:\n"""\n{{craft.instructions}}\n"""',
+  "",
+  "Surrounding scene, for continuity only (do not rewrite it):",
+  '"""',
+  "{{scene.content}}",
+  '"""',
+  "",
+  "Selected passage to expand:",
   '"""',
   "{{craft.selection}}",
   '"""',
@@ -146,6 +167,65 @@ const DESCRIBE = defineTool({
   },
 });
 
+const EXPAND = defineTool({
+  id: "expand",
+  name: "Expand",
+  summary:
+    "Deepen the selected prose with atmosphere and inner monologue without changing what happens.",
+  contract: {
+    schemaVersion: 1,
+    inputs: [
+      { key: "craft.selection", type: "text", required: true, label: "Selected prose" },
+      {
+        key: "craft.target_words",
+        type: "integer",
+        required: false,
+        label: "Target length (words)",
+        min: 20,
+        max: 2000,
+      },
+      {
+        key: "craft.instructions",
+        type: "text",
+        required: false,
+        label: "Extra guidance",
+        maxLength: 1000,
+      },
+    ],
+    contextSlices: [
+      "selection",
+      "scene.content",
+      "scene.title",
+      "scene.pov",
+      "scene.tense",
+      "chapter.title",
+      "novel.title",
+      "codex.context",
+    ],
+    output: { mode: "prose", suggestedAction: "replace_selection" },
+    attribution: null,
+  },
+  parts: [
+    { role: "system", body: CRAFT_SYSTEM_BODY, name: "craft-expand-system" },
+    { role: "user", body: EXPAND_USER_BODY, name: "craft-expand-user" },
+  ],
+  allowedContextSlices: [
+    "selection",
+    "scene.content",
+    "scene.summary",
+    "scene.title",
+    "scene.pov",
+    "scene.tense",
+    "chapter.title",
+    "novel.title",
+    "codex.context",
+  ],
+  defaults: {
+    "craft.target_words": EXPAND_DEFAULT_TARGET_WORDS,
+    "craft.instructions": "None.",
+  },
+});
+
 /** Default output-length target for Transition bridges (words). */
 export const TRANSITION_DEFAULT_TARGET_WORDS = 150;
 
@@ -215,6 +295,7 @@ const TRANSITION = defineTool({
 
 const CRAFT_TOOLS: Record<CraftToolId, CraftToolDefinition> = {
   describe: DESCRIBE,
+  expand: EXPAND,
   transition: TRANSITION,
 };
 
