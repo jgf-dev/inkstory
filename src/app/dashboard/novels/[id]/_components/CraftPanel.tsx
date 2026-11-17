@@ -19,7 +19,7 @@ import type { ContractInput } from "@/lib/prompts/contracts";
 import { countWords, formatWordCount } from "@/lib/writing/word-count";
 import type { EditorSelection } from "./RichTextEditor";
 import { apiGet } from "./api";
-import { useCraftRun } from "./useCraftRun";
+import { useCraftRun, type CraftRunRequest, type CraftRunResult } from "./useCraftRun";
 import { useCraftTools } from "./useCraftTools";
 
 export type CraftApplyResult = { ok: true } | { ok: false; message: string };
@@ -54,13 +54,29 @@ export function CraftPanel(props: CraftPanelProps) {
   const [toolId, setToolId] = useState<string | null>(null);
   /** Form values are keyed by tool so switching tools starts from that tool's defaults. */
   const [form, setForm] = useState<{ toolId: string; values: CraftFormValues } | null>(null);
-  const [draft, setDraft] = useState("");
+  const [lastDone, setLastDone] = useState<{
+    request: CraftRunRequest;
+    result: CraftRunResult;
+  } | null>(null);
+  const [prevState, setPrevState] = useState(state);
+  const [draftEdit, setDraftEdit] = useState<{ result: CraftRunResult; text: string } | null>(null);
   const [applying, setApplying] = useState(false);
   const [notice, setNotice] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
   const [copied, setCopied] = useState(false);
   const [credentials, setCredentials] = useState<CredentialDto[]>([]);
   const [credentialId, setCredentialId] = useState("");
   const [model, setModel] = useState("");
+
+  if (prevState !== state) {
+    setPrevState(state);
+    if (state.kind === "done") {
+      setLastDone({ request: state.request, result: state.result });
+      setDraftEdit(null);
+    } else if (state.kind === "not-configured" || state.kind === "idle") {
+      setLastDone(null);
+      setDraftEdit(null);
+    }
+  }
 
   const tool: CraftToolDto | null = useMemo(
     () => tools.find((t) => t.id === toolId) ?? tools[0] ?? null,
@@ -86,10 +102,6 @@ export function CraftPanel(props: CraftPanelProps) {
     };
   }, []);
 
-  useEffect(() => {
-    if (state.kind === "done") setDraft(state.result.text);
-  }, [state]);
-
   const selectionText = props.selection?.text ?? "";
   const needsSelection = tool ? usesSelection(tool) : false;
   const problems = tool ? validateCraftForm(tool, values, selectionText) : [];
@@ -97,6 +109,19 @@ export function CraftPanel(props: CraftPanelProps) {
   const byokIncomplete = Boolean(credentialId) && !model.trim();
   const canRun =
     Boolean(tool) && !props.excludeFromAi && !running && !applying && problems.length === 0;
+
+  const activeDone =
+    state.kind === "done"
+      ? { request: state.request, result: state.result }
+      : state.kind === "running" || state.kind === "error"
+        ? lastDone
+        : null;
+  const result = activeDone?.result ?? null;
+  const draft = result ? (draftEdit?.result === result ? draftEdit.text : result.text) : "";
+  const edited = result !== null && draft !== result.text;
+  const targetWords = Number(activeDone?.request.inputs["craft.target_words"]);
+  const suggested = result?.output?.suggestedAction ?? null;
+  const canReplace = suggested === "replace_selection" && Boolean(result?.selection);
 
   function setValue(key: ContractInput["key"], value: string | boolean) {
     if (!tool) return;
@@ -107,11 +132,13 @@ export function CraftPanel(props: CraftPanelProps) {
     if (id === tool?.id) return;
     setToolId(id);
     reset();
-    setDraft("");
+    setLastDone(null);
+    setDraftEdit(null);
     setNotice(null);
   }
 
   function startRun(request = state.kind !== "idle" ? state.request : null) {
+    if (props.excludeFromAi || running || applying) return;
     setNotice(null);
     setCopied(false);
     if (request) {
@@ -119,6 +146,8 @@ export function CraftPanel(props: CraftPanelProps) {
       return;
     }
     if (!tool || !canRun || byokIncomplete) return;
+    setLastDone(null);
+    setDraftEdit(null);
     void run({
       toolId: tool.id,
       sceneId: props.sceneId,
@@ -130,14 +159,15 @@ export function CraftPanel(props: CraftPanelProps) {
   }
 
   async function apply() {
-    if (state.kind !== "done" || !state.result.selection || !draft.trim()) return;
+    if (!result?.selection || running || !draft.trim()) return;
     setApplying(true);
     setNotice(null);
     try {
-      const outcome = await props.onApply(state.result.selection, draft);
+      const outcome = await props.onApply(result.selection, draft);
       if (outcome.ok) {
         reset();
-        setDraft("");
+        setLastDone(null);
+        setDraftEdit(null);
         setNotice({
           tone: "ok",
           text: "Applied. A checkpoint of the previous text is in version history.",
@@ -162,15 +192,10 @@ export function CraftPanel(props: CraftPanelProps) {
 
   function discard() {
     reset();
-    setDraft("");
+    setLastDone(null);
+    setDraftEdit(null);
     setNotice(null);
   }
-
-  const result = state.kind === "done" ? state.result : null;
-  const edited = result !== null && draft !== result.text;
-  const targetWords = Number(values["craft.target_words"]);
-  const suggested = result?.output?.suggestedAction ?? null;
-  const canReplace = suggested === "replace_selection" && Boolean(result?.selection);
 
   return (
     <div className="flex h-full flex-col" data-testid="craft-panel">
@@ -287,7 +312,7 @@ export function CraftPanel(props: CraftPanelProps) {
                   <select
                     aria-label="Craft provider"
                     value={credentialId}
-                    disabled={running}
+                    disabled={running || applying}
                     onChange={(e) => {
                       setCredentialId(e.target.value);
                       setModel("");
@@ -309,7 +334,7 @@ export function CraftPanel(props: CraftPanelProps) {
                       aria-label="Craft model ID"
                       value={model}
                       maxLength={256}
-                      disabled={running}
+                      disabled={running || applying}
                       onChange={(e) => setModel(e.target.value)}
                       placeholder="Enter a model ID supported by this provider"
                       className="mt-1 w-full rounded border border-subtle bg-card p-2 text-primary"
@@ -318,6 +343,12 @@ export function CraftPanel(props: CraftPanelProps) {
                 )}
               </div>
             </details>
+
+            {byokIncomplete && (
+              <p className="text-muted text-xs" role="status" data-testid="craft-byok-hint">
+                Enter a provider model ID under Provider to run with this credential.
+              </p>
+            )}
 
             <button
               type="button"
@@ -338,7 +369,9 @@ export function CraftPanel(props: CraftPanelProps) {
 
         {state.kind === "not-configured" && (
           <div className="space-y-2" data-testid="craft-not-configured">
-            <p className="text-xs text-amber-800">{state.message}</p>
+            <p className="rounded-md bg-amber-50 px-2 py-1.5 text-xs text-amber-800">
+              {state.message}
+            </p>
             {state.prompt && (
               <>
                 <pre className="border-ink-200 max-h-40 overflow-y-auto rounded border bg-ink-50 p-2 text-[11px] whitespace-pre-wrap">
@@ -367,15 +400,16 @@ export function CraftPanel(props: CraftPanelProps) {
             <textarea
               aria-label="Craft result (editable)"
               value={draft}
-              onChange={(e) => setDraft(e.target.value)}
+              disabled={running || applying}
+              onChange={(e) => setDraftEdit({ result, text: e.target.value })}
               rows={10}
-              className="border-ink-300 w-full rounded-md border bg-white px-2 py-1.5 text-sm text-ink-900"
+              className="border-subtle w-full rounded-md border bg-card px-2 py-1.5 text-sm text-primary"
             />
             <div className="flex flex-wrap gap-2">
               {canReplace && (
                 <button
                   type="button"
-                  disabled={applying || !draft.trim()}
+                  disabled={running || applying || !draft.trim()}
                   onClick={() => void apply()}
                   className="rounded bg-ink-800 px-2.5 py-1 text-xs font-medium text-ink-50 hover:bg-ink-900 disabled:opacity-50"
                 >
@@ -393,23 +427,24 @@ export function CraftPanel(props: CraftPanelProps) {
               {edited && (
                 <button
                   type="button"
-                  onClick={() => setDraft(result.text)}
-                  className="rounded border border-ink-200 px-2.5 py-1 text-xs font-medium text-ink-700 hover:bg-ink-50"
+                  disabled={running || applying}
+                  onClick={() => setDraftEdit(null)}
+                  className="rounded border border-ink-200 px-2.5 py-1 text-xs font-medium text-ink-700 hover:bg-ink-50 disabled:opacity-50"
                 >
                   Revert edits
                 </button>
               )}
               <button
                 type="button"
-                disabled={applying}
+                disabled={props.excludeFromAi || running || applying}
                 onClick={() => startRun()}
                 className="rounded border border-ink-200 px-2.5 py-1 text-xs font-medium text-ink-700 hover:bg-ink-50 disabled:opacity-50"
               >
-                Regenerate
+                {running ? "Regenerating…" : "Regenerate"}
               </button>
               <button
                 type="button"
-                disabled={applying}
+                disabled={running || applying}
                 onClick={discard}
                 className="rounded border border-ink-200 px-2.5 py-1 text-xs font-medium text-ink-700 hover:bg-ink-50 disabled:opacity-50"
               >
@@ -443,7 +478,7 @@ function CraftInputField(props: {
   const { input } = props;
   const label = input.label ?? input.key;
   const field =
-    "border-ink-300 mt-1 w-full rounded-md border bg-white px-2 py-1.5 text-sm text-ink-900";
+    "border-subtle mt-1 w-full rounded-md border bg-card px-2 py-1.5 text-sm text-primary";
   let control: React.ReactNode;
   if (input.type === "boolean") {
     return (

@@ -305,13 +305,80 @@ describe("CraftPanel (STO-1290)", () => {
     expect(screen.getByText(/anthropic — Work/)).toBeTruthy();
     fireEvent.change(screen.getByLabelText("Craft provider"), { target: { value: "cred-1" } });
     expect(describeButton().hasAttribute("disabled")).toBe(true);
+    expect(screen.getByTestId("craft-byok-hint").textContent).toContain("model ID");
     fireEvent.change(screen.getByLabelText("Craft model ID"), { target: { value: " gpt " } });
+    expect(screen.queryByTestId("craft-byok-hint")).toBeNull();
     fireEvent.click(describeButton());
     await screen.findByTestId("craft-result");
     expect(calls.find((c) => c.url === "/api/craft/describe")?.body).toMatchObject({
       credentialId: "cred-1",
       model: "gpt",
     });
+  });
+
+  it("keeps result/draft on failed Regenerate, disables Regenerate when excluded, and locks target header to the run", async () => {
+    let failNext = false;
+    stubFetch(
+      baseRoute((url) => {
+        if (url !== "/api/craft/describe") return undefined;
+        return failNext
+          ? { status: 500, body: { error: "Temporary outage" } }
+          : {
+              status: 200,
+              body: {
+                tool: "describe",
+                text: "Initial rain.",
+                model: "m1",
+                output: { mode: "prose", suggestedAction: "replace_selection" },
+              },
+            };
+      }),
+    );
+    const { rerender, props } = setup();
+    await screen.findByTestId("craft-tool-name");
+    fireEvent.click(describeButton());
+    await screen.findByDisplayValue("Initial rain.");
+
+    // Editing form target words later should not rewrite the result header for the prior run.
+    fireEvent.change(screen.getByLabelText("Target length (words)"), { target: { value: "300" } });
+    expect(screen.getByTestId("craft-result").textContent).toContain("(target ~150)");
+    expect(screen.getByTestId("craft-result").textContent).not.toContain("(target ~300)");
+
+    // Author edits the draft, then Regenerate fails -> error shows, draft & result stay intact.
+    const box = screen.getByLabelText("Craft result (editable)") as HTMLTextAreaElement;
+    fireEvent.change(box, { target: { value: "Author-edited rain." } });
+    failNext = true;
+    fireEvent.click(screen.getByText("Regenerate"));
+    expect((await screen.findByTestId("craft-error")).textContent).toBe("Temporary outage");
+    expect((screen.getByLabelText("Craft result (editable)") as HTMLTextAreaElement).value).toBe(
+      "Author-edited rain.",
+    );
+
+    // Turning on excludeFromAi disables Regenerate.
+    rerender(React.createElement(CraftPanel, { ...props, excludeFromAi: true }));
+    expect(screen.getByText("Regenerate").hasAttribute("disabled")).toBe(true);
+  });
+
+  it("uses theme-aware card/primary tokens on form controls and result textarea", async () => {
+    stubFetch(
+      baseRoute((url) =>
+        url === "/api/craft/describe"
+          ? {
+              status: 200,
+              body: { tool: "describe", text: "Rain.", model: "m1", output: null },
+            }
+          : undefined,
+      ),
+    );
+    setup();
+    await screen.findByTestId("craft-tool-name");
+    expect(screen.getByLabelText("Sensory focus").className).toContain("bg-card");
+    expect(screen.getByLabelText("Sensory focus").className).not.toContain("bg-white");
+    fireEvent.click(describeButton());
+    const box = await screen.findByLabelText("Craft result (editable)");
+    expect(box.className).toContain("bg-card");
+    expect(box.className).toContain("text-primary");
+    expect(box.className).not.toContain("bg-white");
   });
 
   it("lists several tools, switches forms and renders boolean inputs", async () => {

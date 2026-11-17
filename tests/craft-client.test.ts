@@ -122,6 +122,10 @@ describe("craft client helpers (STO-1290)", () => {
     expect(validateCraftForm(describeTool, values, "a".repeat(20_001))[0].key).toBe(
       SELECTION_INPUT_KEY,
     );
+    expect(validateCraftForm(describeTool, values, `  ${"a".repeat(20_000)}`)[0]).toEqual({
+      key: SELECTION_INPUT_KEY,
+      message: "Selected prose is too long (20,002 / 20,000 characters).",
+    });
 
     const sinkProblems = validateCraftForm(kitchenSink, initialFormValues(kitchenSink), "");
     expect(sinkProblems.map((p) => p.message)).toEqual([

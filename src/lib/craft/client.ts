@@ -139,10 +139,13 @@ export function validateCraftForm(
       }
     } else {
       const max = textMaxLength(input);
-      if (max !== undefined && text.length > max) {
+      // Selection is sent verbatim, so validate raw character length to match the server.
+      const length =
+        input.key === SELECTION_INPUT_KEY && typeof raw === "string" ? raw.length : text.length;
+      if (max !== undefined && length > max) {
         problems.push({
           key: input.key,
-          message: `${labelOf(input)} is too long (${text.length.toLocaleString("en-US")} / ${max.toLocaleString("en-US")} characters).`,
+          message: `${labelOf(input)} is too long (${length.toLocaleString("en-US")} / ${max.toLocaleString("en-US")} characters).`,
         });
       }
     }

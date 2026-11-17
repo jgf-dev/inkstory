@@ -361,6 +361,12 @@ export function SceneEditor(props: SceneEditorProps) {
         message: "Your latest edits could not be saved, so nothing was replaced. Try again.",
       };
     }
+    if (editorHandleRef.current !== handle) {
+      return {
+        ok: false,
+        message: "The editor changed before the edit could be applied, so nothing was replaced.",
+      };
+    }
     try {
       await apiPost(`/api/scenes/${scene.id}/revisions`, {});
     } catch (err) {
@@ -369,6 +375,12 @@ export function SceneEditor(props: SceneEditorProps) {
         message: `Checkpoint failed, so nothing was replaced: ${
           err instanceof ApiRequestError ? err.message : "request failed"
         }`,
+      };
+    }
+    if (editorHandleRef.current !== handle) {
+      return {
+        ok: false,
+        message: "The editor changed before the edit could be applied, so nothing was replaced.",
       };
     }
     if (!handle.replaceRange(range, text)) return changed;

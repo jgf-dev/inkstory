@@ -11,6 +11,7 @@ const fake = {
   matches: vi.fn((_r: Range) => true),
   replace: vi.fn((_r: Range, _t: string) => true),
   ready: true,
+  dropHandle: () => {},
 };
 
 vi.mock("../src/app/dashboard/novels/[id]/_components/RichTextEditor", async () => {
@@ -26,6 +27,7 @@ vi.mock("../src/app/dashboard/novels/[id]/_components/RichTextEditor", async () 
       propsRef.current = props;
       React.useEffect(() => {
         if (!fake.ready) return;
+        fake.dropHandle = () => propsRef.current.onReady?.(null);
         props.onReady?.({
           getSelection: () => null,
           matches: (r: Range) => fake.matches(r),
@@ -44,7 +46,10 @@ vi.mock("../src/app/dashboard/novels/[id]/_components/RichTextEditor", async () 
             return ok;
           },
         });
-        return () => props.onReady?.(null);
+        return () => {
+          fake.dropHandle = () => {};
+          props.onReady?.(null);
+        };
         // eslint-disable-next-line react-hooks/exhaustive-deps
       }, []);
       return React.createElement(
@@ -355,5 +360,61 @@ describe("SceneEditor Craft integration (STO-1290)", () => {
     fireEvent.click(screen.getByText("Craft"));
     await clickApply();
     expect(screen.getByTestId("craft-outcome").textContent).toBe("The editor is not ready yet.");
+  });
+
+  it("refuses replacement if the editor handle drops during flushSave or checkpointing", async () => {
+    let releasePatch!: () => void;
+    const order: string[] = [];
+    stubFetch((url, init) => {
+      const key = `${init?.method ?? "GET"} ${url}`;
+      order.push(key);
+      if (init?.method === "PATCH") {
+        return new Promise<Response>((resolve) => {
+          releasePatch = () => resolve(jsonResponse(200, { scene }));
+        });
+      }
+      return defaultHandler()(url, init);
+    });
+    setup();
+    fireEvent.change(screen.getByLabelText("Scene text"), {
+      target: { value: "Mara reached the quay late." },
+    });
+    fireEvent.click(screen.getByText("Craft"));
+    await act(async () => {
+      fireEvent.click(screen.getByText("apply-now"));
+      await vi.advanceTimersByTimeAsync(10);
+    });
+    fake.dropHandle();
+    await act(async () => {
+      releasePatch();
+      await vi.advanceTimersByTimeAsync(50);
+    });
+    expect(screen.getByTestId("craft-outcome").textContent).toContain("editor changed");
+    expect(order).not.toContain("POST /api/scenes/scene-1/revisions");
+    expect(fake.replace).not.toHaveBeenCalled();
+    cleanup();
+
+    let releaseCheckpoint!: () => void;
+    stubFetch((url, init) => {
+      if (`${init?.method ?? "GET"} ${url}` === "POST /api/scenes/scene-1/revisions") {
+        return new Promise<Response>((resolve) => {
+          releaseCheckpoint = () => resolve(jsonResponse(201, { revision: { id: "rev-1" } }));
+        });
+      }
+      return defaultHandler()(url, init);
+    });
+    setup();
+    fireEvent.click(screen.getByText("Craft"));
+    await act(async () => {
+      fireEvent.click(screen.getByText("apply-now"));
+      await vi.advanceTimersByTimeAsync(10);
+    });
+    fake.dropHandle();
+    await act(async () => {
+      releaseCheckpoint();
+      await vi.advanceTimersByTimeAsync(50);
+    });
+    expect(screen.getByTestId("craft-outcome").textContent).toContain("editor changed");
+    expect(fake.replace).not.toHaveBeenCalled();
   });
 });
