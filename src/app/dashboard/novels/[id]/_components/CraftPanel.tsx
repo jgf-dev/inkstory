@@ -64,7 +64,14 @@ export function CraftPanel(props: CraftPanelProps) {
   const [notice, setNotice] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
   const [copied, setCopied] = useState(false);
   const copiedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => () => clearCopiedTimer(copiedTimer), []);
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      clearCopiedTimer(copiedTimer);
+    };
+  }, []);
   const [credentials, setCredentials] = useState<CredentialDto[]>([]);
   const [credentialId, setCredentialId] = useState("");
   const [model, setModel] = useState("");
@@ -185,6 +192,7 @@ export function CraftPanel(props: CraftPanelProps) {
   async function copy(text: string) {
     try {
       await navigator.clipboard.writeText(text);
+      if (!mounted.current) return;
       setCopied(true);
       clearCopiedTimer(copiedTimer);
       copiedTimer.current = setTimeout(() => {
@@ -192,6 +200,7 @@ export function CraftPanel(props: CraftPanelProps) {
         setCopied(false);
       }, COPIED_FEEDBACK_MS);
     } catch {
+      if (!mounted.current) return;
       setNotice({ tone: "error", text: "Copy failed — select the text manually." });
     }
   }
