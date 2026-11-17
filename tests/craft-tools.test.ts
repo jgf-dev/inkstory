@@ -61,6 +61,7 @@ describe("craft tool registry", () => {
   it("rejects unknown tools with 404", () => {
     expect(isCraftToolId("describe")).toBe(true);
     expect(isCraftToolId("expand")).toBe(true);
+    expect(isCraftToolId("rewrite")).toBe(true);
     expect(isCraftToolId("brainstorm")).toBe(false);
     expect(isCraftToolId(42)).toBe(false);
     expect(() => getCraftTool("nope")).toThrow(
