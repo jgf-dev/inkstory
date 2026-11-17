@@ -16,22 +16,22 @@ import {
 import { retrievalText } from "../src/lib/craft/service";
 import { validatePromptContract } from "../src/lib/prompts/contracts";
 import { buildSceneBindings } from "../src/lib/prompts/render";
+import { primeCraftRoute, resetCraftRoute } from "./helpers/craft-route";
 
-const { getUser, getScene, assemble } = vi.hoisted(() => ({
-  getUser: vi.fn(),
-  getScene: vi.fn(),
+const { assemble, getScene, getUser } = vi.hoisted(() => ({
   assemble: vi.fn(),
+  getScene: vi.fn(),
+  getUser: vi.fn(),
 }));
-vi.mock("../src/lib/prisma", () => ({ db: { orm: { public: {} } } }));
+vi.mock("../src/lib/billing/entitlements", async () =>
+  (await import("./helpers/craft-route")).craftEntitlementsMock(),
+);
+vi.mock("../src/lib/codex/service", () => ({ assembleCodexContextForScene: assemble }));
+vi.mock("../src/lib/writing/service", () => ({ getSceneForEditor: getScene }));
 vi.mock("../src/lib/supabase/server", () => ({
   createSupabaseServerClient: async () => ({ auth: { getUser } }),
 }));
-vi.mock("../src/lib/writing/service", () => ({ getSceneForEditor: getScene }));
-vi.mock("../src/lib/codex/service", () => ({ assembleCodexContextForScene: assemble }));
-vi.mock("../src/lib/billing/entitlements", () => ({
-  getEntitlements: async () => ({ maxContextTokens: 8000 }),
-  resolveContextTokenBudget: () => 8000,
-}));
+vi.mock("../src/lib/prisma", () => ({ db: { orm: { public: {} } } }));
 
 const transitionTool = getCraftTool("transition");
 const describeTool = getCraftTool("describe");
@@ -190,29 +190,8 @@ function chatFetch() {
 }
 
 describe("POST /api/craft/transition", () => {
-  beforeEach(() => {
-    vi.stubEnv("AI_GATEWAY_API_KEY", "platform-key");
-    vi.stubEnv("AI_MODEL", "");
-    getUser.mockResolvedValue({ data: { user: { id: "owner" } } });
-    assemble.mockResolvedValue({ entries: [], meta: {} });
-    getScene.mockResolvedValue({
-      id: "scene",
-      novelId: "novel",
-      novelTitle: "The Salt Road",
-      chapterTitle: "Harbor",
-      title: "Docks at Dawn",
-      content: "Mara walked to the pier. The boat was late.",
-      summary: "Mara waits.",
-      excludeFromAi: false,
-      pov: "THIRD_LIMITED",
-      tense: "PAST",
-    });
-  });
-  afterEach(() => {
-    vi.resetAllMocks();
-    vi.unstubAllEnvs();
-    vi.unstubAllGlobals();
-  });
+  beforeEach(() => primeCraftRoute({ getUser, assemble, getScene }));
+  afterEach(resetCraftRoute);
 
   it("422 MISSING_INPUT when the after passage is missing, before any scene lookup", async () => {
     const fetchMock = chatFetch();
