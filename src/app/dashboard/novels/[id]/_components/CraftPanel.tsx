@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import type { CredentialDto } from "@/lib/ai/credentials/service";
 import {
   SUGGESTED_ACTION_LABELS,
@@ -63,6 +63,8 @@ export function CraftPanel(props: CraftPanelProps) {
   const [applying, setApplying] = useState(false);
   const [notice, setNotice] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
   const [copied, setCopied] = useState(false);
+  const copiedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => clearCopiedTimer(copiedTimer), []);
   const [credentials, setCredentials] = useState<CredentialDto[]>([]);
   const [credentialId, setCredentialId] = useState("");
   const [model, setModel] = useState("");
@@ -184,7 +186,11 @@ export function CraftPanel(props: CraftPanelProps) {
     try {
       await navigator.clipboard.writeText(text);
       setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
+      clearCopiedTimer(copiedTimer);
+      copiedTimer.current = setTimeout(() => {
+        copiedTimer.current = null;
+        setCopied(false);
+      }, COPIED_FEEDBACK_MS);
     } catch {
       setNotice({ tone: "error", text: "Copy failed — select the text manually." });
     }
@@ -468,6 +474,14 @@ export function CraftPanel(props: CraftPanelProps) {
   );
 }
 
+/** How long the "Copied" confirmation stays up (ms). */
+export const COPIED_FEEDBACK_MS = 1500;
+
+function clearCopiedTimer(timer: { current: ReturnType<typeof setTimeout> | null }) {
+  if (timer.current !== null) clearTimeout(timer.current);
+  timer.current = null;
+}
+
 function CraftInputField(props: {
   input: ContractInput;
   value: string | boolean | undefined;
@@ -477,26 +491,47 @@ function CraftInputField(props: {
 }) {
   const { input } = props;
   const label = input.label ?? input.key;
+  const id = useId();
+  const boundsId = `${id}-bounds`;
+  const descriptionId = `${id}-description`;
+  const problemId = `${id}-problem`;
+  const bounds = input.type === "integer" ? integerBounds(input) : null;
+  const describedBy =
+    [
+      bounds ? boundsId : null,
+      input.description ? descriptionId : null,
+      props.problem ? problemId : null,
+    ]
+      .filter(Boolean)
+      .join(" ") || undefined;
+  const a11y = {
+    id,
+    "aria-invalid": props.problem ? true : undefined,
+    "aria-describedby": describedBy,
+  };
   const field =
     "border-subtle mt-1 w-full rounded-md border bg-card px-2 py-1.5 text-sm text-primary";
   let control: React.ReactNode;
   if (input.type === "boolean") {
-    return (
-      <label className="flex items-center gap-2">
+    control = (
+      <div className="flex items-center gap-2">
         <input
+          {...a11y}
           type="checkbox"
           checked={props.value === true}
           disabled={props.disabled}
           onChange={(e) => props.onChange(e.target.checked)}
           className="border-ink-300 h-4 w-4 rounded"
         />
-        <span className="text-ink-700 text-xs">{label}</span>
-      </label>
+        <label htmlFor={id} className="text-ink-700 text-xs">
+          {label}
+        </label>
+      </div>
     );
   } else if (input.type === "enum") {
     control = (
       <select
-        aria-label={label}
+        {...a11y}
         value={typeof props.value === "string" ? props.value : ""}
         disabled={props.disabled}
         onChange={(e) => props.onChange(e.target.value)}
@@ -510,14 +545,13 @@ function CraftInputField(props: {
       </select>
     );
   } else if (input.type === "integer") {
-    const { min, max } = integerBounds(input);
     control = (
       <input
+        {...a11y}
         type="number"
-        aria-label={label}
         inputMode="numeric"
-        min={min}
-        max={max}
+        min={bounds?.min}
+        max={bounds?.max}
         step={1}
         value={typeof props.value === "string" ? props.value : ""}
         disabled={props.disabled}
@@ -528,7 +562,7 @@ function CraftInputField(props: {
   } else {
     control = (
       <textarea
-        aria-label={label}
+        {...a11y}
         rows={2}
         maxLength={textMaxLength(input)}
         value={typeof props.value === "string" ? props.value : ""}
@@ -541,14 +575,27 @@ function CraftInputField(props: {
   }
   return (
     <div>
-      <span className="text-ink-500 block text-xs font-medium">
-        {label}
-        {input.type === "integer" &&
-          ` (${integerBounds(input).min.toLocaleString("en-US")}–${integerBounds(input).max.toLocaleString("en-US")})`}
-      </span>
+      {input.type !== "boolean" && (
+        <div className="text-ink-500 text-xs font-medium">
+          <label htmlFor={id}>{label}</label>
+          {bounds && (
+            <span id={boundsId}>
+              {` (${bounds.min.toLocaleString("en-US")}–${bounds.max.toLocaleString("en-US")})`}
+            </span>
+          )}
+        </div>
+      )}
       {control}
-      {input.description && <p className="text-muted mt-0.5 text-[11px]">{input.description}</p>}
-      {props.problem && <p className="mt-0.5 text-[11px] text-red-600">{props.problem}</p>}
+      {input.description && (
+        <p id={descriptionId} className="text-muted mt-0.5 text-[11px]">
+          {input.description}
+        </p>
+      )}
+      {props.problem && (
+        <p id={problemId} className="mt-0.5 text-[11px] text-red-600">
+          {props.problem}
+        </p>
+      )}
     </div>
   );
 }

@@ -704,7 +704,10 @@ export function SceneEditor(props: SceneEditorProps) {
           />
         </div>
         {showCraft && (
-          <aside className="border-ink-200 max-h-[50%] min-h-0 shrink-0 overflow-hidden border-t bg-card lg:max-h-none lg:w-80 lg:border-t-0 lg:border-l">
+          <aside
+            aria-label="Craft tools"
+            className="border-ink-200 max-h-[50%] min-h-0 shrink-0 overflow-hidden border-t bg-card lg:max-h-none lg:w-80 lg:border-t-0 lg:border-l"
+          >
             <CraftPanel
               sceneId={scene.id}
               content={content}

@@ -198,6 +198,7 @@ describe("SceneEditor Craft integration (STO-1290)", () => {
     setup({ chrome: "focus" });
     expect(screen.queryByText("History")).toBeNull();
     fireEvent.click(screen.getByText("Craft"));
+    expect(screen.getByRole("complementary", { name: "Craft tools" })).toBeTruthy();
     expect(screen.getByTestId("craft-sel").textContent).toBe("none");
     fireEvent.click(screen.getByText("select-prose"));
     expect(screen.getByTestId("craft-sel").textContent).toBe("Mara reached");

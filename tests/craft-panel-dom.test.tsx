@@ -2,7 +2,10 @@
 import React from "react";
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
-import { CraftPanel } from "../src/app/dashboard/novels/[id]/_components/CraftPanel";
+import {
+  COPIED_FEEDBACK_MS,
+  CraftPanel,
+} from "../src/app/dashboard/novels/[id]/_components/CraftPanel";
 import { listCraftTools, toCraftToolDto } from "../src/lib/craft";
 
 const DESCRIBE = toCraftToolDto(listCraftTools()[0]);
@@ -90,7 +93,10 @@ describe("CraftPanel (STO-1290)", () => {
     );
     expect(screen.getByText("Smell")).toBeTruthy();
     expect((screen.getByLabelText("Target length (words)") as HTMLInputElement).value).toBe("150");
-    expect(screen.getByText("Target length (words) (10–1,000)")).toBeTruthy();
+    const target = screen.getByLabelText("Target length (words)");
+    expect(target.getAttribute("aria-invalid")).toBeNull();
+    const boundsId = target.getAttribute("aria-describedby");
+    expect(document.getElementById(boundsId ?? "")?.textContent).toBe(" (10–1,000)");
     expect(screen.getByTestId("craft-selection").textContent).toContain("The rain fell.");
     expect(screen.getByTestId("craft-selection").textContent).toContain("3 words");
     expect(describeButton().hasAttribute("disabled")).toBe(false);
@@ -111,6 +117,13 @@ describe("CraftPanel (STO-1290)", () => {
 
     fireEvent.change(screen.getByLabelText("Target length (words)"), { target: { value: "5" } });
     expect(screen.getByText(/must be a whole number from 10 to 1,000/)).toBeTruthy();
+    const target = screen.getByLabelText("Target length (words)");
+    expect(target.getAttribute("aria-invalid")).toBe("true");
+    const described = (target.getAttribute("aria-describedby") ?? "")
+      .split(" ")
+      .map((id) => document.getElementById(id)?.textContent ?? "")
+      .join("|");
+    expect(described).toMatch(/must be a whole number from 10 to 1,000/);
     expect(describeButton().hasAttribute("disabled")).toBe(true);
   });
 
@@ -235,6 +248,57 @@ describe("CraftPanel (STO-1290)", () => {
 
     fireEvent.click(screen.getByText("Discard"));
     expect(screen.queryByTestId("craft-result")).toBeNull();
+  });
+
+  it("restarts the Copied timer on repeat clicks and clears it on unmount", async () => {
+    stubFetch(
+      baseRoute((url) =>
+        url === "/api/craft/describe"
+          ? {
+              status: 200,
+              body: {
+                text: "Once.",
+                model: "m",
+                output: { mode: "prose", suggestedAction: "replace_selection" },
+              },
+            }
+          : undefined,
+      ),
+    );
+    vi.stubGlobal("navigator", { clipboard: { writeText: vi.fn().mockResolvedValue(undefined) } });
+    const { unmount } = setup();
+    await screen.findByTestId("craft-tool-name");
+    fireEvent.click(describeButton());
+    await screen.findByDisplayValue("Once.");
+
+    vi.useFakeTimers();
+    const clear = vi.spyOn(globalThis, "clearTimeout");
+    await act(async () => {
+      fireEvent.click(screen.getByText("Copy"));
+    });
+    act(() => {
+      vi.advanceTimersByTime(COPIED_FEEDBACK_MS - 100);
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByText("Copied"));
+    });
+    act(() => {
+      vi.advanceTimersByTime(COPIED_FEEDBACK_MS - 100);
+    });
+    expect(screen.getByText("Copied")).toBeTruthy();
+    act(() => {
+      vi.advanceTimersByTime(200);
+    });
+    expect(screen.getByText("Copy")).toBeTruthy();
+
+    await act(async () => {
+      fireEvent.click(screen.getByText("Copy"));
+    });
+    const before = clear.mock.calls.length;
+    unmount();
+    expect(clear.mock.calls.length).toBeGreaterThan(before);
+    expect(vi.getTimerCount()).toBe(0);
+    clear.mockRestore();
   });
 
   it("reports a copy failure", async () => {
