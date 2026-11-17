@@ -97,7 +97,7 @@ describe("GET /api/craft/tools", () => {
     const res = await listTools();
     expect(res.status).toBe(200);
     const json = await res.json<any>();
-    expect(json.tools.map((t: { id: string }) => t.id)).toEqual(["describe"]);
+    expect(json.tools.map((t: { id: string }) => t.id)).toEqual(["describe", "expand", "rewrite"]);
     expect(json.tools[0].contract.output.suggestedAction).toBe("replace_selection");
   });
 
@@ -139,7 +139,7 @@ describe("POST /api/craft/:tool — validation before spend", () => {
   });
 
   it("404 for an unknown tool", async () => {
-    const res = await craft(describeBody(), "expand");
+    const res = await craft(describeBody(), "brainstorm");
     expect(res.status).toBe(404);
     expect((await res.json<any>()).code).toBe("NOT_FOUND");
   });
@@ -176,6 +176,86 @@ describe("POST /api/craft/:tool — validation before spend", () => {
     getScene.mockRejectedValueOnce(new CodexError("Scene not found", "NOT_FOUND", 404));
     expect((await craft(describeBody())).status).toBe(404);
     expect((await craft("{not json")).status).toBe(400);
+  });
+});
+
+describe("POST /api/craft/expand — reuses the scaffold", () => {
+  it("dryRun renders the Expand prompt with its default length target", async () => {
+    const fetchMock = chatFetch();
+    vi.stubGlobal("fetch", fetchMock);
+    const res = await craft(
+      { sceneId: "scene", dryRun: true, inputs: { "craft.selection": SELECTION } },
+      "expand",
+    );
+    expect(res.status).toBe(200);
+    const json = await res.json<any>();
+    expect(json.tool).toBe("expand");
+    expect(json.output).toEqual({ mode: "prose", suggestedAction: "replace_selection" });
+    expect(json.prompt.maxTokens).toBe(600);
+    const user = json.prompt.messages[1].content as string;
+    expect(user).toContain("atmosphere");
+    expect(user).toContain("inner monologue");
+    expect(user).toContain("roughly 300 words");
+    expect(user).toContain(SELECTION);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("422 for Describe-only inputs such as sensory focus", async () => {
+    const res = await craft(
+      {
+        sceneId: "scene",
+        inputs: { "craft.selection": SELECTION, "craft.sensory_focus": "smell" },
+      },
+      "expand",
+    );
+    expect(res.status).toBe(422);
+    expect((await res.json<any>()).code).toBe("VALIDATION_FAILED");
+    expect(getScene).not.toHaveBeenCalled();
+  });
+});
+
+async function dryRunTool(tool: string, inputs: Record<string, unknown>) {
+  const fetchMock = chatFetch();
+  vi.stubGlobal("fetch", fetchMock);
+  const res = await craft({ sceneId: "scene", dryRun: true, inputs }, tool);
+  expect(res.status).toBe(200);
+  expect(fetchMock).not.toHaveBeenCalled();
+  return res.json<any>();
+}
+
+describe("POST /api/craft/rewrite — reuses the scaffold", () => {
+  it("dryRun renders the Rewrite prompt with the chosen preset and instructions", async () => {
+    const json = await dryRunTool("rewrite", {
+      "craft.selection": SELECTION,
+      "craft.rewrite_preset": "stronger_voice",
+      "craft.instructions": "Keep it wry.",
+    });
+    expect(json).toMatchObject({
+      tool: "rewrite",
+      output: { mode: "prose", suggestedAction: "replace_selection" },
+      prompt: { maxTokens: 400 },
+    });
+    const user = json.prompt.messages[1].content as string;
+    for (const snippet of [
+      "Rewrite preset: stronger_voice.",
+      "Keep it wry.",
+      "roughly 200 words",
+      SELECTION,
+    ]) {
+      expect(user).toContain(snippet);
+    }
+  });
+
+  it("422 for presets outside the code-owned list", async () => {
+    const res = await craft(
+      {
+        sceneId: "scene",
+        inputs: { "craft.selection": SELECTION, "craft.rewrite_preset": "make_it_pop" },
+      },
+      "rewrite",
+    );
+    expect(res.status).toBe(422);
+    expect(getScene).not.toHaveBeenCalled();
   });
 });
 
