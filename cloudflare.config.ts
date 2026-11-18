@@ -37,7 +37,9 @@ export default defineConfig({
         "sb_publishable_DDo1gXilrcXEYIE4aA_2EQ_aMIIUc1X",
       ),
       NEXT_PUBLIC_SUPABASE_URL: bindings.text("https://wntgnjrrzfndunqaiobo.supabase.co"),
-      TURNSTILE_HOSTNAMES: bindings.text("syncodex.xyz"),
+      TURNSTILE_HOSTNAMES: bindings.text("syncodex.xyz,inkstory.jgeof.workers.dev"),
+      NEXT_PUBLIC_TURNSTILE_SITE_KEY: bindings.text("0x4AAAAAAGGPGpjMBFjy08CL"),
+      TURNSTILE_SITE_KEY: bindings.text("0x4AAAAAAGGPGpjMBFjy08CL"),
     },
 
     observability: {
