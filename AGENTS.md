@@ -21,6 +21,10 @@ Context assembly (STO-1170) is the pure `assembleContext` in `src/lib/codex/cont
 
 Theming (JGF-128): the `ink-*` ramp is defined as CSS variables in `src/app/globals.css` and registered via `@theme inline`; `[data-theme="dark"]` ("Obsidian Desk") is an OKLCH lightness inversion of the same map, so components must use token classes (`bg-app`, `bg-card`, `text-primary`, `text-muted`, `border-subtle`, `bg-budget-*`) rather than hardcoded hex. Theme, prose font (`[data-prose-font]`), and workspace mode persist in localStorage (`src/lib/ui/preferences.ts`) with a pre-paint bootstrap in `src/app/layout.tsx`. The writing workspace ships three progressive-disclosure modes (Writer / Stage / Architect) in `WritingWorkspace.tsx`, gated by `NEXT_PUBLIC_INKSTORY_OPERATING_MODES=0` as a kill switch; the Relation Linker (`RelationLinkerModal`), Progression Timeline (`ProgressionTimelineDrawer`), and Token Budget Bar (`TokenBudgetBar` + `src/lib/codex/budget-segments.ts`) live under the novel workspace.
 
+## UI & Accessibility Rules
+
+- Any front-end form input or interactive element that can have the `disabled` state must also have a tool-tip on hover or annotation indicating the reason why.
+
 ## Available skills
 
 - [design-md](.agents/skills/design-md/SKILL.md)
