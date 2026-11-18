@@ -54,6 +54,9 @@ describe("Expand adaptive target (STO-1295)", () => {
     expect(targetWordsWarning(expand, at(" "), 1200)).toMatch(
       /selection's 1,200 words\. Try 1,800/,
     );
+    expect(targetWordsWarning(expand, at("500"), 1500)).toBe(
+      "Expand would shorten this: the target is at or below the selection's 1,500 words. Try 2,000.",
+    );
     expect(targetWordsWarning(expand, at("2000"), 2400)).toBe(
       "The selection is 2,400 words, at or above the 2,000-word maximum, so Expand can't lengthen it. Select a shorter passage.",
     );

@@ -145,7 +145,8 @@ export function targetWordsWarning(
   }
   if (target <= selectionWords) {
     const suggestion = suggestedTargetWords(tool, selectionWords) ?? max;
-    return `${tool.name} would shorten this: the target is at or below the selection's ${words} words. Try ${suggestion.toLocaleString("en-US")} or more.`;
+    const hint = suggestion >= max ? "" : " or more";
+    return `${tool.name} would shorten this: the target is at or below the selection's ${words} words. Try ${suggestion.toLocaleString("en-US")}${hint}.`;
   }
   return null;
 }
