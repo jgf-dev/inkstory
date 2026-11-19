@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getTurnstileSiteKey } from "@/lib/turnstile";
 import { LoginForm } from "./LoginForm";
 
 export default async function LoginPage() {
@@ -18,7 +19,7 @@ export default async function LoginPage() {
       <h1 className="mb-2 text-3xl font-semibold">Welcome back</h1>
       <p className="text-ink-500 mb-8">Log in to continue writing.</p>
 
-      <LoginForm />
+      <LoginForm siteKey={getTurnstileSiteKey()} />
 
       <p className="text-ink-500 mt-6 text-center text-sm">
         New here?{" "}
