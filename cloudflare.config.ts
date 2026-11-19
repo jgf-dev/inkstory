@@ -28,6 +28,7 @@ export default defineConfig({
       ...responseStore.applicationWorker.env,
       ASSETS: bindings.assets(),
       IMAGES: bindings.images(),
+      TURNSTILE_HOSTNAMES: bindings.text("syncodex.xyz,inkstory.jgeof.workers.dev"),
     },
   }),
 });

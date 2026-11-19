@@ -1,7 +1,7 @@
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { AppRouterContext } from "next/dist/shared/lib/app-router-context.shared-runtime";
-import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 const mockPush = vi.fn();
 const mockRefresh = vi.fn();
@@ -26,18 +26,12 @@ vi.mock("react", async (importOriginal) => {
   };
 });
 
-const mockSignInWithPassword = vi.fn();
-const mockSignUp = vi.fn();
 const mockSignOut = vi.fn();
-const mockGetSession = vi.fn();
 
 vi.mock("../src/lib/supabase/client", () => ({
   createSupabaseBrowserClient: () => ({
     auth: {
-      signInWithPassword: (...args: any[]) => mockSignInWithPassword(...args),
-      signUp: (...args: any[]) => mockSignUp(...args),
-      signOut: (...args: any[]) => mockSignOut(...args),
-      getSession: (...args: any[]) => mockGetSession(...args),
+      signOut: (...args: unknown[]) => mockSignOut(...args),
     },
   }),
 }));
@@ -59,27 +53,34 @@ function renderAndCapture(Component: React.ComponentType) {
 }
 
 describe("Auth Client Components", () => {
+  const originalFetch = globalThis.fetch;
+
   beforeEach(() => {
     vi.clearAllMocks();
-    // Default window.location.origin in tests if undefined
     if (typeof window === "undefined") {
       (globalThis as any).window = { location: { origin: "http://localhost:3000" } };
     }
   });
 
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+  });
+
   describe("LoginForm", () => {
-    it("renders email, password inputs and a submit button", async () => {
+    it("renders email, password inputs, Turnstile container, and a submit button", async () => {
       const { LoginForm } = await import("../src/app/login/LoginForm");
       const { html } = renderAndCapture(LoginForm);
 
       expect(html).toContain('type="email"');
       expect(html).toContain('type="password"');
+      expect(html).toContain('data-testid="turnstile-login"');
       expect(html).toContain("Log in");
       expect(html).toContain('required=""');
     });
 
-    it("handles successful login by navigating to /dashboard and refreshing", async () => {
-      mockSignInWithPassword.mockResolvedValue({ data: { user: {} }, error: null });
+    it("blocks submission without a Turnstile token", async () => {
+      const fetchSpy = vi.fn();
+      globalThis.fetch = fetchSpy as unknown as typeof fetch;
 
       const { LoginForm } = await import("../src/app/login/LoginForm");
       const { captured } = renderAndCapture(LoginForm);
@@ -88,45 +89,26 @@ describe("Auth Client Components", () => {
       await captured.props.onSubmit({ preventDefault });
 
       expect(preventDefault).toHaveBeenCalled();
-      expect(mockSignInWithPassword).toHaveBeenCalled();
-      expect(mockPush).toHaveBeenCalledWith("/dashboard");
-      expect(mockRefresh).toHaveBeenCalled();
-    });
-
-    it("handles login error by setting error message without navigating", async () => {
-      mockSignInWithPassword.mockResolvedValue({
-        data: null,
-        error: { message: "Invalid login credentials" },
-      });
-
-      const { LoginForm } = await import("../src/app/login/LoginForm");
-      const { captured } = renderAndCapture(LoginForm);
-
-      const preventDefault = vi.fn();
-      await captured.props.onSubmit({ preventDefault });
-
-      expect(preventDefault).toHaveBeenCalled();
-      expect(mockSignInWithPassword).toHaveBeenCalled();
+      expect(fetchSpy).not.toHaveBeenCalled();
       expect(mockPush).not.toHaveBeenCalled();
     });
   });
 
   describe("SignupForm", () => {
-    it("renders form fields, min-length rule, and submit button", async () => {
+    it("renders form fields, min-length rule, Turnstile container, and submit button", async () => {
       const { SignupForm } = await import("../src/app/signup/SignupForm");
       const { html } = renderAndCapture(SignupForm);
 
       expect(html).toContain('type="email"');
       expect(html).toContain('type="password"');
+      expect(html).toContain('data-testid="turnstile-signup"');
       expect(html).toContain("Minimum 6 characters.");
       expect(html).toContain("Create account");
     });
 
-    it("handles signup error gracefully", async () => {
-      mockSignUp.mockResolvedValue({
-        data: null,
-        error: { message: "Password too weak" },
-      });
+    it("blocks submission without a Turnstile token", async () => {
+      const fetchSpy = vi.fn();
+      globalThis.fetch = fetchSpy as unknown as typeof fetch;
 
       const { SignupForm } = await import("../src/app/signup/SignupForm");
       const { captured } = renderAndCapture(SignupForm);
@@ -135,46 +117,8 @@ describe("Auth Client Components", () => {
       await captured.props.onSubmit({ preventDefault });
 
       expect(preventDefault).toHaveBeenCalled();
-      expect(mockSignUp).toHaveBeenCalled();
+      expect(fetchSpy).not.toHaveBeenCalled();
       expect(mockPush).not.toHaveBeenCalled();
-    });
-
-    it("handles signup requiring confirmation without immediate session redirect", async () => {
-      mockSignUp.mockResolvedValue({ data: { user: {} }, error: null });
-      mockGetSession.mockResolvedValue({ data: { session: null }, error: null });
-
-      const { SignupForm } = await import("../src/app/signup/SignupForm");
-      const { captured } = renderAndCapture(SignupForm);
-
-      const preventDefault = vi.fn();
-      await captured.props.onSubmit({ preventDefault });
-
-      expect(mockSignUp).toHaveBeenCalledWith({
-        email: "",
-        password: "",
-        options: {
-          emailRedirectTo: "http://localhost:3000/dashboard",
-        },
-      });
-      expect(mockGetSession).toHaveBeenCalled();
-      expect(mockPush).not.toHaveBeenCalled();
-    });
-
-    it("redirects immediately to /dashboard if session already active", async () => {
-      mockSignUp.mockResolvedValue({ data: { user: {} }, error: null });
-      mockGetSession.mockResolvedValue({
-        data: { session: { access_token: "tok123" } },
-        error: null,
-      });
-
-      const { SignupForm } = await import("../src/app/signup/SignupForm");
-      const { captured } = renderAndCapture(SignupForm);
-
-      const preventDefault = vi.fn();
-      await captured.props.onSubmit({ preventDefault });
-
-      expect(mockPush).toHaveBeenCalledWith("/dashboard");
-      expect(mockRefresh).toHaveBeenCalled();
     });
   });
 
