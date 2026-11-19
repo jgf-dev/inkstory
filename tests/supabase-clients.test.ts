@@ -38,6 +38,20 @@ describe("Supabase Client Factories", () => {
       );
       expect(client).toBeDefined();
     });
+
+    it("falls back to NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY when NEXT_PUBLIC_SUPABASE_ANON_KEY is unset", async () => {
+      delete process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY = "sb_publishable_fallback";
+      mockCreateBrowserClient.mockReturnValue({ auth: {} });
+
+      const { createSupabaseBrowserClient } = await import("../src/lib/supabase/client");
+      createSupabaseBrowserClient();
+
+      expect(mockCreateBrowserClient).toHaveBeenCalledWith(
+        "https://example.supabase.co",
+        "sb_publishable_fallback",
+      );
+    });
   });
 
   describe("createSupabaseServerClient", () => {

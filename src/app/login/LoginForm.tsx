@@ -1,36 +1,59 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
-import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { useRef, useState } from "react";
+import { TurnstileWidget, type TurnstileWidgetHandle } from "@/app/_components/TurnstileWidget";
+import { getTurnstileSiteKey, TURNSTILE_TOKEN_FIELD } from "@/lib/turnstile";
 import { AuthTextField } from "@/lib/ui/AuthTextField";
 
-export function LoginForm() {
+export function LoginForm({ siteKey }: { siteKey?: string } = {}) {
   const router = useRouter();
+  const turnstileRef = useRef<TurnstileWidgetHandle | null>(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [turnstileToken, setTurnstileToken] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const resolvedSiteKey = siteKey ?? getTurnstileSiteKey();
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
-    setLoading(true);
 
-    const supabase = createSupabaseBrowserClient();
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
-    if (signInError) {
-      setError(signInError.message);
-      setLoading(false);
+    if (!turnstileToken) {
+      setError("Please complete the verification challenge.");
       return;
     }
 
-    router.push("/dashboard");
-    router.refresh();
+    setLoading(true);
+
+    try {
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email,
+          password,
+          [TURNSTILE_TOKEN_FIELD]: turnstileToken,
+        }),
+      });
+      const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+
+      if (!response.ok) {
+        setError(payload?.error ?? "Unable to log in. Please try again.");
+        turnstileRef.current?.reset();
+        setLoading(false);
+        return;
+      }
+
+      router.push("/dashboard");
+      router.refresh();
+    } catch {
+      setError("Unable to reach the server. Please try again.");
+      turnstileRef.current?.reset();
+      setLoading(false);
+    }
   }
 
   return (
@@ -51,6 +74,13 @@ export function LoginForm() {
         minLength={6}
         value={password}
         onChange={(e) => setPassword(e.target.value)}
+      />
+
+      <TurnstileWidget
+        ref={turnstileRef}
+        siteKey={resolvedSiteKey}
+        action="login"
+        onTokenChange={setTurnstileToken}
       />
 
       {error && <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
