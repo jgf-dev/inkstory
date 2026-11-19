@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getTurnstileSiteKey } from "@/lib/turnstile";
 import { SignupForm } from "./SignupForm";
 
 export default async function SignupPage() {
@@ -18,7 +19,7 @@ export default async function SignupPage() {
       <h1 className="mb-2 text-3xl font-semibold">Create your account</h1>
       <p className="text-ink-500 mb-8">Start writing with an AI-aware Codex.</p>
 
-      <SignupForm />
+      <SignupForm siteKey={getTurnstileSiteKey()} />
 
       <p className="text-ink-500 mt-6 text-center text-sm">
         Already have one?{" "}
