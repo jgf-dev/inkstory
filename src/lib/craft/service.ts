@@ -5,7 +5,7 @@
  * the route through the shared executeChat path.
  */
 
-import { AiError } from "@/lib/ai/generate";
+import { AiError, DEFAULT_MAX_OUTPUT_TOKENS } from "@/lib/ai/generate";
 import { getEntitlements, resolveContextTokenBudget } from "@/lib/billing/entitlements";
 import { formatAssembledContext } from "@/lib/codex/prompt-formatter";
 import { assembleCodexContextForScene } from "@/lib/codex/service";
@@ -16,6 +16,7 @@ import type { RenderedPrompt } from "@/lib/prompts/types";
 import { POV_LABELS, TENSE_LABELS } from "@/lib/writing/meta";
 import { getSceneForEditor } from "@/lib/writing/service";
 import {
+  CRAFT_TOKENS_PER_WORD,
   contractReadsSlice,
   filterBindingsBySlices,
   maxTokensForTargetWords,
@@ -43,6 +44,40 @@ export interface PreparedCraftPrompt {
   output: ContractOutput | null;
   contextSlices: ContextSlice[];
   inputs: CraftInputBindings;
+}
+
+/**
+ * Parses a resolved `craft.target_words` binding. Missing, blank, non-numeric,
+ * zero or negative values are "no target" (`undefined`), never `0`.
+ */
+export function parseTargetWords(raw: string | undefined): number | undefined {
+  if (raw === undefined || !raw.trim()) return undefined;
+  const words = Number(raw.trim());
+  return Number.isFinite(words) && words > 0 ? words : undefined;
+}
+
+/**
+ * Words the default completion budget covers when a tool sends no target
+ * (`DEFAULT_MAX_OUTPUT_TOKENS` at `CRAFT_TOKENS_PER_WORD`).
+ */
+export const DEFAULT_CRAFT_OUTPUT_WORDS = Math.floor(
+  DEFAULT_MAX_OUTPUT_TOKENS / CRAFT_TOKENS_PER_WORD,
+);
+
+/**
+ * Completion budget for a craft call (STO-1299). Prose tools without a target
+ * keep the platform default (`undefined`). Diagnosis-and-prose tools always
+ * reserve {@link DIAGNOSIS_WORD_ALLOWANCE} on top of the prose words: the
+ * target when there is one, otherwise the words the default budget covers.
+ */
+export function craftCompletionBudget(
+  rawTargetWords: string | undefined,
+  output: ContractOutput | null,
+): number | undefined {
+  const targetWords = parseTargetWords(rawTargetWords);
+  if (output?.mode !== "diagnosis_and_prose") return maxTokensForTargetWords(targetWords);
+  const proseWords = targetWords ?? DEFAULT_CRAFT_OUTPUT_WORDS;
+  return maxTokensForTargetWords(proseWords + DIAGNOSIS_WORD_ALLOWANCE);
 }
 
 export async function prepareCraftPrompt(
@@ -95,21 +130,12 @@ export async function prepareCraftPrompt(
     tool.contract.contextSlices,
   );
   const rendered = renderCraftPrompt(tool, bindings, craftInputs);
-  const targetWords = craftInputs["craft.target_words"];
-  // Diagnosis-and-prose tools also write a short diagnosis before the prose.
-  const budgetWords =
-    targetWords && tool.contract.output?.mode === "diagnosis_and_prose"
-      ? Number(targetWords) + DIAGNOSIS_WORD_ALLOWANCE
-      : targetWords
-        ? Number(targetWords)
-        : undefined;
-
   return {
     tool: tool.id,
     sceneId: scene.id,
     messages: rendered.messages,
     joined: rendered.joined,
-    maxTokens: maxTokensForTargetWords(budgetWords),
+    maxTokens: craftCompletionBudget(craftInputs["craft.target_words"], tool.contract.output),
     output: tool.contract.output,
     contextSlices: [...tool.contract.contextSlices],
     inputs: craftInputs,

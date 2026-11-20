@@ -22,7 +22,9 @@ const EXPANDish = {
   defaults: {},
 };
 
-const EXPAND = toCraftToolDto(listCraftTools().find((t) => t.id === "expand")!);
+const builtIn = (id: string) => toCraftToolDto(listCraftTools().find((t) => t.id === id)!);
+const EXPAND = builtIn("expand");
+const SHOW_DONT_TELL = builtIn("show_dont_tell");
 
 const selection = { from: 1, to: 15, text: "The rain fell." };
 
@@ -500,5 +502,18 @@ describe("CraftPanel (STO-1290)", () => {
     rerender(React.createElement(CraftPanel, { ...props, selection }));
     expect(target().value).toBe("350");
     expect(screen.queryByTestId("craft-warning")).toBeNull();
+  });
+
+  it("keeps Show Don't Tell's target near the selection and flags condensing (STO-1299)", async () => {
+    stubFetch(baseRoute(undefined, [SHOW_DONT_TELL]));
+    const passage = { from: 1, to: 1800, text: "told ".repeat(360).trim() };
+    setup({ selection: passage });
+    await screen.findByTestId("craft-tool-name");
+    const field = screen.getByLabelText("Target length (words)") as HTMLInputElement;
+    expect(field.value).toBe("360");
+    fireEvent.change(field, { target: { value: "120" } });
+    expect(screen.getByTestId("craft-warning").textContent).toContain(
+      "Show Don't Tell would condense this",
+    );
   });
 });

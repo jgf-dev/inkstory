@@ -72,39 +72,79 @@ export function initialFormValues(tool: CraftToolDto): CraftFormValues {
 /** The target-length input shared by the length-aware Craft tools. */
 export const TARGET_WORDS_KEY = "craft.target_words" satisfies CraftInputKey;
 
-/** Tools whose output should come out longer than the selection (STO-1295). */
-const LENGTHENING_TOOL_IDS: ReadonlySet<string> = new Set(["expand"]);
+/**
+ * How a length-aware tool's target follows the selection (STO-1295, STO-1299).
+ * `lengthens` tools (Expand) must come out longer than the selection; the
+ * others (Show Don't Tell) rewrite at about the selection's length and only
+ * warn when the target would condense it below `condenseRatio`.
+ */
+interface AdaptiveTargetRule {
+  /** Suggested target = selection words × growth. */
+  growth: number;
+  /** Lowest suggestion: the tool default, or a fixed word count. */
+  floor: "default" | number;
+  lengthens: boolean;
+  /** Non-lengthening tools warn when the target is below selection × ratio. */
+  condenseRatio: number;
+}
 
 /** Expand's adaptive target: this many times the selection, at least the tool default. */
 export const EXPAND_TARGET_GROWTH = 1.5;
 
-function lengtheningTarget(tool: CraftToolDto): ContractInput | null {
-  if (!LENGTHENING_TOOL_IDS.has(tool.id)) return null;
-  return (
-    formInputs(tool).find((input) => input.key === TARGET_WORDS_KEY && input.type === "integer") ??
-    null
-  );
+/** Show Don't Tell rewrites at about the selection's length (STO-1299). */
+export const SHOW_DONT_TELL_TARGET_GROWTH = 1;
+/** Showing a one-line tell needs a few sentences, so short selections get at least this. */
+export const SHOW_DONT_TELL_MIN_TARGET_WORDS = 50;
+/** Show Don't Tell warns when the target is under this share of the selection. */
+export const SHOW_DONT_TELL_CONDENSE_RATIO = 0.5;
+
+const ADAPTIVE_TARGET_RULES: ReadonlyMap<string, AdaptiveTargetRule> = new Map([
+  ["expand", { growth: EXPAND_TARGET_GROWTH, floor: "default", lengthens: true, condenseRatio: 1 }],
+  [
+    "show_dont_tell",
+    {
+      growth: SHOW_DONT_TELL_TARGET_GROWTH,
+      floor: SHOW_DONT_TELL_MIN_TARGET_WORDS,
+      lengthens: false,
+      condenseRatio: SHOW_DONT_TELL_CONDENSE_RATIO,
+    },
+  ],
+]);
+
+function adaptiveTarget(
+  tool: CraftToolDto,
+): { rule: AdaptiveTargetRule; input: ContractInput } | null {
+  const rule = ADAPTIVE_TARGET_RULES.get(tool.id);
+  const input = rule
+    ? formInputs(tool).find((i) => i.key === TARGET_WORDS_KEY && i.type === "integer")
+    : undefined;
+  return rule && input ? { rule, input } : null;
 }
 
 /**
- * Selection-aware target for lengthening tools (Expand): grow the selection by
- * {@link EXPAND_TARGET_GROWTH}, never below the tool default and never above the
- * contract ceiling. `null` when the tool isn't lengthening or nothing is selected,
- * so the static default (`EXPAND_DEFAULT_TARGET_WORDS`) stays the API fallback.
+ * Selection-aware target for length-aware tools: the selection times the
+ * tool's growth (1.5× for Expand, 1× for Show Don't Tell), never below the
+ * tool's floor and always inside the contract bounds. `null` when the tool has
+ * no adaptive target or nothing is selected, so the static default
+ * (`EXPAND_DEFAULT_TARGET_WORDS`, `SHOW_DONT_TELL_DEFAULT_TARGET_WORDS`) stays
+ * the API fallback.
  */
 export function suggestedTargetWords(tool: CraftToolDto, selectionWords: number): number | null {
-  const input = lengtheningTarget(tool);
-  if (!input || selectionWords <= 0) return null;
+  const adaptive = adaptiveTarget(tool);
+  if (!adaptive || selectionWords <= 0) return null;
+  const { rule, input } = adaptive;
   const { min, max } = integerBounds(input);
   const fallback = Number(tool.defaults[TARGET_WORDS_KEY]);
-  const floor = Number.isFinite(fallback) ? fallback : min;
-  return Math.min(max, Math.max(floor, Math.ceil(selectionWords * EXPAND_TARGET_GROWTH)));
+  const floor =
+    rule.floor === "default" ? (Number.isFinite(fallback) ? fallback : min) : rule.floor;
+  const grown = Math.ceil(selectionWords * rule.growth);
+  return Math.min(max, Math.max(min, floor, grown));
 }
 
 /**
  * Form values with the target length following the selection until the author
  * edits it (`touched`). Without a selection the untouched target reverts to the
- * tool default. Tools without a lengthening target are returned unchanged.
+ * tool default. Tools without an adaptive target are returned unchanged.
  */
 export function withAdaptiveTarget(
   tool: CraftToolDto,
@@ -112,17 +152,51 @@ export function withAdaptiveTarget(
   selectionWords: number,
   touched: boolean,
 ): CraftFormValues {
-  if (touched || !lengtheningTarget(tool)) return values;
+  if (touched || !adaptiveTarget(tool)) return values;
   const suggestion = suggestedTargetWords(tool, selectionWords);
   const target =
     suggestion === null ? initialFormValues(tool)[TARGET_WORDS_KEY] : String(suggestion);
   return values[TARGET_WORDS_KEY] === target ? values : { ...values, [TARGET_WORDS_KEY]: target };
 }
 
+const formatWords = (words: number) => words.toLocaleString("en-US");
+
+function lengtheningWarning(
+  tool: CraftToolDto,
+  target: number,
+  selectionWords: number,
+  max: number,
+): string | null {
+  if (selectionWords >= max) {
+    return `The selection is ${formatWords(selectionWords)} words, at or above the ${formatWords(max)}-word maximum, so ${tool.name} can't lengthen it. Select a shorter passage.`;
+  }
+  if (target > selectionWords) return null;
+  const suggestion = suggestedTargetWords(tool, selectionWords) ?? max;
+  const hint = suggestion >= max ? "" : " or more";
+  return `${tool.name} would shorten this: the target is at or below the selection's ${formatWords(selectionWords)} words. Try ${formatWords(suggestion)}${hint}.`;
+}
+
+function condensingWarning(
+  tool: CraftToolDto,
+  rule: AdaptiveTargetRule,
+  target: number,
+  selectionWords: number,
+  max: number,
+): string | null {
+  if (selectionWords > max) {
+    return `The selection is ${formatWords(selectionWords)} words, above the ${formatWords(max)}-word maximum, so ${tool.name} will condense it. Select a shorter passage.`;
+  }
+  if (target >= selectionWords * rule.condenseRatio) return null;
+  const suggestion = suggestedTargetWords(tool, selectionWords) ?? max;
+  return `${tool.name} would condense this: the target is well below the selection's ${formatWords(selectionWords)} words. Try about ${formatWords(suggestion)}.`;
+}
+
 /**
- * Inline warning when a lengthening tool's target would not lengthen the
- * selection: the target is at or below the selection's word count, or the
- * selection already meets the contract ceiling. Invalid targets are left to
+ * Inline warning when a length-aware tool's target is in tension with the
+ * selection. Expand warns when it would not lengthen (target at or below the
+ * selection, or the selection already at the ceiling); Show Don't Tell warns
+ * when the rewrite would condense the selection (target under half of it, or
+ * the selection above the ceiling). Invalid targets are left to
  * {@link validateCraftForm}.
  */
 export function targetWordsWarning(
@@ -130,8 +204,9 @@ export function targetWordsWarning(
   values: CraftFormValues,
   selectionWords: number,
 ): string | null {
-  const input = lengtheningTarget(tool);
-  if (!input || selectionWords <= 0) return null;
+  const adaptive = adaptiveTarget(tool);
+  if (!adaptive || selectionWords <= 0) return null;
+  const { rule, input } = adaptive;
   const { min, max } = integerBounds(input);
   const raw = values[TARGET_WORDS_KEY];
   const target =
@@ -139,16 +214,9 @@ export function targetWordsWarning(
       ? Number(raw.trim())
       : Number(tool.defaults[TARGET_WORDS_KEY]);
   if (!Number.isInteger(target) || target < min || target > max) return null;
-  const words = selectionWords.toLocaleString("en-US");
-  if (selectionWords >= max) {
-    return `The selection is ${words} words, at or above the ${max.toLocaleString("en-US")}-word maximum, so ${tool.name} can't lengthen it. Select a shorter passage.`;
-  }
-  if (target <= selectionWords) {
-    const suggestion = suggestedTargetWords(tool, selectionWords) ?? max;
-    const hint = suggestion >= max ? "" : " or more";
-    return `${tool.name} would shorten this: the target is at or below the selection's ${words} words. Try ${suggestion.toLocaleString("en-US")}${hint}.`;
-  }
-  return null;
+  return rule.lengthens
+    ? lengtheningWarning(tool, target, selectionWords, max)
+    : condensingWarning(tool, rule, target, selectionWords, max);
 }
 
 /** Effective bounds for an integer input: the contract's, inside the registry ceiling. */
