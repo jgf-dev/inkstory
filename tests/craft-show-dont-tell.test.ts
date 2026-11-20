@@ -15,6 +15,7 @@ import {
   shapeCraftResult,
   toCraftToolDto,
 } from "../src/lib/craft";
+import { CRAFT_PROSE_FORMAT_RULE, CRAFT_SECTIONED_FORMAT_RULE } from "../src/lib/craft/tools";
 import { AiError } from "../src/lib/ai/generate";
 import { buildSceneBindings } from "../src/lib/prompts/render";
 import { validatePromptContract } from "../src/lib/prompts/contracts";
@@ -73,7 +74,11 @@ describe("Show Don't Tell tool (STO-1270)", () => {
   });
 
   it("reuses the shared scaffold system prompt and slices", () => {
-    expect(tool.parts[0].body).toBe(describeTool.parts[0].body);
+    const sectioned = tool.parts[0].body.replace(
+      CRAFT_SECTIONED_FORMAT_RULE,
+      CRAFT_PROSE_FORMAT_RULE,
+    );
+    expect(sectioned).toBe(describeTool.parts[0].body);
     expect(tool.contract.contextSlices).toEqual(describeTool.contract.contextSlices);
     expect(tool.allowedContextSlices).toEqual(describeTool.allowedContextSlices);
   });
@@ -104,6 +109,21 @@ describe("Show Don't Tell tool (STO-1270)", () => {
     expect(user).toContain("She was nervous.");
     expect(user).toContain("Mara walked to the pier.");
     expect(user).not.toContain("Mara waits for the boat.");
+  });
+
+  it("keeps system and user format rules aligned (STO-1297)", () => {
+    const [system, user] = render({ "craft.selection": "She was nervous." });
+    expect(system).toContain(CRAFT_SECTIONED_FORMAT_RULE);
+    expect(system).not.toContain(CRAFT_PROSE_FORMAT_RULE);
+    expect(system.toLowerCase()).not.toContain("prose only");
+    expect(user.toLowerCase()).not.toContain("prose-only");
+    expect(user).not.toContain("replaces the");
+    for (const id of ["describe", "expand", "rewrite"] as const) {
+      const prose = getCraftTool(id);
+      expect(prose.contract.output?.mode).toBe("prose");
+      expect(prose.parts[0].body).toContain(CRAFT_PROSE_FORMAT_RULE);
+      expect(prose.parts[0].body).not.toContain(CRAFT_SECTIONED_FORMAT_RULE);
+    }
   });
 });
 
