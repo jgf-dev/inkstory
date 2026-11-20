@@ -73,15 +73,33 @@ export const SHOW_DONT_TELL_DEFAULT_TARGET_WORDS = 200;
 export const DIAGNOSIS_MARKER = "DIAGNOSIS:";
 export const REWRITE_MARKER = "REWRITE:";
 
-const CRAFT_SYSTEM_BODY = [
-  "You are a skilled fiction craft assistant embedded in InkStory, a novel-writing workspace.",
-  "Story: {{novel.title}} — {{chapter.title}} / {{scene.title}}.",
-  "Write in {{scene.pov}} and {{scene.tense}} tense, matching the author's established voice, diction and pacing.",
-  "Story bible entries that apply to this scene are provided below. Respect their facts and current state; never contradict them.",
-  "Return prose only — no headings, no commentary, no markdown fences.",
-  "",
-  "{{codex.context}}",
-].join("\n");
+/**
+ * Shared craft system prompt. The output-format rule varies by output mode so
+ * the system and user messages never contradict each other (STO-1297):
+ * prose tools get the prose-only rule; sectioned tools defer to the format
+ * their user message specifies.
+ */
+function craftSystemBody(formatRule: string): string {
+  return [
+    "You are a skilled fiction craft assistant embedded in InkStory, a novel-writing workspace.",
+    "Story: {{novel.title}} — {{chapter.title}} / {{scene.title}}.",
+    "Write in {{scene.pov}} and {{scene.tense}} tense, matching the author's established voice, diction and pacing.",
+    "Story bible entries that apply to this scene are provided below. Respect their facts and current state; never contradict them.",
+    formatRule,
+    "",
+    "{{codex.context}}",
+  ].join("\n");
+}
+
+/** System prompt for `prose` output tools (Describe, Expand, Rewrite). */
+export const CRAFT_PROSE_FORMAT_RULE =
+  "Return prose only — no headings, no commentary, no markdown fences.";
+const CRAFT_SYSTEM_BODY = craftSystemBody(CRAFT_PROSE_FORMAT_RULE);
+
+/** System prompt for tools whose user message defines labelled output sections. */
+export const CRAFT_SECTIONED_FORMAT_RULE =
+  "Answer in exactly the labelled sections the request specifies — no other headings, no extra commentary, no markdown fences.";
+const CRAFT_SECTIONED_SYSTEM_BODY = craftSystemBody(CRAFT_SECTIONED_FORMAT_RULE);
 
 const DESCRIBE_USER_BODY = [
   "Rewrite the selected passage so it is rich in concrete sensory description.",
@@ -150,7 +168,7 @@ const SHOW_DONT_TELL_USER_BODY = [
   "",
   'Author guidance:\n"""\n{{craft.instructions}}\n"""',
   "",
-  "For this tool the format below replaces the prose-only rule: the diagnosis is shown to the author and only the rewrite can be applied to the manuscript.",
+  "The diagnosis is shown to the author; only the rewrite can be applied to the manuscript.",
   "Answer in exactly this format and nothing else:",
   `${DIAGNOSIS_MARKER}`,
   "- One short bullet per instance of telling: quote the telling words, then name what could show it instead. At most five bullets. If nothing is told, write a single bullet saying so.",
@@ -386,7 +404,7 @@ const SHOW_DONT_TELL = defineTool({
     attribution: null,
   },
   parts: [
-    { role: "system", body: CRAFT_SYSTEM_BODY, name: "craft-show-dont-tell-system" },
+    { role: "system", body: CRAFT_SECTIONED_SYSTEM_BODY, name: "craft-show-dont-tell-system" },
     { role: "user", body: SHOW_DONT_TELL_USER_BODY, name: "craft-show-dont-tell-user" },
   ],
   allowedContextSlices: [
