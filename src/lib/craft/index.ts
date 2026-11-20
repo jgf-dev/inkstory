@@ -1,11 +1,14 @@
 export {
   CRAFT_TOOL_IDS,
   DESCRIBE_DEFAULT_TARGET_WORDS,
+  DIAGNOSIS_MARKER,
   EXPAND_DEFAULT_TARGET_WORDS,
   REWRITE_DEFAULT_PRESET,
   REWRITE_DEFAULT_TARGET_WORDS,
   REWRITE_PRESET_GUIDANCE,
+  REWRITE_MARKER,
   SENSORY_FOCUS_OPTIONS,
+  SHOW_DONT_TELL_DEFAULT_TARGET_WORDS,
   getCraftTool,
   isCraftToolId,
   listCraftTools,
@@ -25,3 +28,10 @@ export {
   resolveToolInputs,
 } from "./prompt";
 export { prepareCraftPrompt, type CraftRequestInput, type PreparedCraftPrompt } from "./service";
+export {
+  DIAGNOSIS_WORD_ALLOWANCE,
+  MAX_CRAFT_OUTPUT_CHARS,
+  parseDiagnosisAndProse,
+  shapeCraftResult,
+  type CraftResult,
+} from "./output";
