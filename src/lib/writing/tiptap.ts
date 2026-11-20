@@ -200,3 +200,16 @@ export function appendPlainTextToDoc(doc: TiptapDoc | null, plainInsert: string)
     content: [...baseContent, ...(inserted.content ?? [])],
   };
 }
+
+/**
+ * Plain text → content for an in-place insert (Craft "Replace selection").
+ * One block stays inline (hard breaks for single newlines) so a mid-paragraph
+ * selection is not split; several blank-line blocks become paragraphs.
+ */
+export function plainTextToInsertContent(plain: string): TiptapNode[] {
+  const text = typeof plain === "string" ? plain.replace(/\r\n/g, "\n").trim() : "";
+  if (!text) return [];
+  const blocks = docFromPlainText(text).content ?? [];
+  if (blocks.length === 1) return blocks[0].content ?? [];
+  return blocks;
+}
