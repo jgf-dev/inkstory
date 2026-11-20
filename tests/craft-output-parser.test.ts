@@ -20,6 +20,45 @@ function malformedError(fn: () => unknown): AiError {
   throw new Error("expected a malformed-output error");
 }
 
+describe("PR Lens review: fences and emphasised commentary", () => {
+  it.each([
+    "**Note:** I kept the dialogue unchanged.",
+    "__Note__: I kept the dialogue unchanged.",
+    "**Let me know if you'd like changes.**",
+    "*Hope this helps!*",
+    "(**Note:** the gull is new detail.)",
+  ])("drops a bolded or italic closing note: %s", (commentary) => {
+    expect(
+      parseDiagnosisAndProse(`DIAGNOSIS:\nTold.\nREWRITE:\nShe gripped the rail.\n\n${commentary}`)
+        .text,
+    ).toBe("She gripped the rail.");
+  });
+
+  it("drops commentary inside a wrapping fence without leaking the opening fence", () => {
+    expect(
+      parseDiagnosisAndProse(
+        "DIAGNOSIS:\nTold.\nREWRITE:\n```\nShe gripped the rail.\n\nNote: kept the dialogue.\n```",
+      ).text,
+    ).toBe("She gripped the rail.");
+  });
+
+  it("drops commentary after a closed fence", () => {
+    expect(
+      parseDiagnosisAndProse(
+        "DIAGNOSIS:\nTold.\nREWRITE:\n```\nShe gripped the rail.\n\nThe gull cried.\n```\n\nLet me know if you'd like changes.",
+      ).text,
+    ).toBe("She gripped the rail.\n\nThe gull cried.");
+  });
+
+  it("keeps first-person prose that is merely emphasised", () => {
+    expect(
+      parseDiagnosisAndProse(
+        "DIAGNOSIS:\nTold.\nREWRITE:\nShe left.\n\n**I hope she never comes back.**",
+      ).text,
+    ).toBe("She left.\n\n**I hope she never comes back.**");
+  });
+});
+
 describe("trailing commentary after REWRITE:", () => {
   it.each([
     "Let me know if you'd like changes.",

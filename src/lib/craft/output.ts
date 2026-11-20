@@ -64,12 +64,13 @@ function findMarkers(raw: string): [RegExpExecArray, RegExpExecArray] | null {
 }
 
 /**
- * Openers that only an assistant addressing the author would use. Kept narrow
+ * Openers that only an assistant addressing the author would use (optionally
+ * wrapped in markdown emphasis, e.g. "**Note:**"). Kept narrow
  * on purpose: first-person fiction ("I hope she never comes back.") must
  * never be stripped from the applyable rewrite.
  */
 const COMMENTARY_OPENER =
-  /^(?:\(?\s*(?:note|notes|changes(?: made)?|what changed)\s*:|let me know\b|feel free to\b|hope (?:this|that) helps\b|i hope (?:this|that) (?:helps|works|captures)\b|would you like me to\b|if you(?:['’]d| would) like(?:,| me to\b| to\b)|happy to (?:adjust|revise|tweak|help)\b)/i;
+  /^[*_]{0,2}(?:\(?\s*[*_]{0,2}(?:note|notes|changes(?: made)?|what changed)[*_]{0,2}\s*:|let me know\b|feel free to\b|hope (?:this|that) helps\b|i hope (?:this|that) (?:helps|works|captures)\b|would you like me to\b|if you(?:['’]d| would) like(?:,| me to\b| to\b)|happy to (?:adjust|revise|tweak|help)\b)/i;
 const SEPARATOR_LINE = /^(?:-{3,}|\*{3,}|_{3,})$/;
 const FENCE_LINE = /^```[^\n]*$/;
 
@@ -132,7 +133,9 @@ export function parseDiagnosisAndProse(
   const [d, r] = markers;
   if (d.index > r.index) throw malformed("diagnosis must come before the rewrite", toolName);
   const diagnosis = unwrap(raw.slice(d.index + d[0].length, r.index));
-  const text = unwrap(stripTrailingCommentary(raw.slice(r.index + r[0].length)));
+  // Unwrap first so commentary inside a wrapping fence is stripped without
+  // orphaning the opening fence; unwrap again for a fence closed before it.
+  const text = unwrap(stripTrailingCommentary(unwrap(raw.slice(r.index + r[0].length))));
   if (!diagnosis) throw malformed("empty diagnosis", toolName);
   if (!text) throw malformed("empty rewrite", toolName);
   return { diagnosis, text };
