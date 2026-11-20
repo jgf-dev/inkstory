@@ -1,4 +1,10 @@
 export {
+  BRAINSTORM_DEFAULT_COUNT,
+  BRAINSTORM_DEFAULT_KIND,
+  BRAINSTORM_DEFAULT_TARGET_WORDS,
+  BRAINSTORM_KIND_GUIDANCE,
+  BRAINSTORM_KINDS,
+  BRAINSTORM_NO_SELECTION,
   CRAFT_TOOL_IDS,
   DESCRIBE_DEFAULT_TARGET_WORDS,
   DIAGNOSIS_MARKER,
@@ -27,11 +33,18 @@ export {
   renderCraftPrompt,
   resolveToolInputs,
 } from "./prompt";
-export { prepareCraftPrompt, type CraftRequestInput, type PreparedCraftPrompt } from "./service";
+export {
+  completionBudgetWords,
+  prepareCraftPrompt,
+  retrievalSelection,
+  type CraftRequestInput,
+  type PreparedCraftPrompt,
+} from "./service";
 export {
   DIAGNOSIS_WORD_ALLOWANCE,
   MAX_CRAFT_OUTPUT_CHARS,
   parseDiagnosisAndProse,
+  parseOptions,
   shapeCraftResult,
   type CraftResult,
 } from "./output";
