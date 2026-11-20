@@ -101,6 +101,7 @@ describe("GET /api/craft/tools", () => {
       "describe",
       "expand",
       "rewrite",
+      "show_dont_tell",
       "transition",
     ]);
     expect(json.tools[0].contract.output.suggestedAction).toBe("replace_selection");
@@ -264,6 +265,68 @@ describe("POST /api/craft/rewrite — reuses the scaffold", () => {
   });
 });
 
+describe("POST /api/craft/show_dont_tell — diagnosis separate from prose", () => {
+  const sdtBody = { sceneId: "scene", inputs: { "craft.selection": "Mara was angry." } };
+
+  it("dryRun declares diagnosis_and_prose and reserves budget for the diagnosis", async () => {
+    const fetchMock = chatFetch();
+    vi.stubGlobal("fetch", fetchMock);
+    const res = await craft({ ...sdtBody, dryRun: true }, "show_dont_tell");
+    expect(res.status).toBe(200);
+    const json = await res.json<any>();
+    expect(json.output).toEqual({
+      mode: "diagnosis_and_prose",
+      suggestedAction: "replace_selection",
+    });
+    // (200 target + 120 diagnosis allowance) words → 640 tokens.
+    expect(json.prompt.maxTokens).toBe(640);
+    const user = json.prompt.messages[1].content as string;
+    expect(user).toContain("DIAGNOSIS:");
+    expect(user).toContain("REWRITE:");
+    expect(user).toContain("Mara was angry.");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("returns only the rewrite as applyable text and the diagnosis separately", async () => {
+    vi.stubGlobal(
+      "fetch",
+      chatFetch(() =>
+        Response.json({
+          model: "served",
+          choices: [
+            {
+              message: {
+                content:
+                  'DIAGNOSIS:\n- "was angry" names the emotion; show it in her hands.\nREWRITE:\nMara\'s knuckles whitened on the rail.',
+              },
+            },
+          ],
+        }),
+      ),
+    );
+    const res = await craft(sdtBody, "show_dont_tell");
+    expect(res.status).toBe(200);
+    const json = await res.json<any>();
+    expect(json.text).toBe("Mara's knuckles whitened on the rail.");
+    expect(json.diagnosis).toContain("names the emotion");
+    expect(json.text).not.toContain("DIAGNOSIS");
+    expect(json.result).toEqual({
+      kind: "diagnosis_and_prose",
+      diagnosis: json.diagnosis,
+      text: json.text,
+    });
+  });
+
+  it("malformed output → 502 AI_INVALID_RESPONSE and no applyable text", async () => {
+    vi.stubGlobal("fetch", chatFetch());
+    const res = await craft(sdtBody, "show_dont_tell");
+    expect(res.status).toBe(502);
+    const json = await res.json<any>();
+    expect(json.code).toBe("AI_INVALID_RESPONSE");
+    expect(json.text).toBeUndefined();
+  });
+});
+
 describe("POST /api/craft/describe — prompt and generation", () => {
   it("dryRun returns the rendered prompt and output behavior without a provider call", async () => {
     const fetchMock = chatFetch();
@@ -314,6 +377,7 @@ describe("POST /api/craft/describe — prompt and generation", () => {
     expect(json).toMatchObject({
       tool: "describe",
       text: "Salt and tar.",
+      result: { kind: "prose", text: "Salt and tar." },
       model: "anthropic/claude-sonnet-4.6",
       output: { suggestedAction: "replace_selection" },
       applied: { provider: "platform-gateway", parameters: { max_tokens: 800 } },

@@ -22,6 +22,7 @@ import {
   renderCraftPrompt,
   resolveToolInputs,
 } from "./prompt";
+import { DIAGNOSIS_WORD_ALLOWANCE } from "./output";
 import { getCraftTool, type CraftToolId } from "./tools";
 
 export interface CraftRequestInput {
@@ -106,13 +107,20 @@ export async function prepareCraftPrompt(
   );
   const rendered = renderCraftPrompt(tool, bindings, craftInputs);
   const targetWords = craftInputs["craft.target_words"];
+  // Diagnosis-and-prose tools also write a short diagnosis before the prose.
+  const budgetWords =
+    targetWords && tool.contract.output?.mode === "diagnosis_and_prose"
+      ? Number(targetWords) + DIAGNOSIS_WORD_ALLOWANCE
+      : targetWords
+        ? Number(targetWords)
+        : undefined;
 
   return {
     tool: tool.id,
     sceneId: scene.id,
     messages: rendered.messages,
     joined: rendered.joined,
-    maxTokens: maxTokensForTargetWords(targetWords ? Number(targetWords) : undefined),
+    maxTokens: maxTokensForTargetWords(budgetWords),
     output: tool.contract.output,
     contextSlices: [...tool.contract.contextSlices],
     inputs: craftInputs,
