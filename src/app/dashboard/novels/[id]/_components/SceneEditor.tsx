@@ -13,7 +13,8 @@ import {
   type TiptapDoc,
 } from "@/lib/writing/tiptap";
 import { apiGet, apiPatch, apiPost, ApiRequestError } from "./api";
-import { RichTextEditor } from "./RichTextEditor";
+import { RichTextEditor, type EditorSelection, type RichTextEditorHandle } from "./RichTextEditor";
+import { CraftPanel, type CraftApplyResult } from "./CraftPanel";
 
 export interface SceneEditorProps {
   scene: EditorScene;
@@ -67,7 +68,9 @@ function snapshotOf(scene: EditorScene): SceneSnapshot {
 /**
  * Scene Editor (STO-1156): Tiptap rich-text surface with debounced autosave
  * (Cmd/Ctrl+S flushes), live word count, metadata drawer, localStorage draft
- * fallback, and a minimal revision history / restore panel.
+ * fallback, and a minimal revision history / restore panel. The Craft panel
+ * (STO-1290) runs selection tools and applies results after a MANUAL
+ * checkpoint.
  */
 export function SceneEditor(props: SceneEditorProps) {
   const { scene } = props;
@@ -86,6 +89,10 @@ export function SceneEditor(props: SceneEditorProps) {
   const [revisionsLoading, setRevisionsLoading] = useState(false);
   const [revisionsError, setRevisionsError] = useState<string | null>(null);
   const [restoringId, setRestoringId] = useState<string | null>(null);
+  const [showCraft, setShowCraft] = useState(false);
+  const [selection, setSelection] = useState<EditorSelection | null>(null);
+  const editorHandleRef = useRef<RichTextEditorHandle | null>(null);
+  const inflightSaveRef = useRef<Promise<void> | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [restoreOffer, setRestoreOffer] = useState<{
     savedAt: number;
@@ -207,6 +214,15 @@ export function SceneEditor(props: SceneEditorProps) {
     isSavingRef.current = true;
     setStatus("saving");
     setError(null);
+    const run = savePatch(snapshotToPersist, patch);
+    inflightSaveRef.current = run;
+    await run;
+  }
+
+  async function savePatch(
+    snapshotToPersist: SceneSnapshot,
+    patch: ReturnType<typeof diffAgainstSaved>,
+  ): Promise<void> {
     try {
       const res = await apiPatch<{ scene: EditorScene }>(`/api/scenes/${scene.id}`, patch);
       // The working snapshot we sent is authoritative for dirty tracking; the
@@ -250,6 +266,7 @@ export function SceneEditor(props: SceneEditorProps) {
     } finally {
       isSavingRef.current = false;
       manualFlushRef.current = false;
+      inflightSaveRef.current = null;
       if (queuedSaveRef.current) {
         queuedSaveRef.current = false;
         void persist();
@@ -304,6 +321,74 @@ export function SceneEditor(props: SceneEditorProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props.insertRequest?.seq]);
 
+  /**
+   * Saves until the stored scene matches the working copy (waiting out any
+   * in-flight or queued save). Returns false if a save failed.
+   */
+  async function flushSave(): Promise<boolean> {
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      if (inflightSaveRef.current) {
+        await inflightSaveRef.current;
+        continue;
+      }
+      if (!isSnapshotDirty(currentRef.current, savedRef.current)) return true;
+      manualFlushRef.current = true;
+      await persist();
+      if (!inflightSaveRef.current && isSnapshotDirty(currentRef.current, savedRef.current)) {
+        return false;
+      }
+    }
+    return !isSnapshotDirty(currentRef.current, savedRef.current);
+  }
+
+  /**
+   * Craft Apply: save pending edits, take a MANUAL checkpoint of the stored
+   * scene, then replace the range the tool ran on. The checkpoint is skipped
+   * (and nothing replaced) if the passage changed since the run.
+   */
+  async function applyCraft(range: EditorSelection, text: string): Promise<CraftApplyResult> {
+    const handle = editorHandleRef.current;
+    if (!handle) return { ok: false, message: "The editor is not ready yet." };
+    const changed = {
+      ok: false as const,
+      message:
+        "The selected passage changed since the tool ran. Select it again and rerun, or copy the result.",
+    };
+    if (!handle.matches(range)) return changed;
+    if (!(await flushSave())) {
+      return {
+        ok: false,
+        message: "Your latest edits could not be saved, so nothing was replaced. Try again.",
+      };
+    }
+    if (editorHandleRef.current !== handle) {
+      return {
+        ok: false,
+        message: "The editor changed before the edit could be applied, so nothing was replaced.",
+      };
+    }
+    try {
+      await apiPost(`/api/scenes/${scene.id}/revisions`, {});
+    } catch (err) {
+      return {
+        ok: false,
+        message: `Checkpoint failed, so nothing was replaced: ${
+          err instanceof ApiRequestError ? err.message : "request failed"
+        }`,
+      };
+    }
+    if (editorHandleRef.current !== handle) {
+      return {
+        ok: false,
+        message: "The editor changed before the edit could be applied, so nothing was replaced.",
+      };
+    }
+    if (!handle.replaceRange(range, text)) return changed;
+    setSelection(null);
+    if (showHistory) void loadRevisions();
+    return { ok: true };
+  }
+
   function handleKeyDown(e: React.KeyboardEvent) {
     if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") {
       e.preventDefault();
@@ -328,6 +413,10 @@ export function SceneEditor(props: SceneEditorProps) {
     clearDraft(scene.id);
     setRestoreOffer(null);
   }
+
+  const onEditorReady = useCallback((handle: RichTextEditorHandle | null) => {
+    editorHandleRef.current = handle;
+  }, []);
 
   const onRichChange = useCallback((next: { contentDoc: TiptapDoc; content: string }) => {
     setContentDoc(next.contentDoc);
@@ -406,6 +495,14 @@ export function SceneEditor(props: SceneEditorProps) {
             className="w-full bg-transparent text-lg font-semibold text-primary focus:outline-none"
           />
         </div>
+        <button
+          type="button"
+          onClick={() => setShowCraft((v) => !v)}
+          aria-expanded={showCraft}
+          className="rounded-md border border-ink-200 px-2.5 py-1 text-xs font-medium text-ink-700 hover:bg-ink-50"
+        >
+          {showCraft ? "Hide craft" : "Craft"}
+        </button>
         {props.chrome !== "focus" && (
           <div className="flex items-center gap-3">
             <span className="text-muted text-xs tabular-nums" data-testid="word-count">
@@ -594,13 +691,34 @@ export function SceneEditor(props: SceneEditorProps) {
         </div>
       )}
 
-      <RichTextEditor
-        contentDoc={contentDoc}
-        plainContent={content}
-        onChange={onRichChange}
-        onKeyDown={handleKeyDown}
-        placeholder="Start writing…"
-      />
+      <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+          <RichTextEditor
+            contentDoc={contentDoc}
+            plainContent={content}
+            onChange={onRichChange}
+            onKeyDown={handleKeyDown}
+            onSelectionChange={setSelection}
+            onReady={onEditorReady}
+            placeholder="Start writing…"
+          />
+        </div>
+        {showCraft && (
+          <aside
+            aria-label="Craft tools"
+            className="border-ink-200 max-h-[50%] min-h-0 shrink-0 overflow-hidden border-t bg-card lg:max-h-none lg:w-80 lg:border-t-0 lg:border-l"
+          >
+            <CraftPanel
+              sceneId={scene.id}
+              content={content}
+              selection={selection}
+              excludeFromAi={excludeFromAi}
+              onApply={applyCraft}
+              onClose={() => setShowCraft(false)}
+            />
+          </aside>
+        )}
+      </div>
     </div>
   );
 }
