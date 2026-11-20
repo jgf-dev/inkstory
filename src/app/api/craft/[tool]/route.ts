@@ -7,7 +7,7 @@ import {
   platformUnconfigured,
   resolvePlatformProfile,
 } from "@/lib/ai/execute";
-import { prepareCraftPrompt } from "@/lib/craft";
+import { prepareCraftPrompt, shapeCraftResult } from "@/lib/craft";
 
 export const dynamic = "force-dynamic";
 
@@ -101,9 +101,14 @@ export async function POST(
       signal: request.signal,
     });
 
+    // Only `text` is applyable; a diagnosis_and_prose diagnosis travels
+    // separately and malformed output fails (502) instead of reaching `text`.
+    const shaped = shapeCraftResult(prepared.output, result.text);
     return Response.json({
       tool: prepared.tool,
-      text: result.text,
+      text: shaped.text,
+      ...(shaped.kind === "diagnosis_and_prose" ? { diagnosis: shaped.diagnosis } : {}),
+      result: shaped,
       model: result.model,
       applied: result.applied,
       output: prepared.output,
