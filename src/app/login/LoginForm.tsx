@@ -6,13 +6,19 @@ import { TurnstileWidget, type TurnstileWidgetHandle } from "@/app/_components/T
 import { getTurnstileSiteKey, TURNSTILE_TOKEN_FIELD } from "@/lib/turnstile";
 import { AuthTextField } from "@/lib/ui/AuthTextField";
 
-export function LoginForm({ siteKey }: { siteKey?: string } = {}) {
+export function LoginForm({
+  siteKey,
+  initialError = null,
+}: {
+  siteKey?: string;
+  initialError?: string | null;
+} = {}) {
   const router = useRouter();
   const turnstileRef = useRef<TurnstileWidgetHandle | null>(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [turnstileToken, setTurnstileToken] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(initialError);
   const [loading, setLoading] = useState(false);
 
   const resolvedSiteKey = siteKey ?? getTurnstileSiteKey();
