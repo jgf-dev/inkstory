@@ -9,12 +9,14 @@ import {
   filterBindingsBySlices,
   getCraftTool,
   isCraftToolId,
+  listCraftTools,
   parseDiagnosisAndProse,
   renderCraftPrompt,
   resolveToolInputs,
   shapeCraftResult,
   toCraftToolDto,
 } from "../src/lib/craft";
+import { CRAFT_PROSE_FORMAT_RULE, CRAFT_SECTIONED_FORMAT_RULE } from "../src/lib/craft/tools";
 import { AiError } from "../src/lib/ai/generate";
 import { buildSceneBindings } from "../src/lib/prompts/render";
 import { validatePromptContract } from "../src/lib/prompts/contracts";
@@ -73,7 +75,12 @@ describe("Show Don't Tell tool (STO-1270)", () => {
   });
 
   it("reuses the shared scaffold system prompt and slices", () => {
-    expect(tool.parts[0].body).toBe(describeTool.parts[0].body);
+    expect(tool.parts[0].body).not.toBe(describeTool.parts[0].body);
+    const asProse = tool.parts[0].body.replace(
+      CRAFT_SECTIONED_FORMAT_RULE,
+      CRAFT_PROSE_FORMAT_RULE,
+    );
+    expect(asProse).toBe(describeTool.parts[0].body);
     expect(tool.contract.contextSlices).toEqual(describeTool.contract.contextSlices);
     expect(tool.allowedContextSlices).toEqual(describeTool.allowedContextSlices);
   });
@@ -104,6 +111,28 @@ describe("Show Don't Tell tool (STO-1270)", () => {
     expect(user).toContain("She was nervous.");
     expect(user).toContain("Mara walked to the pier.");
     expect(user).not.toContain("Mara waits for the boat.");
+  });
+
+  it("keeps system and user format rules aligned (STO-1297)", () => {
+    const [system, user] = render({ "craft.selection": "She was nervous." });
+    expect(system).toContain(CRAFT_SECTIONED_FORMAT_RULE);
+    expect(system).not.toContain(CRAFT_PROSE_FORMAT_RULE);
+    expect(system.toLowerCase()).not.toContain("prose only");
+    expect(user.toLowerCase()).not.toContain("prose-only");
+    expect(user).not.toContain("replaces the");
+
+    const allTools = listCraftTools();
+    expect(allTools.some((t) => t.contract.output?.mode === "prose")).toBe(true);
+    for (const candidate of allTools) {
+      const systemBody = candidate.parts.find((p) => p.role === "system")?.body ?? "";
+      if (candidate.contract.output?.mode === "prose") {
+        expect(systemBody).toContain(CRAFT_PROSE_FORMAT_RULE);
+        expect(systemBody).not.toContain(CRAFT_SECTIONED_FORMAT_RULE);
+      } else {
+        expect(systemBody).not.toContain(CRAFT_PROSE_FORMAT_RULE);
+        expect(systemBody.toLowerCase()).not.toContain("prose only");
+      }
+    }
   });
 });
 
