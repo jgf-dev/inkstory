@@ -59,6 +59,19 @@ export function retrievalSelection(
 }
 
 /**
+ * Text that drives Codex retrieval: the selection (ignoring any tool's
+ * "no selection" placeholder default), or for bridging tools the passages
+ * being joined. Empty when the tool declares none of them.
+ */
+export function retrievalText(inputs: CraftInputBindings, tool?: CraftToolDefinition): string {
+  const selection = tool ? retrievalSelection(tool, inputs) : inputs["craft.selection"];
+  if (selection) return selection;
+  return [inputs["craft.before_passage"], inputs["craft.after_passage"]]
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+/**
  * Words of completion the tool may need: the length target, plus a diagnosis
  * allowance for diagnosis_and_prose, or per option × count for options.
  */
@@ -102,7 +115,7 @@ export async function prepareCraftPrompt(
     const assembled = await assembleCodexContextForScene(userId, {
       sceneId: scene.id,
       novelId: scene.novelId,
-      beatText: retrievalSelection(tool, craftInputs) || scene.summary || undefined,
+      beatText: retrievalText(craftInputs, tool) || scene.summary || undefined,
       recentProse: prose || undefined,
     });
     const { maxContextTokens } = await getEntitlements(userId);

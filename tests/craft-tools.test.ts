@@ -43,6 +43,7 @@ describe("craft tool registry", () => {
       "expand",
       "rewrite",
       "show_dont_tell",
+      "transition",
       "brainstorm",
     ]);
     expect(listCraftTools().map((t) => t.id)).toEqual([
@@ -50,6 +51,7 @@ describe("craft tool registry", () => {
       "expand",
       "rewrite",
       "show_dont_tell",
+      "transition",
       "brainstorm",
     ]);
     expect(validatePromptContract(describeTool.contract)).toEqual(describeTool.contract);
@@ -69,6 +71,8 @@ describe("craft tool registry", () => {
     expect(isCraftToolId("describe")).toBe(true);
     expect(isCraftToolId("expand")).toBe(true);
     expect(isCraftToolId("rewrite")).toBe(true);
+    expect(isCraftToolId("show_dont_tell")).toBe(true);
+    expect(isCraftToolId("transition")).toBe(true);
     expect(isCraftToolId("brainstorm")).toBe(true);
     expect(isCraftToolId("outline")).toBe(false);
     expect(isCraftToolId(42)).toBe(false);
