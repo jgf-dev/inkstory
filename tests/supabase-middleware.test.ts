@@ -1,5 +1,5 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import type { NextRequest } from "next/server";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 const mockGetUser = vi.fn();
 const mockCreateServerClient = vi.fn();
@@ -12,7 +12,7 @@ describe("Supabase Middleware & Proxy", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     process.env.NEXT_PUBLIC_SUPABASE_URL = "https://example.supabase.co";
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "test-anon-key";
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY = "test-anon-key";
   });
 
   describe("updateSession", () => {
