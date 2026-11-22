@@ -503,7 +503,6 @@ describe("CraftPanel (STO-1290)", () => {
     expect(target().value).toBe("350");
     expect(screen.queryByTestId("craft-warning")).toBeNull();
   });
-
   it("keeps Show Don't Tell's target near the selection and flags condensing (STO-1299)", async () => {
     stubFetch(baseRoute(undefined, [SHOW_DONT_TELL]));
     const passage = { from: 1, to: 1800, text: "told ".repeat(360).trim() };

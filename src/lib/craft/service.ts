@@ -47,6 +47,17 @@ export interface PreparedCraftPrompt {
 }
 
 /**
+ * Text that drives Codex retrieval: the selection, or for bridging tools the
+ * passages being joined. Empty when the tool declares none of them.
+ */
+export function retrievalText(inputs: CraftInputBindings): string {
+  if (inputs["craft.selection"]) return inputs["craft.selection"];
+  return [inputs["craft.before_passage"], inputs["craft.after_passage"]]
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+/**
  * Parses a resolved `craft.target_words` binding. Missing, blank, non-numeric,
  * zero or negative values are "no target" (`undefined`), never `0`.
  */
@@ -104,7 +115,7 @@ export async function prepareCraftPrompt(
     const assembled = await assembleCodexContextForScene(userId, {
       sceneId: scene.id,
       novelId: scene.novelId,
-      beatText: craftInputs["craft.selection"] || scene.summary || undefined,
+      beatText: retrievalText(craftInputs) || scene.summary || undefined,
       recentProse: prose || undefined,
     });
     const { maxContextTokens } = await getEntitlements(userId);
