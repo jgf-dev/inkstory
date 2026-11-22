@@ -53,3 +53,9 @@ worker-startup.cpuprofile
 .vitest/
 *.pyi
 .stubs/pyspark34
+.claude
+.devin
+.cursor
+.trae
+node_modules/
+dist/

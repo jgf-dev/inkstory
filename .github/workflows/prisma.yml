@@ -1,34 +1,52 @@
-name: Deploy
-# Manual only: the production schema has drifted from prisma/contract.prisma
-# (dashboard changes after the 20260920020352 Supabase migration). Do not
-# restore the push trigger until the contract and prod schema are reconciled.
+name: Prisma DB
+
+  # Manual only: defaults to read-only `verify`. Requires `DIRECT_URL` (Supabase
+  # session pooler on port 5432, DDL-safe) in the `Production` environment secrets.
 on:
   workflow_dispatch:
+    inputs:
+      action:
+        description: "Prisma 8 action to run"
+        type: choice
+        required: true
+        default: "verify"
+        options:
+          - verify
+          - update
+
+concurrency:
+  group: prisma-db-production
+  cancel-in-progress: false
 
 permissions:
   contents: read
 
 jobs:
-  deploy:
+  prisma:
     runs-on: ubuntu-latest
     environment: Production
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
-          node-version: "24"
-          cache: npm
-      - name: Use npm 12 (matches local tooling and lockfile)
-        run: npm install -g npm@12.0.2 --ignore-scripts
-      - name: Install dependencies
-        run: npm ci --ignore-scripts
+          bun-version: "1.4.4"
+
+      - run: bun install --ignore-scripts --frozen-lockfile
+
       - name: Emit Prisma contract
         run: ./node_modules/.bin/prisma contract emit
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-      - name: Apply all pending migrations to the database
-        run: ./node_modules/.bin/prisma db migrate
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+
+      - name: Verify database against contract
+        if: inputs.action == 'verify'
+        run: ./node_modules/.bin/prisma db verify --db "$DIRECT_URL"
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+
+      - name: Apply contract to database
+        if: inputs.action == 'update'
+        run: ./node_modules/.bin/prisma db update -y --db "$DIRECT_URL"
+        env:
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
