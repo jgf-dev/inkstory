@@ -163,6 +163,10 @@ run `npm install` or `vp install`). If installing with `--ignore-scripts`, run
   aborts (`INKSTORY_UNSAFE_TEST_DATABASE`) on non-loopback hosts or Supabase
   project refs (`wntgnjrrzfndunqaiobo`, `oobhhexdoufnwdltoren`).
 
+## UI & Accessibility Rules
+
+- Any front-end form input or interactive element that can have the `disabled` state must also have a tool-tip on hover or annotation indicating the reason why.
+
 ## Available skills
 
 - [design-md](.agents/skills/design-md/SKILL.md)
