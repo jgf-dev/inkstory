@@ -7,6 +7,9 @@ import {
   buildCraftInputs,
   formInputs,
   initialFormValues,
+  TARGET_WORDS_KEY,
+  targetWordsWarning,
+  withAdaptiveTarget,
   integerBounds,
   optionLabel,
   textMaxLength,
@@ -53,7 +56,12 @@ export function CraftPanel(props: CraftPanelProps) {
   const { state, run, reset } = useCraftRun();
   const [toolId, setToolId] = useState<string | null>(null);
   /** Form values are keyed by tool so switching tools starts from that tool's defaults. */
-  const [form, setForm] = useState<{ toolId: string; values: CraftFormValues } | null>(null);
+  const [form, setForm] = useState<{
+    toolId: string;
+    values: CraftFormValues;
+    /** Author edited the target length, so it stops following the selection (STO-1295). */
+    targetTouched: boolean;
+  } | null>(null);
   const [lastDone, setLastDone] = useState<{
     request: CraftRunRequest;
     result: CraftRunResult;
@@ -92,10 +100,15 @@ export function CraftPanel(props: CraftPanelProps) {
     [tools, toolId],
   );
 
+  const selectionText = props.selection?.text ?? "";
+  const selectionWords = countWords(selectionText);
+  const ownForm = tool && form?.toolId === tool.id ? form : null;
+
   const values: CraftFormValues = useMemo(() => {
     if (!tool) return {};
-    return form?.toolId === tool.id ? form.values : initialFormValues(tool);
-  }, [tool, form]);
+    const base = ownForm ? ownForm.values : initialFormValues(tool);
+    return withAdaptiveTarget(tool, base, selectionWords, ownForm?.targetTouched ?? false);
+  }, [tool, ownForm, selectionWords]);
 
   useEffect(() => {
     let active = true;
@@ -111,9 +124,9 @@ export function CraftPanel(props: CraftPanelProps) {
     };
   }, []);
 
-  const selectionText = props.selection?.text ?? "";
   const needsSelection = tool ? usesSelection(tool) : false;
   const problems = tool ? validateCraftForm(tool, values, selectionText) : [];
+  const targetWarning = tool ? targetWordsWarning(tool, values, selectionWords) : null;
   const running = state.kind === "running";
   const byokIncomplete = Boolean(credentialId) && !model.trim();
   const canRun =
@@ -134,7 +147,11 @@ export function CraftPanel(props: CraftPanelProps) {
 
   function setValue(key: ContractInput["key"], value: string | boolean) {
     if (!tool) return;
-    setForm({ toolId: tool.id, values: { ...values, [key]: value } });
+    setForm({
+      toolId: tool.id,
+      values: { ...values, [key]: value },
+      targetTouched: (ownForm?.targetTouched ?? false) || key === TARGET_WORDS_KEY,
+    });
   }
 
   function selectTool(id: string) {
@@ -288,10 +305,7 @@ export function CraftPanel(props: CraftPanelProps) {
                 <p className="text-ink-500 text-xs font-medium">
                   Selected prose
                   {selectionText && (
-                    <span className="font-normal">
-                      {" "}
-                      · {formatWordCount(countWords(selectionText))}
-                    </span>
+                    <span className="font-normal"> · {formatWordCount(selectionWords)}</span>
                   )}
                 </p>
                 {selectionText ? (
@@ -315,6 +329,7 @@ export function CraftPanel(props: CraftPanelProps) {
                 value={values[input.key]}
                 disabled={running || applying}
                 problem={problems.find((p) => p.key === input.key)?.message ?? null}
+                warning={input.key === TARGET_WORDS_KEY ? targetWarning : null}
                 onChange={(value) => setValue(input.key, value)}
               />
             ))}
@@ -496,6 +511,7 @@ function CraftInputField(props: {
   value: string | boolean | undefined;
   disabled: boolean;
   problem: string | null;
+  warning?: string | null;
   onChange: (value: string | boolean) => void;
 }) {
   const { input } = props;
@@ -504,12 +520,14 @@ function CraftInputField(props: {
   const boundsId = `${id}-bounds`;
   const descriptionId = `${id}-description`;
   const problemId = `${id}-problem`;
+  const warningId = `${id}-warning`;
   const bounds = input.type === "integer" ? integerBounds(input) : null;
   const describedBy =
     [
       bounds ? boundsId : null,
       input.description ? descriptionId : null,
       props.problem ? problemId : null,
+      props.warning ? warningId : null,
     ]
       .filter(Boolean)
       .join(" ") || undefined;
@@ -603,6 +621,11 @@ function CraftInputField(props: {
       {props.problem && (
         <p id={problemId} className="mt-0.5 text-[11px] text-red-600">
           {props.problem}
+        </p>
+      )}
+      {props.warning && (
+        <p id={warningId} className="mt-0.5 text-[11px] text-amber-700" data-testid="craft-warning">
+          {props.warning}
         </p>
       )}
     </div>
