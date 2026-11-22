@@ -6,13 +6,19 @@ import { TurnstileWidget, type TurnstileWidgetHandle } from "@/app/_components/T
 import { getTurnstileSiteKey, TURNSTILE_TOKEN_FIELD } from "@/lib/turnstile";
 import { AuthTextField } from "@/lib/ui/AuthTextField";
 
-export function LoginForm({ siteKey }: { siteKey?: string } = {}) {
+export function LoginForm({
+  siteKey,
+  initialError = null,
+}: {
+  siteKey?: string;
+  initialError?: string | null;
+} = {}) {
   const router = useRouter();
   const turnstileRef = useRef<TurnstileWidgetHandle | null>(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [turnstileToken, setTurnstileToken] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(initialError);
   const [loading, setLoading] = useState(false);
 
   const resolvedSiteKey = siteKey ?? getTurnstileSiteKey();
@@ -88,6 +94,7 @@ export function LoginForm({ siteKey }: { siteKey?: string } = {}) {
       <button
         type="submit"
         disabled={loading}
+        title={loading ? "Logging in, please wait" : undefined}
         className="bg-ink-700 text-ink-50 hover:bg-ink-800 w-full rounded-md px-4 py-2 text-sm font-medium disabled:opacity-50"
       >
         {loading ? "Logging in…" : "Log in"}
