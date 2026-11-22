@@ -36,7 +36,7 @@ export interface ImportAct {
 
 export interface ImportManuscript {
   title: string | null;
-  /** Novel subtitle (shown in the preview; the book's own subtitle is not changed). */
+  /** Novel subtitle (shown in the preview; applied to the book only with `applyTitle`). */
   subtitle: string | null;
   acts: ImportAct[];
 }

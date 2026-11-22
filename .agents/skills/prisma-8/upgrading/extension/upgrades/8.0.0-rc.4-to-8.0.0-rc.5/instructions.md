@@ -67,15 +67,16 @@ changes:
 Walk every file matched by `detection.glob`. For each pg `Pool` or `Client` the extension constructs, wrap the construction:
 
 ```ts
-import { suppressIdleConnectionErrors } from "@internal/driver-postgres/runtime";
+import { suppressIdleConnectionErrors } from '@internal/driver-postgres/runtime';
 
-const pool = suppressIdleConnectionErrors(new Pool({ connectionString: options.url }));
+const pool = suppressIdleConnectionErrors(
+  new Pool({ connectionString: options.url }),
+);
 ```
 
 This is the same translation applied to the in-repo `@internal/postgres` and `@internal/extension-supabase` runtimes in this transition. The helper only attaches a no-op `'error'` listener (connect/query failures still reject their own promises), so behavior is otherwise unchanged; without it, a dropped idle connection crashes the process that hosts the extension.
 
 If your extension's test suite fakes the `pg` module, the fakes need an `on` method (`on = vi.fn().mockReturnThis()` on a class fake, or `on: vi.fn()` on an object literal) — the runtime now calls `.on('error', ...)` on every pool, client, and checked-out pool client.
-
 ## `distinct-on-requires-postgres-capability`
 
 `Collection#distinctOn(...)` used to compile and run on any target, but only Postgres ever
@@ -98,7 +99,7 @@ no capability, on any target.
 ## `groupby-pre-group-pagination-now-scopes-rows`
 
 Any `.take(...)`, `.skip(...)`, `.cursor(...)`, `.distinct(...)`, `.distinctOn(...)`, or
-`.orderBy(...)` your extension calls _before_ `.groupBy(...)` on a `Collection` used to be
+`.orderBy(...)` your extension calls *before* `.groupBy(...)` on a `Collection` used to be
 silently dropped once `.groupBy(...)` joined the chain — the aggregate reduced over every
 matching row, ignoring the pagination clause entirely. It now scopes the rows that get grouped,
 the same way root `.aggregate()` scopes its rows (see the sibling entry for that fix, already
@@ -115,7 +116,7 @@ correct behavior.
 ## `groupby-post-group-pagination-requires-order-by`
 
 `GroupedCollection` (what `.groupBy(...)` returns) gained `take()`, `skip()`, and `orderBy()`,
-which page the _grouped_ rows when written after `.groupBy(...)` — previously `.groupBy(...)` had
+which page the *grouped* rows when written after `.groupBy(...)` — previously `.groupBy(...)` had
 no chain of its own past `.having(...)`. Calling post-group `take()` or `skip()` without a prior
 post-group `orderBy()` is a compile error: the parameter type narrows to `never`, because a
 database may return groups in any order and "the first n groups" has no defined meaning without

@@ -1,27 +1,30 @@
 /**
  * Seed script — creates a demo user, series, novel, act, chapter, scene, and codex entities.
- * Run with: npm run db:seed
+ * Run with: bun run db:seed
  *
  * The seed user is `seed@inkstory.local` (no password — for local dev only).
  * Sign up a real account via the app instead.
  */
 
-// tsx runs this directly (not via prisma.config.ts), so we load env manually.
+// Executed directly via `vpx prisma/seed.ts` (not via prisma.config.ts), so load env manually.
 import { config } from "dotenv";
 config({ path: ".env.local", override: false });
 config({ path: ".env", override: false });
 
 import "temporal-polyfill/full/global";
 import { Temporal } from "temporal-polyfill";
+import { ensureSystemDefaultPrompts } from "../src/lib/prompts/service";
 import postgres from "@prisma/orm-postgres/runtime";
+import { contractFromJson } from "@prisma/orm-postgres/static";
 import type { Contract } from "./contract.d";
 import contractJson from "./contract.json" with { type: "json" };
 
 // Use DIRECT_URL (session pooler, port 5432) for seeding.
 // SESSION pooler supports DDL + prepared statements; TRANSACTION pooler (port 6543) does not.
 // Fall back to DATABASE_URL if DIRECT_URL is not set.
+const contract = contractFromJson<Contract>(contractJson);
 const db = postgres<Contract>({
-  contractJson,
+  contract,
   url: process.env.DIRECT_URL ?? process.env.DATABASE_URL!,
 });
 
@@ -340,6 +343,7 @@ async function main() {
     },
     update: maraProgression,
   });
+  await ensureSystemDefaultPrompts();
 
   console.log("✅ Seeded:", {
     user: user.email,

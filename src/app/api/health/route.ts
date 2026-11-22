@@ -1,10 +1,10 @@
 /**
  * Lightweight liveness probe. Returns 200 + a JSON descriptor of the runtime.
- * Useful for CI / Vercel health checks; does not require DB access.
+ * Useful for CI and Cloudflare Workers health checks; does not require DB access.
  */
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export function GET() {
   return Response.json({
     status: "ok",
     service: "inkstory",

@@ -27,15 +27,15 @@ Before 0.10, on-disk contract snapshots committed alongside your migrations look
       "Embedding1536": {
         "codecId": "pg/vector@1",
         "nativeType": "vector",
-        "typeParams": { "length": 1536 },
+        "typeParams": { "length": 1536 }
       },
       "user_type": {
         "codecId": "pg/enum@1",
         "nativeType": "user_type",
-        "typeParams": { "values": ["admin", "user"] },
-      },
-    },
-  },
+        "typeParams": { "values": ["admin", "user"] }
+      }
+    }
+  }
 }
 ```
 
@@ -49,17 +49,17 @@ Starting at 0.10 the same snapshots must look like this:
         "kind": "codec-instance",
         "codecId": "pg/vector@1",
         "nativeType": "vector",
-        "typeParams": { "length": 1536 },
+        "typeParams": { "length": 1536 }
       },
       "user_type": {
         "kind": "postgres-enum",
         "name": "user_type",
         "nativeType": "user_type",
         "values": ["admin", "user"],
-        "codecId": "pg/enum@1",
-      },
-    },
-  },
+        "codecId": "pg/enum@1"
+      }
+    }
+  }
 }
 ```
 

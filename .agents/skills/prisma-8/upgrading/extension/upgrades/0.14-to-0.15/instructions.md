@@ -458,7 +458,7 @@ changes:
       Supabase must create them — `bootstrapSupabaseShim` from
       `@internal/extension-supabase/test/utils` already does. The public
       `SupabaseRoleBinding['role']` type is unchanged (`'anon' | 'authenticated' | 'service_role'`);
-      it is now derived from the `SupabaseRole` Prisma Next enum handle's values; the contract declares the roles via the
+      it is now derived from the `SupabaseRole` Prisma 8 enum handle's values; the contract declares the roles via the
       new PSL `role` blocks inside `namespace unbound { }` (see the `psl-role-block` entry).
     detection:
       glob: "**/*.{ts,mts,cts,tsx,prisma,json}"
@@ -466,7 +466,6 @@ changes:
         - "@internal/extension-supabase"
       anyMatch: true
 ---
-
 <!--
 Release bump to 0.15.0 (PR #988): the version bump itself. Every
 `packages/3-extensions/*/package.json` advances to 0.15.0 (version field +

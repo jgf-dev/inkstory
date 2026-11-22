@@ -80,13 +80,13 @@
  *   --check   dry-run; lists files that still need fixing and exits 1 if
  *             any remain.
  */
-import { createHash } from "node:crypto";
-import { readdir, readFile, writeFile } from "node:fs/promises";
-import { basename, dirname, join, sep } from "node:path";
+import { createHash } from 'node:crypto';
+import { readdir, readFile, writeFile } from 'node:fs/promises';
+import { basename, dirname, join, sep } from 'node:path';
 
-const SKIP_DIRS = new Set(["node_modules", ".git", "dist", "build"]);
+const SKIP_DIRS = new Set(['node_modules', '.git', 'dist', 'build']);
 
-const dryRun = process.argv.includes("--check");
+const dryRun = process.argv.includes('--check');
 const projectRoot = process.cwd();
 
 // --- Inline canonicalisation + hash --------------------------------------
@@ -97,7 +97,7 @@ const projectRoot = process.cwd();
 // consumer's project root.
 
 function sortKeys(value: unknown): unknown {
-  if (value === null || typeof value !== "object") {
+  if (value === null || typeof value !== 'object') {
     return value;
   }
   if (Array.isArray(value)) {
@@ -117,7 +117,7 @@ function canonicalizeJson(value: unknown): string {
 }
 
 function sha256Hex(input: string): string {
-  return createHash("sha256").update(input).digest("hex");
+  return createHash('sha256').update(input).digest('hex');
 }
 
 /**
@@ -150,7 +150,7 @@ function replaceMigrationHash(text: string, oldHash: string, newHash: string): s
   if (oldHash === newHash) return text;
   const re = new RegExp(`("migrationHash"[ \\t]*:[ \\t]*)"${oldHash}"`);
   if (re.exec(text) === null) {
-    throw new Error("could not locate the migrationHash value to replace");
+    throw new Error('could not locate the migrationHash value to replace');
   }
   return text.replace(re, (_full, prefix: string) => `${prefix}"${newHash}"`);
 }
@@ -182,20 +182,20 @@ async function findMigrationArtifacts(root: string): Promise<WalkResult> {
       if (entry.isDirectory()) {
         if (SKIP_DIRS.has(entry.name)) continue;
         await walk(path);
-      } else if (entry.isFile() && entry.name === "migration.json") {
+      } else if (entry.isFile() && entry.name === 'migration.json') {
         manifests.push(path);
       } else if (
         entry.isFile() &&
-        entry.name.endsWith(".json") &&
-        basename(dir) === "refs" &&
-        dirname(dir).split(sep).includes("migrations")
+        entry.name.endsWith('.json') &&
+        basename(dir) === 'refs' &&
+        dirname(dir).split(sep).includes('migrations')
       ) {
         refFiles.push(path);
       } else if (
         entry.isFile() &&
-        (entry.name.endsWith(".json") || entry.name.endsWith(".ts")) &&
-        basename(dirname(dir)) === "snapshots" &&
-        dirname(dirname(dir)).split(sep).includes("migrations")
+        (entry.name.endsWith('.json') || entry.name.endsWith('.ts')) &&
+        basename(dirname(dir)) === 'snapshots' &&
+        dirname(dirname(dir)).split(sep).includes('migrations')
       ) {
         snapshotFiles.push(path);
       }
@@ -214,10 +214,10 @@ async function findMigrationArtifacts(root: string): Promise<WalkResult> {
 
 /** Narrows an arbitrary JSON-parsed value to a plain object (manifest shape). */
 function isJsonObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-type Status = "already-clean" | "needs-fix" | "fixed" | "skipped-no-ops";
+type Status = 'already-clean' | 'needs-fix' | 'fixed' | 'skipped-no-ops';
 
 interface Result {
   readonly path: string;
@@ -230,19 +230,19 @@ const migrationHashMap = new Map<string, string>();
 
 async function emit(path: string, before: string, after: string): Promise<Result> {
   if (after === before) {
-    return { path, status: "already-clean" };
+    return { path, status: 'already-clean' };
   }
-  if (!dryRun) await writeFile(path, after, "utf-8");
-  return { path, status: dryRun ? "needs-fix" : "fixed" };
+  if (!dryRun) await writeFile(path, after, 'utf-8');
+  return { path, status: dryRun ? 'needs-fix' : 'fixed' };
 }
 
 async function processSibling(path: string): Promise<Result> {
-  const raw = await readFile(path, "utf-8");
+  const raw = await readFile(path, 'utf-8');
   return emit(path, raw, stripHashPrefixes(raw));
 }
 
 async function processPackage(manifestPath: string): Promise<Result[]> {
-  const raw = await readFile(manifestPath, "utf-8");
+  const raw = await readFile(manifestPath, 'utf-8');
 
   let parsed: unknown;
   try {
@@ -253,7 +253,7 @@ async function processPackage(manifestPath: string): Promise<Result[]> {
     );
   }
   if (!isJsonObject(parsed)) {
-    return [{ path: manifestPath, status: "already-clean" }]; // not a manifest object
+    return [{ path: manifestPath, status: 'already-clean' }]; // not a manifest object
   }
 
   const packageDir = dirname(manifestPath);
@@ -261,12 +261,12 @@ async function processPackage(manifestPath: string): Promise<Result[]> {
   // A complete on-disk migration package pairs `migration.json` with a sibling
   // `ops.json` (the operations the hash is computed over); without it we cannot
   // recompute the hash, so this is not a package we should touch.
-  const opsPath = join(packageDir, "ops.json");
+  const opsPath = join(packageDir, 'ops.json');
   let opsRaw: string;
   try {
-    opsRaw = await readFile(opsPath, "utf-8");
+    opsRaw = await readFile(opsPath, 'utf-8');
   } catch {
-    return [{ path: manifestPath, status: "skipped-no-ops" }];
+    return [{ path: manifestPath, status: 'skipped-no-ops' }];
   }
 
   const out: Result[] = [];
@@ -289,8 +289,8 @@ async function processPackage(manifestPath: string): Promise<Result[]> {
   }
   const newHash = computeMigrationHash(strippedMeta, ops);
 
-  const oldStoredHash = parsed["migrationHash"];
-  if (typeof oldStoredHash !== "string") {
+  const oldStoredHash = parsed['migrationHash'];
+  if (typeof oldStoredHash !== 'string') {
     throw new Error(`${manifestPath}: manifest is missing a string \`migrationHash\` field`);
   }
   const strippedOldHash = stripHashPrefixes(`"${oldStoredHash}"`).slice(1, -1);
@@ -316,15 +316,15 @@ async function processPackage(manifestPath: string): Promise<Result[]> {
   }
   for (const entry of entries) {
     if (!entry.isFile()) continue;
-    if (entry.name === "migration.json" || entry.name === "ops.json") continue;
-    if (!entry.name.endsWith(".json") && !entry.name.endsWith(".ts")) continue;
+    if (entry.name === 'migration.json' || entry.name === 'ops.json') continue;
+    if (!entry.name.endsWith('.json') && !entry.name.endsWith('.ts')) continue;
     out.push(await processSibling(join(packageDir, entry.name)));
   }
   return out;
 }
 
 async function processRefFile(path: string): Promise<Result> {
-  const raw = await readFile(path, "utf-8");
+  const raw = await readFile(path, 'utf-8');
 
   // Repoint at recomputed migration hashes first (a ref stores the migration
   // hash of the package it names), then strip any remaining prefixes — which
@@ -362,21 +362,21 @@ let alreadyClean = 0;
 let skipped = 0;
 for (const result of results) {
   const rel = result.path.slice(projectRoot.length + 1);
-  if (result.status === "already-clean") {
+  if (result.status === 'already-clean') {
     alreadyClean += 1;
-  } else if (result.status === "skipped-no-ops") {
+  } else if (result.status === 'skipped-no-ops') {
     skipped += 1;
     console.log(`SKIP  ${rel}  (no sibling ops.json — not a migration package)`);
   } else {
     changed += 1;
-    const verb = dryRun ? "WOULD FIX" : "FIXED";
+    const verb = dryRun ? 'WOULD FIX' : 'FIXED';
     console.log(`${verb} ${rel}`);
   }
 }
 
 console.log();
 console.log(
-  `${results.length} file(s) scanned: ${changed} ${dryRun ? "needing fix" : "fixed"}, ${alreadyClean} already clean${skipped > 0 ? `, ${skipped} skipped (no ops.json)` : ""}.`,
+  `${results.length} file(s) scanned: ${changed} ${dryRun ? 'needing fix' : 'fixed'}, ${alreadyClean} already clean${skipped > 0 ? `, ${skipped} skipped (no ops.json)` : ''}.`,
 );
 
 if (dryRun && changed > 0) process.exit(1);

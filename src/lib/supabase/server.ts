@@ -4,8 +4,8 @@
  * Reads/writes session cookies on the Next.js side, so RLS policies see the
  * logged-in user. Pair with middleware.ts that refreshes the session cookie.
  */
-import { cookies } from "next/headers";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
+import { cookies } from "next/headers";
 import type { Database } from "./types";
 
 type CookieToSet = { name: string; value: string; options?: CookieOptions };
@@ -20,9 +20,9 @@ export async function createSupabaseServerClient() {
         const user = JSON.parse(decodeURIComponent(e2eUserCookie.value));
         return {
           auth: {
-            getUser: async () => ({ data: { user }, error: null }),
-            getSession: async () => ({ data: { session: { user } }, error: null }),
-            signOut: async () => ({ error: null }),
+            getUser: () => Promise.resolve({ data: { user }, error: null }),
+            getSession: () => Promise.resolve({ data: { session: { user } }, error: null }),
+            signOut: () => Promise.resolve({ error: null }),
           },
         } as any;
       } catch {
@@ -33,7 +33,7 @@ export async function createSupabaseServerClient() {
 
   return createServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
     {
       cookies: {
         getAll() {

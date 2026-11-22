@@ -1,10 +1,43 @@
 // @vitest-environment happy-dom
 import React from "react";
-import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  createEvent,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { WritingWorkspace } from "../src/app/dashboard/novels/[id]/_components/WritingWorkspace";
 import { AiAssistantDrawer } from "../src/app/dashboard/novels/[id]/_components/AiAssistantDrawer";
+import { inspectAssembledContext } from "../src/lib/codex/context-inspection";
 import type { NovelOutline } from "../src/lib/writing/service";
+
+vi.mock("../src/app/dashboard/novels/[id]/_components/RichTextEditor", () => ({
+  RichTextEditor: (props: {
+    plainContent: string;
+    onChange: (next: { content: string; contentDoc: unknown }) => void;
+    onKeyDown?: (e: React.KeyboardEvent) => void;
+  }) =>
+    React.createElement("textarea", {
+      "aria-label": "Scene text",
+      "data-testid": "scene-text",
+      value: props.plainContent,
+      onChange: (e: any) =>
+        props.onChange({
+          content: e.target.value,
+          contentDoc: {
+            type: "doc",
+            content: e.target.value
+              ? [{ type: "paragraph", content: [{ type: "text", text: e.target.value }] }]
+              : [{ type: "paragraph" }],
+          },
+        }),
+      onKeyDown: props.onKeyDown,
+    }),
+}));
 
 vi.mock("next/link", () => ({
   default: ({ href, children, ...rest }: any) =>
@@ -41,6 +74,8 @@ function makeScene(id = "scene-1", content = "Mara reached the quay at dawn.") {
     id,
     title: id === "scene-1" ? "The Quay" : "Storm",
     content,
+    contentDoc: null,
+    contentFormat: "PLAIN",
     summary: null,
     label: null,
     pov: "THIRD_LIMITED",
@@ -60,7 +95,11 @@ type Handler = (url: string, init: any) => { status: number; body: unknown } | u
 
 function routeFetch(handler: Handler) {
   const fn = vi.fn(async (url: string, init: any = {}) => {
-    const r = handler(url, init) ?? { status: 200, body: {} };
+    const r =
+      handler(url, init) ??
+      (url === "/api/ai/credentials"
+        ? { status: 200, body: { credentials: [] } }
+        : { status: 200, body: {} });
     return {
       ok: r.status < 300,
       status: r.status,
@@ -83,6 +122,39 @@ afterEach(() => {
 });
 
 describe("WritingWorkspace", () => {
+  it("opens the read-only Context Inspector for the active scene and live prose", async () => {
+    const fetchMock = routeFetch((url) => {
+      if (url === "/api/scenes/scene-1")
+        return { status: 200, body: { scene: { ...makeScene(), summary: "Scene summary" } } };
+      if (url === "/api/context/assemble")
+        return {
+          status: 200,
+          body: inspectAssembledContext(
+            {
+              entries: [],
+              meta: { sceneId: "scene-1", totalCandidates: 0, finalCount: 0, truncated: false },
+            },
+            4000,
+          ),
+        };
+      return undefined;
+    });
+    render(
+      React.createElement(WritingWorkspace, { outline: makeOutline(), initialSceneId: "scene-1" }),
+    );
+    await screen.findByTestId("scene-editor");
+    fireEvent.change(screen.getByTestId("scene-text"), { target: { value: "Unsaved live prose" } });
+    fireEvent.click(screen.getByText("Context Inspector", { selector: "button" }));
+    await screen.findByText("No Codex entries in this context.");
+    const call = fetchMock.mock.calls.find(([url]) => url === "/api/context/assemble");
+    expect(JSON.parse(call![1].body)).toEqual({
+      sceneId: "scene-1",
+      recentProse: "Unsaved live prose",
+      beatText: "Scene summary",
+    });
+    fireEvent.click(screen.getByLabelText("Close context inspector"));
+    expect(screen.queryByRole("dialog", { name: "Context Inspector" })).toBeNull();
+  });
   it("loads the initial scene, scans mentions and toggles the AI drawer", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     const fetchMock = routeFetch((url) => {
@@ -266,6 +338,72 @@ describe("WritingWorkspace", () => {
     expect(screen.getByTestId("scene-editor")).toBeTruthy();
   });
 
+  it("reorders outline siblings via drag-and-drop in WritingWorkspace", async () => {
+    const calls: Array<[string, string, any]> = [];
+    routeFetch((url, init) => {
+      calls.push([init?.method ?? "GET", url, init?.body ? JSON.parse(init.body) : undefined]);
+      if (url === "/api/scenes/scene-1") return { status: 200, body: { scene: makeScene() } };
+      if (url === "/api/novels/novel-1/outline" && init?.method === "GET")
+        return { status: 200, body: { outline: makeOutline() } };
+      if (url.startsWith("/api/novels/novel-1/outline"))
+        return { status: 200, body: { ok: true, moved: { id: "scene-2", moved: true } } };
+      return undefined;
+    });
+
+    render(
+      React.createElement(WritingWorkspace, { outline: makeOutline(), initialSceneId: "scene-1" }),
+    );
+    await screen.findByTestId("scene-editor");
+
+    const handle = screen.getByTestId("outline-drag-scene-scene-2");
+    const target = screen.getByTestId("outline-row-scene-scene-1");
+    const store: Record<string, string> = {};
+    const dataTransfer = {
+      effectAllowed: "move",
+      dropEffect: "move",
+      setData: (t: string, v: string) => {
+        store[t] = v;
+      },
+      getData: (t: string) => store[t] ?? "",
+      types: [] as string[],
+    };
+
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue({
+      top: 100,
+      height: 40,
+      bottom: 140,
+      left: 0,
+      right: 100,
+      width: 100,
+      x: 0,
+      y: 100,
+      toJSON() {},
+    } as DOMRect);
+
+    act(() => {
+      const start = createEvent.dragStart(handle);
+      Object.defineProperty(start, "dataTransfer", { value: dataTransfer });
+      fireEvent(handle, start);
+
+      const drop = createEvent.drop(target);
+      Object.defineProperty(drop, "dataTransfer", { value: dataTransfer });
+      Object.defineProperty(drop, "clientY", { value: 110 });
+      fireEvent(target, drop);
+    });
+
+    await waitFor(() =>
+      expect(
+        calls.some(
+          (c) =>
+            c[0] === "PATCH" &&
+            c[2]?.kind === "scene" &&
+            c[2]?.id === "scene-2" &&
+            c[2]?.toIndex === 0,
+        ),
+      ).toBe(true),
+    );
+  });
+
   it("reports failures for outline mutations", async () => {
     routeFetch((url, init) => {
       if (init.method === "GET") return { status: 200, body: { outline: makeOutline() } };
@@ -294,11 +432,47 @@ describe("WritingWorkspace", () => {
     expect(await screen.findByText("Failed to delete")).toBeTruthy();
     fireEvent.click(screen.getByText("+ Act"));
     expect(await screen.findByText("Failed to create node")).toBeTruthy();
+
+    // Reorder failure
+    const handle = screen.getByTestId("outline-drag-scene-scene-2");
+    const target = screen.getByTestId("outline-row-scene-scene-1");
+    const store: Record<string, string> = {};
+    const dataTransfer = {
+      effectAllowed: "move",
+      dropEffect: "move",
+      setData: (t: string, v: string) => {
+        store[t] = v;
+      },
+      getData: (t: string) => store[t] ?? "",
+      types: [] as string[],
+    };
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue({
+      top: 100,
+      height: 40,
+      bottom: 140,
+      left: 0,
+      right: 100,
+      width: 100,
+      x: 0,
+      y: 100,
+      toJSON() {},
+    } as DOMRect);
+    act(() => {
+      const start = createEvent.dragStart(handle);
+      Object.defineProperty(start, "dataTransfer", { value: dataTransfer });
+      fireEvent(handle, start);
+      const drop = createEvent.drop(target);
+      Object.defineProperty(drop, "dataTransfer", { value: dataTransfer });
+      Object.defineProperty(drop, "clientY", { value: 110 });
+      fireEvent(target, drop);
+    });
+    expect(await screen.findByText("Failed to reorder")).toBeTruthy();
   });
 
   it("rolls saved word counts into the outline and appends AI text", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     routeFetch((url, init) => {
+      if (url === "/api/ai/credentials") return { status: 200, body: { credentials: [] } };
       if (url === "/api/scenes/scene-1" && init.method === "GET")
         return { status: 200, body: { scene: makeScene() } };
       if (url === "/api/scenes/scene-1" && init.method === "PATCH")
@@ -323,7 +497,7 @@ describe("WritingWorkspace", () => {
     fireEvent.click(screen.getByText("AI Assistant", { selector: "button" }));
     fireEvent.click(screen.getByText("Generate"));
     await screen.findByTestId("ai-result");
-    fireEvent.click(screen.getByText("Append to scene"));
+    fireEvent.click(screen.getByText("Accept & append"));
     expect((screen.getByLabelText("Scene text") as HTMLTextAreaElement).value).toContain(
       "The tide turned.",
     );
@@ -380,6 +554,117 @@ describe("WritingWorkspace", () => {
     expect(screen.getByDisplayValue("Prose Two")).toBeTruthy();
     expect(screen.queryByDisplayValue("Prose One")).toBeNull();
   });
+
+  it("switches Writer/Stage/Architect modes and opens timeline + linker overlays", async () => {
+    window.localStorage.clear();
+    routeFetch((url) => {
+      if (url === "/api/scenes/scene-1") return { status: 200, body: { scene: makeScene() } };
+      if (url.startsWith("/api/codex/entries?"))
+        return {
+          status: 200,
+          body: {
+            entries: [
+              {
+                id: "mara",
+                name: "Mara Vance",
+                type: "CHARACTER",
+                description: "hero",
+                trackingMode: "detected",
+              },
+            ],
+          },
+        };
+      if (url === "/api/codex/entries/mara")
+        return {
+          status: 200,
+          body: {
+            entry: {
+              id: "mara",
+              name: "Mara Vance",
+              sourceRelations: [],
+              targetRelations: [],
+              progressions: [],
+            },
+          },
+        };
+      if (url === "/api/codex/mentions")
+        return { status: 200, body: { matchedEntryIds: [], matches: [] } };
+      return undefined;
+    });
+
+    render(
+      React.createElement(WritingWorkspace, { outline: makeOutline(), initialSceneId: "scene-1" }),
+    );
+    await screen.findByTestId("scene-editor");
+    expect(screen.getByTestId("writing-workspace").getAttribute("data-mode")).toBe("architect");
+    expect(screen.getByTestId("architect-mode")).toBeTruthy();
+    expect(screen.getByTestId("architect-rail")).toBeTruthy();
+
+    fireEvent.click(screen.getByTestId("mode-writer"));
+    expect(screen.getByTestId("writing-workspace").getAttribute("data-mode")).toBe("writer");
+    expect(screen.getByTestId("writer-outline-rail")).toBeTruthy();
+    expect(await screen.findByTestId("writer-status-pill")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Timeline" }));
+    expect(await screen.findByTestId("progression-timeline-drawer")).toBeTruthy();
+    fireEvent.click(screen.getByLabelText("Close progression timeline"));
+    expect(screen.queryByTestId("progression-timeline-drawer")).toBeNull();
+
+    fireEvent.click(screen.getByTestId("mode-stage"));
+    expect(screen.getByTestId("stage-mode")).toBeTruthy();
+    expect(screen.getByTestId("stage-console")).toBeTruthy();
+
+    fireEvent.click(screen.getByTestId("mode-architect"));
+    fireEvent.change(screen.getByTestId("linker-source-select"), { target: { value: "mara" } });
+    fireEvent.click(screen.getByRole("button", { name: "Open Relation Linker" }));
+    expect(await screen.findByTestId("relation-linker-modal")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByTestId("relation-linker-modal")).toBeNull();
+  });
+
+  it("opens the manuscript import dialog and refreshes the outline after import (STO-1213)", async () => {
+    const imported = makeOutline();
+    imported.novel.title = "The Glass Tide";
+    const fetchMock = routeFetch((url, init) => {
+      if (url === "/api/scenes/scene-1") return { status: 200, body: { scene: makeScene() } };
+      if (url === "/api/codex/mentions")
+        return { status: 200, body: { matchedEntryIds: [], matches: [] } };
+      if (url === "/api/books/novel-1/import") {
+        const confirmed = (init.body as FormData).get("confirm") === "true";
+        const preview = {
+          title: "The Glass Tide",
+          subtitle: null,
+          totals: { acts: 1, chapters: 1, scenes: 1, words: 2, summaries: 0 },
+          acts: [{ title: "Act One", wordCount: 2, chapters: [] }],
+          warnings: [],
+        };
+        return confirmed
+          ? { status: 201, body: { preview, actIds: ["act-2"], titleApplied: true } }
+          : { status: 200, body: { preview } };
+      }
+      if (url === "/api/novels/novel-1/outline")
+        return { status: 200, body: { outline: imported } };
+      return undefined;
+    });
+
+    render(
+      React.createElement(WritingWorkspace, { outline: makeOutline(), initialSceneId: "scene-1" }),
+    );
+    await screen.findByTestId("scene-editor");
+    fireEvent.click(screen.getByRole("button", { name: "Import" }));
+    expect(await screen.findByTestId("import-manuscript-dialog")).toBeTruthy();
+
+    fireEvent.change(screen.getByLabelText("Manuscript file"), {
+      target: { files: [new File(["# The Glass Tide"], "book.md")] },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Preview" }));
+    await screen.findByTestId("import-preview");
+    fireEvent.click(screen.getByTestId("import-apply-title"));
+    fireEvent.click(screen.getByRole("button", { name: "Confirm import" }));
+
+    await waitFor(() => expect(screen.queryByTestId("import-manuscript-dialog")).toBeNull());
+    expect(fetchMock).toHaveBeenCalledWith("/api/novels/novel-1/outline", expect.anything());
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("The Glass Tide");
+  });
 });
 
 describe("AiAssistantDrawer", () => {
@@ -393,14 +678,19 @@ describe("AiAssistantDrawer", () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     const writeText = vi.fn().mockResolvedValue(undefined);
     vi.stubGlobal("navigator", { clipboard: { writeText } });
-    const fetchMock = routeFetch(() => ({ status: 200, body: { text: "Out", model: "m" } }));
+    const fetchMock = routeFetch((url) => {
+      if (url === "/api/ai/credentials") return { status: 200, body: { credentials: [] } };
+      return { status: 200, body: { text: "Out", model: "m" } };
+    });
     const p = setup();
     fireEvent.click(screen.getByText("Expand beat"));
     expect(screen.getByText("Beat to expand")).toBeTruthy();
     fireEvent.change(screen.getByPlaceholderText(/Mara confronts/), { target: { value: "beat" } });
     fireEvent.click(screen.getByText("Generate"));
     await screen.findByTestId("ai-result");
-    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({
+    const generateCall = fetchMock.mock.calls.find((c) => c[0] === "/api/ai/generate");
+    expect(generateCall).toBeTruthy();
+    expect(JSON.parse(generateCall![1].body)).toEqual({
       sceneId: "scene-1",
       mode: "beat_expansion",
       beatText: "beat",
@@ -412,7 +702,7 @@ describe("AiAssistantDrawer", () => {
       await vi.advanceTimersByTimeAsync(1600);
     });
     expect(screen.getByText("Copy")).toBeTruthy();
-    fireEvent.click(screen.getByText("Append to scene"));
+    fireEvent.click(screen.getByText("Accept & append"));
     expect(p.onInsertText).toHaveBeenCalledWith("Out");
     fireEvent.click(screen.getByText("Continue scene"));
     expect(screen.getByText("Beat hint (optional)")).toBeTruthy();

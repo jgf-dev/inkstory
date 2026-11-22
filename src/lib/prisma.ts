@@ -3,15 +3,16 @@
  *
  * Avoids creating a new connection per request in dev where Next.js hot-reloads
  */
-import { config } from "dotenv";
-config({ path: ".env.local", override: false });
-config({ path: ".env", override: false });
+import { loadAppDatabaseEnv } from "./database-env";
+loadAppDatabaseEnv();
 
 import "temporal-polyfill/full/global";
 import postgres from "@prisma/orm-postgres/runtime";
+import { contractFromJson } from "@prisma/orm-postgres/static";
 import type { Contract } from "../../prisma/contract.d";
 import contractJson from "../../prisma/contract.json" with { type: "json" };
 
+export const contract = contractFromJson<Contract>(contractJson);
 export type DbClient = ReturnType<typeof postgres<Contract>>;
 
 const globalForPrisma = globalThis as unknown as {
@@ -35,7 +36,7 @@ export function getValidDbUrl(customRaw?: string): string | undefined {
 
 function createDbClient(): DbClient {
   return postgres<Contract>({
-    contractJson,
+    contract,
     url: getValidDbUrl(),
   });
 }

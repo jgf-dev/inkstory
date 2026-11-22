@@ -86,7 +86,7 @@ changes:
 
 # PostgreSQL temporal representations, for extension authors
 
-There is no codemod: the retired ids map to _two_ replacements each, and which one an extension
+There is no codemod: the retired ids map to *two* replacements each, and which one an extension
 should name is a judgement about what its consumers do with the column. Sweep by id, decide per
 site, then re-emit any committed contract artifact.
 

@@ -174,7 +174,7 @@ jobs:
 
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
-          bun-version: "1.4.2"
+          bun-version: "1.4.4"
 
       # Skip lifecycle scripts during install; emit Prisma contract explicitly below.
       - run: bun install --ignore-scripts --frozen-lockfile
@@ -224,7 +224,7 @@ jobs:
             -Dsonar.tests=tests
             -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
             -Dsonar.coverage.exclusions=**/*.d.ts,**/supabase/types.ts
-            -Dsonar.cpd.exclusions=**/tests/**,**/*.test.ts,**/*.test.tsx
+            -Dsonar.cpd.exclusions=tests/**,**/tests/**,**/*.test.ts,**/*.test.tsx
 
       - name: Analyze with SonarQube
         id: sonar_scan
@@ -242,7 +242,7 @@ jobs:
             -Dsonar.tests=tests
             -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
             -Dsonar.coverage.exclusions=**/*.d.ts,**/supabase/types.ts
-            -Dsonar.cpd.exclusions=**/tests/**,**/*.test.ts,**/*.test.tsx
+            -Dsonar.cpd.exclusions=tests/**,**/tests/**,**/*.test.ts,**/*.test.tsx
 
       - name: Enforce Sonar result
         if: always() && steps.sonar_scan.outcome != 'skipped'

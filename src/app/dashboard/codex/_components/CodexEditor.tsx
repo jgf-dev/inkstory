@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useId, useState } from "react";
 import {
   createCodexAliasAction,
   createCodexTagAction,
@@ -16,8 +16,11 @@ import type { CodexTrackingMode, CodexType, JsonValue } from "@/lib/codex/types"
 import { CodexAliasesSection, CodexTagsSection } from "./CodexEditorSections";
 import type { RelationDraft } from "./RelationEditorModal";
 import { RelationEditorModal } from "./RelationEditorModal";
+import { RelationLinkerModal, type RelationChipData } from "./RelationLinkerModal";
 import type { ProgressionDraft } from "./ProgressionEditorModal";
 import { ProgressionEditorModal } from "./ProgressionEditorModal";
+import { a11yClasses } from "@/lib/ui/a11y-classes";
+import { CodexLabeledSelect } from "./CodexLabeledSelect";
 
 interface CodexEditorProps {
   entryId: string;
@@ -92,6 +95,28 @@ function parseFieldValue(raw: string): JsonValue {
   }
 }
 
+/**
+ * Maps a loaded entry's relation rows to Relation Linker chips (directional
+ * badges relative to the open entry).
+ */
+function linkerChipsFromEntry(entry: Record<string, any>): RelationChipData[] {
+  const outgoing: RelationChipData[] = (entry.sourceRelations ?? []).map((r: any) => ({
+    id: r.id,
+    otherName: r.targetEntry?.name ?? r.targetEntryId,
+    relationType: r.relationType,
+    reverseType: r.reverseType ?? null,
+    direction: "outgoing" as const,
+  }));
+  const incoming: RelationChipData[] = (entry.targetRelations ?? []).map((r: any) => ({
+    id: r.id,
+    otherName: r.sourceEntry?.name ?? r.sourceEntryId,
+    relationType: r.relationType,
+    reverseType: r.reverseType ?? null,
+    direction: "incoming" as const,
+  }));
+  return [...outgoing, ...incoming];
+}
+
 export function CodexEditor({
   entryId,
   initialEntry,
@@ -101,6 +126,7 @@ export function CodexEditor({
   onEntryDeleted,
 }: CodexEditorProps) {
   const [entry, setEntry] = useState<Record<string, any> | null>(initialEntry ?? null);
+  const fieldId = useId();
   const [loading, setLoading] = useState(!initialEntry);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -133,6 +159,7 @@ export function CodexEditor({
     open: boolean;
     relation: RelationDraft | null;
   }>({ open: false, relation: null });
+  const [linkerOpen, setLinkerOpen] = useState(false);
   const [progressionModal, setProgressionModal] = useState<{
     open: boolean;
     progression: ProgressionDraft | null;
@@ -221,7 +248,7 @@ export function CodexEditor({
     void Promise.all(
       outlineNovelIds.map((novelId) =>
         fetch(`/api/novels/${novelId}/outline`)
-          .then((res) => (res.ok ? res.json() : null))
+          .then((res) => (res.ok ? res.json<{ outline?: unknown }>() : null))
           .catch(() => null),
       ),
     )
@@ -473,74 +500,72 @@ export function CodexEditor({
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
         <div className="space-y-4">
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-ink-600">
+            <label
+              className="block text-xs font-semibold uppercase tracking-wider text-ink-600"
+              htmlFor={`${fieldId}-name`}
+            >
               Entry Name
             </label>
             <input
+              id={`${fieldId}-name`}
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="mt-1 w-full rounded-md border border-ink-200 bg-ink-100 p-2 text-sm focus:border-ink-400 focus:outline-hidden"
+              className={a11yClasses.codexEditorField}
             />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-ink-600">
-                Type
-              </label>
-              <select
-                value={type}
-                onChange={(e) => setType(e.target.value as CodexType)}
-                className="mt-1 w-full rounded-md border border-ink-200 bg-ink-100 p-2 text-sm focus:border-ink-400 focus:outline-hidden"
-              >
-                {CODEX_TYPES.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <CodexLabeledSelect
+              id={`${fieldId}-type`}
+              label="Type"
+              value={type}
+              onChange={(e) => setType(e.target.value as CodexType)}
+              options={CODEX_TYPES}
+              className={a11yClasses.codexEditorField}
+              labelClassName="block text-xs font-semibold uppercase tracking-wider text-ink-600"
+            />
 
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-ink-600">
-                Tracking Mode
-              </label>
-              <select
-                value={trackingMode}
-                onChange={(e) => setTrackingMode(e.target.value as CodexTrackingMode)}
-                className="mt-1 w-full rounded-md border border-ink-200 bg-ink-100 p-2 text-sm focus:border-ink-400 focus:outline-hidden"
-              >
-                {TRACKING_MODES.map((m) => (
-                  <option key={m} value={m}>
-                    {m}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-ink-600">
-              Description
-            </label>
-            <textarea
-              rows={4}
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              className="mt-1 w-full rounded-md border border-ink-200 bg-ink-100 p-2 text-sm focus:border-ink-400 focus:outline-hidden"
+            <CodexLabeledSelect
+              id={`${fieldId}-tracking-mode`}
+              label="Tracking Mode"
+              value={trackingMode}
+              onChange={(e) => setTrackingMode(e.target.value as CodexTrackingMode)}
+              options={TRACKING_MODES}
+              className={a11yClasses.codexEditorField}
+              labelClassName="block text-xs font-semibold uppercase tracking-wider text-ink-600"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-ink-600">
+            <label
+              className="block text-xs font-semibold uppercase tracking-wider text-ink-600"
+              htmlFor={`${fieldId}-description`}
+            >
+              Description
+            </label>
+            <textarea
+              id={`${fieldId}-description`}
+              rows={4}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              className={a11yClasses.codexEditorField}
+            />
+          </div>
+
+          <div>
+            <label
+              className="block text-xs font-semibold uppercase tracking-wider text-ink-600"
+              htmlFor={`${fieldId}-notes`}
+            >
               Private Author Notes
             </label>
             <textarea
+              id={`${fieldId}-notes`}
               rows={3}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              className="mt-1 w-full rounded-md border border-ink-200 bg-ink-100 p-2 text-sm focus:border-ink-400 focus:outline-hidden"
+              className={a11yClasses.codexEditorField}
             />
           </div>
 
@@ -562,7 +587,7 @@ export function CodexEditor({
                     onChange={(e) => updateFieldRow(index, { key: e.target.value })}
                     placeholder="Field name (e.g. Age)"
                     aria-label={`Custom field ${index + 1} name`}
-                    className="w-2/5 rounded border border-ink-200 bg-ink-100 px-2 py-1 text-xs focus:border-ink-400 focus:outline-hidden"
+                    className={`w-2/5 ${a11yClasses.codexCompactField}`}
                   />
                   <input
                     type="text"
@@ -570,7 +595,7 @@ export function CodexEditor({
                     onChange={(e) => updateFieldRow(index, { value: e.target.value })}
                     placeholder="Value"
                     aria-label={`Custom field ${index + 1} value`}
-                    className="w-full rounded border border-ink-200 bg-ink-100 px-2 py-1 text-xs focus:border-ink-400 focus:outline-hidden"
+                    className={`w-full ${a11yClasses.codexCompactField}`}
                   />
                   <button
                     type="button"
@@ -622,13 +647,23 @@ export function CodexEditor({
               <h3 className="text-xs font-semibold uppercase tracking-wider text-ink-600">
                 Relations Graph
               </h3>
-              <button
-                type="button"
-                onClick={() => setRelationModal({ open: true, relation: null })}
-                className="rounded bg-ink-700 px-2.5 py-1 text-xs font-medium text-ink-50 hover:bg-ink-800"
-              >
-                + Add Relation
-              </button>
+              <span className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setLinkerOpen(true)}
+                  title="Open the Relation Linker (predicate picker + symmetry toggle)"
+                  className="rounded border border-ink-300 px-2.5 py-1 text-xs font-medium text-ink-700 hover:bg-ink-100"
+                >
+                  Link with predicates
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRelationModal({ open: true, relation: null })}
+                  className="rounded bg-ink-700 px-2.5 py-1 text-xs font-medium text-ink-50 hover:bg-ink-800"
+                >
+                  + Add Relation
+                </button>
+              </span>
             </div>
             <div className="mt-2 space-y-1.5" data-testid="relations-list">
               {entry.sourceRelations?.map((r: any) => (
@@ -812,6 +847,16 @@ export function CodexEditor({
           entries={entries}
           relation={relationModal.relation}
           onClose={() => setRelationModal({ open: false, relation: null })}
+          onSaved={refreshEntry}
+        />
+      )}
+      {linkerOpen && (
+        <RelationLinkerModal
+          isOpen
+          sourceEntry={{ id: entryId, name: entry.name }}
+          entries={entries}
+          existingRelations={linkerChipsFromEntry(entry)}
+          onClose={() => setLinkerOpen(false)}
           onSaved={refreshEntry}
         />
       )}

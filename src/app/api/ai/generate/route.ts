@@ -1,27 +1,33 @@
 import { NextRequest } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { handleCodexApiError } from "@/lib/codex/errors";
 import { assembleCodexContextForScene } from "@/lib/codex/service";
 import { formatAssembledContext } from "@/lib/codex/prompt-formatter";
 import { applyTokenBudget } from "@/lib/codex/token-budgeter";
 import { getEntitlements, resolveContextTokenBudget } from "@/lib/billing/entitlements";
 import { getSceneForEditor } from "@/lib/writing/service";
 import { POV_LABELS, TENSE_LABELS } from "@/lib/writing/meta";
+import { AiError, isGenerationMode, MAX_OUTPUT_TOKENS } from "@/lib/ai/generate";
 import {
-  AiError,
-  buildSceneMessages,
-  generateText,
-  handleAiApiError,
-  isGenerationMode,
-  MAX_OUTPUT_TOKENS,
-} from "@/lib/ai/generate";
+  byokSelectionError,
+  executeChat,
+  handleGenerationApiError,
+  platformUnconfigured,
+  resolvePlatformProfile,
+} from "@/lib/ai/execute";
+import {
+  applyAvoidanceGuidance,
+  assertControlsSupported,
+  joinPromptMessages,
+  parseAdvancedControls,
+} from "@/lib/ai/capabilities";
+import { PromptError, renderResolvedScenePrompt } from "@/lib/prompts";
 
 export const dynamic = "force-dynamic";
 
 /**
  * Generates scene prose from the assembled Codex context. When the gateway is
- * not configured, responds 503 `AI_NOT_CONFIGURED` **with the assembled
- * prompt** so the author can still copy it into any LLM (zero cost path).
+ * not configured and no stored credential is selected, responds 503
+ * `AI_NOT_CONFIGURED` **with the assembled prompt** so the author can still copy it into any LLM (zero cost path).
  */
 export async function POST(request: NextRequest) {
   try {
@@ -34,13 +40,30 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const body = (await request.json()) as {
+    const rawBody: unknown = await request.json();
+    if (typeof rawBody !== "object" || rawBody === null || Array.isArray(rawBody)) {
+      return Response.json(
+        { error: "Request body must be a JSON object", code: "VALIDATION_FAILED" },
+        { status: 400 },
+      );
+    }
+    const body = rawBody as {
       sceneId?: string;
       mode?: string;
       beatText?: string;
       /** Client-side current prose; overrides the stored scene content. */
       content?: string;
       maxTokens?: number;
+      /** Explicit opt-in to an owned stored credential; omitted means platform gateway. */
+      credentialId?: string;
+      /** Provider-specific model ID, required only for BYOK. */
+      model?: string;
+      /** STO-1265: optional Min-P (0–1); omitted ≠ 0. */
+      minP?: number;
+      /** STO-1265: per-request avoidance guidance (instruction-only). */
+      avoidanceGuidance?: string;
+      /** STO-1265: OpenRouter endpoint slug to pin. */
+      endpoint?: string;
     };
 
     if (typeof body.sceneId !== "string" || !body.sceneId) {
@@ -83,6 +106,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const byokError = byokSelectionError(body);
+    if (byokError) {
+      return Response.json({ error: byokError, code: "VALIDATION_FAILED" }, { status: 400 });
+    }
+
+    // Shape-check advanced controls, and reject anything the platform route
+    // can't honor, before any lookup or spend. Client capability maps are ignored.
+    const controls = parseAdvancedControls(body as Record<string, unknown>);
+    const platformProfile = await resolvePlatformProfile(body.credentialId);
+    if (platformProfile) assertControlsSupported(controls, platformProfile);
+
     const scene = await getSceneForEditor(user.id, body.sceneId);
     if (scene.excludeFromAi) {
       throw new AiError(
@@ -94,15 +128,12 @@ export async function POST(request: NextRequest) {
 
     const prose = body.content !== undefined ? body.content : scene.content;
 
-    // Context assembly is owned by #92's assembleCodexContextForScene; the
-    // generation flow only budgets and renders it into the prompt block.
     const assembled = await assembleCodexContextForScene(user.id, {
       sceneId: scene.id,
       novelId: scene.novelId,
       beatText: body.beatText || scene.summary || undefined,
       recentProse: prose || undefined,
     });
-    // Cap the prompt context at the user's tier ceiling (STO-1210).
     const { maxContextTokens } = await getEntitlements(user.id);
     const prompt = formatAssembledContext(
       applyTokenBudget(assembled, {
@@ -110,7 +141,7 @@ export async function POST(request: NextRequest) {
       }),
     );
 
-    const messages = buildSceneMessages({
+    const rendered = await renderResolvedScenePrompt(user.id, scene.novelId, {
       mode: body.mode,
       novelTitle: scene.novelTitle,
       chapterTitle: scene.chapterTitle,
@@ -123,27 +154,43 @@ export async function POST(request: NextRequest) {
       codexPrompt: prompt,
     });
 
-    if (!process.env.AI_GATEWAY_API_KEY) {
+    if (rendered.unresolved.length || rendered.unknownTokens.length) {
+      throw new PromptError(
+        `Prompt has unresolved variables: ${[...rendered.unresolved, ...rendered.unknownTokens].join(", ")}`,
+        "UNRESOLVED_VARS",
+        422,
+      );
+    }
+
+    // Same delimited guidance block the Preview route renders (STO-1265).
+    const messages = applyAvoidanceGuidance(rendered.messages, controls.avoidanceGuidance);
+    const guidanceIncluded = controls.avoidanceGuidance !== undefined;
+
+    if (platformUnconfigured(body.credentialId)) {
       return Response.json(
         {
           error: "AI generation is not configured on this deployment (missing AI_GATEWAY_API_KEY)",
           code: "AI_NOT_CONFIGURED",
-          prompt: { system: messages[0].content, user: messages[1].content },
+          prompt: { system: messages[0]?.content ?? "", user: messages[1]?.content ?? "" },
+          messages,
+          joined: guidanceIncluded ? joinPromptMessages(messages) : rendered.joined,
         },
         { status: 503 },
       );
     }
 
-    const result = await generateText({
+    const result = await executeChat(user.id, {
       messages,
+      credentialId: body.credentialId,
+      model: body.model,
       maxTokens: body.maxTokens,
+      controls,
+      guidanceIncluded,
+      platformProfile,
+      signal: request.signal,
     });
-
-    return Response.json({ text: result.text, model: result.model });
+    return Response.json(result);
   } catch (err) {
-    if (err instanceof AiError) {
-      return handleAiApiError(err);
-    }
-    return handleCodexApiError(err);
+    return handleGenerationApiError(err);
   }
 }

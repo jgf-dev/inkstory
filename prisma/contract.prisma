@@ -1,15 +1,15 @@
-// use prisma-next
+// use prisma-8
 // InkStory Prisma 8 Contract (PostgreSQL PSL)
 
 namespace public {
   model User {
-    id           String             @id(map: "users_pkey")
+    id           Uuid               @id(map: "users_pkey")
     email        String
     name         String?
     avatarUrl    String?            @map("avatar_url")
-    createdAt    Timestamp(3)       @default(now()) @map("created_at")
-    updatedAt    Timestamp(3)       @map("updated_at")
-    deletedAt    Timestamp(3)?      @map("deleted_at")
+    createdAt    TimestampTemporal(3)       @default(now()) @map("created_at")
+    updatedAt    TimestampTemporal(3)       @map("updated_at")
+    deletedAt    TimestampTemporal(3)?      @map("deleted_at")
 
     // Stripe billing (STO-1180). planTier is the source of truth for
     // entitlements; stripe* fields mirror the Stripe customer/subscription so
@@ -18,15 +18,19 @@ namespace public {
     stripeSubscriptionId String?             @unique @map("stripe_subscription_id")
     planTier             pg.enum(PlanTier)   @default("FREE") @map("plan_tier")
     subscriptionStatus   String?             @map("subscription_status")
-    currentPeriodEnd     Timestamp(3)?       @map("current_period_end")
+    currentPeriodEnd     TimestampTemporal(3)?       @map("current_period_end")
 
-    series       Series[]
-    novels       Novel[]
-    codexEntries CodexEntry[]
+    series               Series[]
+    novels               Novel[]
+    codexEntries         CodexEntry[]
+    providerCredentials  UserProviderCredential[]
+    prompts              Prompt[]
+    promptComponents     PromptComponent[]
 
     @@index([deletedAt], map: "users_deleted_at_idx")
     @@index([email], map: "users_email_key", unique: true)
     @@map("users")
+    @@rls
   }
 
   model StripeWebhookEvent {
@@ -35,9 +39,11 @@ namespace public {
     eventId   String      @unique @map("event_id")
     type      String
     payload   Jsonb?      @map("payload")
-    createdAt Timestamp(3) @default(now()) @map("created_at")
+    createdAt TimestampTemporal(3) @default(now()) @map("created_at")
 
     @@map("stripe_webhook_events")
+
+    @@rls
   }
 
   model Series {
@@ -45,10 +51,10 @@ namespace public {
     title        String
     description  String?
     position     Int                @default(0)
-    createdAt    Timestamp(3)       @default(now()) @map("created_at")
-    updatedAt    Timestamp(3)       @map("updated_at")
-    deletedAt    Timestamp(3)?      @map("deleted_at")
-    ownerId      String             @map("owner_id")
+    createdAt    TimestampTemporal(3)       @default(now()) @map("created_at")
+    updatedAt    TimestampTemporal(3)       @map("updated_at")
+    deletedAt    TimestampTemporal(3)?      @map("deleted_at")
+    ownerId      Uuid               @map("owner_id")
 
     owner        User               @relation(fields: [ownerId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "series_owner_id_fkey", index: false)
     novels       Novel[]
@@ -57,6 +63,7 @@ namespace public {
     @@index([ownerId, deletedAt], map: "series_owner_id_deleted_at_idx")
     @@index([ownerId, position], map: "series_owner_id_position_idx")
     @@map("series")
+    @@rls
   }
 
   model Novel {
@@ -65,30 +72,32 @@ namespace public {
     subtitle     String?
     description  String?
     position     Int                @default(0)
-    createdAt    Timestamp(3)       @default(now()) @map("created_at")
-    updatedAt    Timestamp(3)       @map("updated_at")
-    deletedAt    Timestamp(3)?      @map("deleted_at")
-    ownerId      String             @map("owner_id")
+    createdAt    TimestampTemporal(3)       @default(now()) @map("created_at")
+    updatedAt    TimestampTemporal(3)       @map("updated_at")
+    deletedAt    TimestampTemporal(3)?      @map("deleted_at")
+    ownerId      Uuid               @map("owner_id")
     seriesId     String?            @map("series_id")
 
     owner        User               @relation(fields: [ownerId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "novels_owner_id_fkey", index: false)
     series       Series?            @relation(fields: [seriesId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "novels_series_id_fkey")
     acts         Act[]
     codexEntries CodexEntry[]
+    prompts      Prompt[]
 
     @@index([ownerId, deletedAt], map: "novels_owner_id_deleted_at_idx")
     @@index([ownerId, position], map: "novels_owner_id_position_idx")
     @@index([seriesId], map: "novels_series_id_idx")
     @@map("novels")
+    @@rls
   }
 
   model Act {
     id        String        @id(map: "acts_pkey")
     title     String
     position  Int           @default(0)
-    createdAt Timestamp(3)  @default(now()) @map("created_at")
-    updatedAt Timestamp(3)  @map("updated_at")
-    deletedAt Timestamp(3)? @map("deleted_at")
+    createdAt TimestampTemporal(3)  @default(now()) @map("created_at")
+    updatedAt TimestampTemporal(3)  @map("updated_at")
+    deletedAt TimestampTemporal(3)? @map("deleted_at")
     novelId   String        @map("novel_id")
 
     novel     Novel         @relation(fields: [novelId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "acts_novel_id_fkey", index: false)
@@ -97,15 +106,16 @@ namespace public {
     @@index([novelId, deletedAt], map: "acts_novel_id_deleted_at_idx")
     @@index([novelId, position], map: "acts_novel_id_position_idx")
     @@map("acts")
+    @@rls
   }
 
   model Chapter {
     id        String        @id(map: "chapters_pkey")
     title     String
     position  Int           @default(0)
-    createdAt Timestamp(3)  @default(now()) @map("created_at")
-    updatedAt Timestamp(3)  @map("updated_at")
-    deletedAt Timestamp(3)? @map("deleted_at")
+    createdAt TimestampTemporal(3)  @default(now()) @map("created_at")
+    updatedAt TimestampTemporal(3)  @map("updated_at")
+    deletedAt TimestampTemporal(3)? @map("deleted_at")
     actId     String        @map("act_id")
 
     act       Act           @relation(fields: [actId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "chapters_act_id_fkey", index: false)
@@ -114,31 +124,58 @@ namespace public {
     @@index([actId, deletedAt], map: "chapters_act_id_deleted_at_idx")
     @@index([actId, position], map: "chapters_act_id_position_idx")
     @@map("chapters")
+    @@rls
   }
 
   model Scene {
-    id                String              @id(map: "scenes_pkey")
+    id                String                   @id(map: "scenes_pkey")
     title             String
     label             String?
     subtitle          String?
-    content           String              @default("")
+    content           String                   @default("")
+    contentDoc        Jsonb?                   @map("content_doc")
+    contentFormat     pg.enum(ContentFormat)   @default("PLAIN") @map("content_format")
     summary           String?
-    pov               pg.enum(Pov)        @default("THIRD_LIMITED")
-    tense             pg.enum(Tense)      @default("PAST")
-    position          Int                 @default(0)
-    excludeFromAi     Boolean             @default(false) @map("exclude_from_ai")
-    wordCount         Int                 @default(0) @map("word_count")
-    createdAt         Timestamp(3)        @default(now()) @map("created_at")
-    updatedAt         Timestamp(3)        @map("updated_at")
-    deletedAt         Timestamp(3)?       @map("deleted_at")
-    chapterId         String              @map("chapter_id")
+    pov               pg.enum(Pov)             @default("THIRD_LIMITED")
+    tense             pg.enum(Tense)           @default("PAST")
+    position          Int                      @default(0)
+    excludeFromAi     Boolean                  @default(false) @map("exclude_from_ai")
+    wordCount         Int                      @default(0) @map("word_count")
+    createdAt         TimestampTemporal(3)             @default(now()) @map("created_at")
+    updatedAt         TimestampTemporal(3)             @map("updated_at")
+    deletedAt         TimestampTemporal(3)?            @map("deleted_at")
+    chapterId         String                   @map("chapter_id")
 
-    chapter           Chapter             @relation(fields: [chapterId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "scenes_chapter_id_fkey", index: false)
+    chapter           Chapter                  @relation(fields: [chapterId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "scenes_chapter_id_fkey", index: false)
     codexProgressions CodexProgression[]
+    revisions         SceneRevision[]
 
     @@index([chapterId, deletedAt], map: "scenes_chapter_id_deleted_at_idx")
     @@index([chapterId, position], map: "scenes_chapter_id_position_idx")
     @@map("scenes")
+    @@rls
+  }
+
+  // Scene revision snapshots (STO-1156). Authz via scene → novel owner chain.
+  model SceneRevision {
+    id            String                       @id(map: "scene_revisions_pkey")
+    sceneId       String                       @map("scene_id")
+    title         String
+    content       String
+    contentDoc    Jsonb?                       @map("content_doc")
+    contentFormat pg.enum(ContentFormat)       @default("PLAIN") @map("content_format")
+    summary       String?
+    pov           pg.enum(Pov)
+    tense         pg.enum(Tense)
+    wordCount     Int                          @map("word_count")
+    reason        pg.enum(SceneRevisionReason) @default("AUTOSAVE")
+    createdAt     TimestampTemporal(3)                 @default(now()) @map("created_at")
+
+    scene         Scene                        @relation(fields: [sceneId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "scene_revisions_scene_id_fkey", index: false)
+
+    @@index([sceneId, createdAt], map: "scene_revisions_scene_id_created_at_idx")
+    @@map("scene_revisions")
+    @@rls
   }
 
   model CodexEntry {
@@ -153,10 +190,10 @@ namespace public {
     color                        String?
     thumbnailUrl                 String?                    @map("thumbnail_url")
     position                     Int                        @default(0)
-    createdAt                    Timestamp(3)               @default(now()) @map("created_at")
-    updatedAt                    Timestamp(3)               @map("updated_at")
-    deletedAt                    Timestamp(3)?              @map("deleted_at")
-    ownerId                      String                     @map("owner_id")
+    createdAt                    TimestampTemporal(3)               @default(now()) @map("created_at")
+    updatedAt                    TimestampTemporal(3)               @map("updated_at")
+    deletedAt                    TimestampTemporal(3)?              @map("deleted_at")
+    ownerId                      Uuid                       @map("owner_id")
     novelId                      String?                    @map("novel_id")
     seriesId                     String?                    @map("series_id")
 
@@ -175,14 +212,15 @@ namespace public {
     @@index([trackingMode], map: "codex_entries_tracking_mode_idx")
     @@index([type], map: "codex_entries_type_idx")
     @@map("codex_entries")
+    @@rls
   }
 
   model CodexAlias {
     id        String        @id(map: "codex_aliases_pkey")
     name      String
-    createdAt Timestamp(3)  @default(now()) @map("created_at")
-    updatedAt Timestamp(3)  @map("updated_at")
-    deletedAt Timestamp(3)? @map("deleted_at")
+    createdAt TimestampTemporal(3)  @default(now()) @map("created_at")
+    updatedAt TimestampTemporal(3)  @map("updated_at")
+    deletedAt TimestampTemporal(3)? @map("deleted_at")
     entryId   String        @map("entry_id")
 
     entry     CodexEntry    @relation(fields: [entryId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "codex_aliases_entry_id_fkey", index: false)
@@ -190,15 +228,16 @@ namespace public {
     @@index([entryId, deletedAt], map: "codex_aliases_entry_id_deleted_at_idx")
     @@index([name], map: "codex_aliases_name_idx")
     @@map("codex_aliases")
+    @@rls
   }
 
   model CodexTag {
     id        String        @id(map: "codex_tags_pkey")
     name      String
     color     String?
-    createdAt Timestamp(3)  @default(now()) @map("created_at")
-    updatedAt Timestamp(3)  @map("updated_at")
-    deletedAt Timestamp(3)? @map("deleted_at")
+    createdAt TimestampTemporal(3)  @default(now()) @map("created_at")
+    updatedAt TimestampTemporal(3)  @map("updated_at")
+    deletedAt TimestampTemporal(3)? @map("deleted_at")
     entryId   String        @map("entry_id")
 
     entry     CodexEntry    @relation(fields: [entryId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "codex_tags_entry_id_fkey", index: false)
@@ -206,6 +245,7 @@ namespace public {
     @@index([entryId, deletedAt], map: "codex_tags_entry_id_deleted_at_idx")
     @@index([name], map: "codex_tags_name_idx")
     @@map("codex_tags")
+    @@rls
   }
 
   model CodexRelation {
@@ -213,9 +253,9 @@ namespace public {
     relationType  String        @map("relation_type")
     reverseType   String?       @map("reverse_type")
     description   String?
-    createdAt     Timestamp(3)  @default(now()) @map("created_at")
-    updatedAt     Timestamp(3)  @map("updated_at")
-    deletedAt     Timestamp(3)? @map("deleted_at")
+    createdAt     TimestampTemporal(3)  @default(now()) @map("created_at")
+    updatedAt     TimestampTemporal(3)  @map("updated_at")
+    deletedAt     TimestampTemporal(3)? @map("deleted_at")
     sourceEntryId String        @map("source_entry_id")
     targetEntryId String        @map("target_entry_id")
 
@@ -226,6 +266,7 @@ namespace public {
     @@index([sourceEntryId, deletedAt], map: "codex_relations_source_entry_id_deleted_at_idx")
     @@index([targetEntryId, deletedAt], map: "codex_relations_target_entry_id_deleted_at_idx")
     @@map("codex_relations")
+    @@rls
   }
 
   model CodexProgression {
@@ -234,9 +275,9 @@ namespace public {
     description String
     notes       String?
     position    Int                      @default(0)
-    createdAt   Timestamp(3)             @default(now()) @map("created_at")
-    updatedAt   Timestamp(3)             @map("updated_at")
-    deletedAt   Timestamp(3)?            @map("deleted_at")
+    createdAt   TimestampTemporal(3)             @default(now()) @map("created_at")
+    updatedAt   TimestampTemporal(3)             @map("updated_at")
+    deletedAt   TimestampTemporal(3)?            @map("deleted_at")
     entryId     String                   @map("entry_id")
     sceneId     String                   @map("scene_id")
 
@@ -247,6 +288,128 @@ namespace public {
     @@index([sceneId, deletedAt], map: "codex_progressions_scene_id_deleted_at_idx")
     @@index([sceneId, position], map: "codex_progressions_scene_id_position_idx")
     @@map("codex_progressions")
+    @@rls
+  }
+
+
+  // BYOK encrypted provider credentials (STO-1178). Ciphertext is AES-256-GCM
+  // with BYOK_ENCRYPTION_KEY; APIs never return ciphertext/iv/authTag/plaintext.
+  model UserProviderCredential {
+    id           String           @id(map: "user_provider_credentials_pkey")
+    ownerId      Uuid             @map("owner_id")
+    provider     pg.enum(AiProvider)
+    label        String           @default("default")
+
+    ciphertext   Bytes?
+    iv           Bytes?
+    authTag      Bytes?           @map("auth_tag")
+    keyHint      String?          @map("key_hint")
+    keyVersion   Int              @default(1) @map("key_version")
+
+    baseUrl      String?          @map("base_url")
+    defaultModel String?          @map("default_model")
+    defaultTemp  Float?           @map("default_temp")
+
+    createdAt    TimestampTemporal(3)     @default(now()) @map("created_at")
+    updatedAt    TimestampTemporal(3)     @map("updated_at")
+    deletedAt    TimestampTemporal(3)?    @map("deleted_at")
+
+    owner        User             @relation(fields: [ownerId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "user_provider_credentials_owner_id_fkey", index: false)
+
+    @@index([ownerId, deletedAt], map: "user_provider_credentials_owner_id_deleted_at_idx")
+    @@index([ownerId, provider, deletedAt], map: "user_provider_credentials_owner_provider_deleted_at_idx")
+    @@map("user_provider_credentials")
+    @@rls
+  }
+
+
+  native_enum AiProvider {
+    OPENROUTER = "OPENROUTER"
+    OPENAI = "OPENAI"
+    ANTHROPIC = "ANTHROPIC"
+    OLLAMA = "OLLAMA"
+    LMSTUDIO = "LMSTUDIO"
+  }
+
+  // Prompt templates + reusable components (STO-1158). SYSTEM_DEFAULT rows are
+  // seeded read-only; authors Duplicate into their user library.
+  model Prompt {
+    id          String              @id(map: "prompts_pkey")
+    name        String
+    description String?
+    mode        String
+    scope       pg.enum(PromptScope) @default("USER")
+    body        String              @default("")
+    role        pg.enum(PromptRole) @default("SYSTEM")
+    position    Int                 @default(0)
+    isActive    Boolean             @default(true) @map("is_active")
+    ownerId     Uuid?               @map("owner_id")
+    novelId     String?             @map("novel_id")
+    createdAt   TimestampTemporal(3)        @default(now()) @map("created_at")
+    updatedAt   TimestampTemporal(3)        @map("updated_at")
+    deletedAt   TimestampTemporal(3)?       @map("deleted_at")
+
+    owner       User?               @relation(fields: [ownerId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "prompts_owner_id_fkey", index: false)
+    novel       Novel?              @relation(fields: [novelId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "prompts_novel_id_fkey", index: false)
+    components  PromptComponentLink[]
+
+    @@index([ownerId, deletedAt], map: "prompts_owner_id_deleted_at_idx")
+    @@index([novelId, deletedAt], map: "prompts_novel_id_deleted_at_idx")
+    @@index([mode, isActive, deletedAt], map: "prompts_mode_is_active_deleted_at_idx")
+    @@map("prompts")
+    @@rls
+  }
+
+  model PromptComponent {
+    id          String              @id(map: "prompt_components_pkey")
+    name        String
+    description String?
+    body        String
+    role        pg.enum(PromptRole) @default("SYSTEM")
+    // Versioned craft/portability contract (STO-1275). Null = legacy STO-1158 behavior.
+    contract    Jsonb?              @map("contract")
+    ownerId     Uuid?               @map("owner_id")
+    createdAt   TimestampTemporal(3)        @default(now()) @map("created_at")
+    updatedAt   TimestampTemporal(3)        @map("updated_at")
+    deletedAt   TimestampTemporal(3)?       @map("deleted_at")
+
+    owner       User?               @relation(fields: [ownerId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "prompt_components_owner_id_fkey", index: false)
+    links       PromptComponentLink[]
+
+    @@index([ownerId, deletedAt], map: "prompt_components_owner_id_deleted_at_idx")
+    @@map("prompt_components")
+    @@rls
+  }
+
+  model PromptComponentLink {
+    id          String          @id(map: "prompt_component_links_pkey")
+    promptId    String          @map("prompt_id")
+    componentId String          @map("component_id")
+    position    Int             @default(0)
+    enabled     Boolean         @default(true)
+    createdAt   TimestampTemporal(3)    @default(now()) @map("created_at")
+    updatedAt   TimestampTemporal(3)    @map("updated_at")
+    deletedAt   TimestampTemporal(3)?   @map("deleted_at")
+
+    prompt      Prompt          @relation(fields: [promptId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "prompt_component_links_prompt_id_fkey", index: false)
+    component   PromptComponent @relation(fields: [componentId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "prompt_component_links_component_id_fkey", index: false)
+
+    @@index([promptId, position], map: "prompt_component_links_prompt_id_position_idx")
+    @@index([componentId], map: "prompt_component_links_component_id_idx")
+    @@map("prompt_component_links")
+    @@rls
+  }
+
+
+  native_enum PromptRole {
+    SYSTEM = "SYSTEM"
+    USER = "USER"
+  }
+
+  native_enum PromptScope {
+    SYSTEM_DEFAULT = "SYSTEM_DEFAULT"
+    USER = "USER"
+    NOVEL = "NOVEL"
   }
 
   native_enum CodexTrackingMode {
@@ -287,5 +450,17 @@ namespace public {
     PAST = "PAST"
     PRESENT = "PRESENT"
     FUTURE = "FUTURE"
+  }
+
+  native_enum ContentFormat {
+    PLAIN = "PLAIN"
+    TIPTAP_JSON = "TIPTAP_JSON"
+  }
+
+  native_enum SceneRevisionReason {
+    AUTOSAVE = "AUTOSAVE"
+    MANUAL = "MANUAL"
+    RESTORE = "RESTORE"
+    IMPORT = "IMPORT"
   }
 }

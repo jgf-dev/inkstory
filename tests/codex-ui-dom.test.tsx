@@ -423,6 +423,27 @@ describe("CodexEditor", () => {
     await waitFor(() => expect(actions.getCodexEntryAction).toHaveBeenCalled());
     expect(await screen.findByText("At: scene-1")).toBeTruthy();
   });
+
+  it("associates every main field label with its control", async () => {
+    const entry = makeEntry();
+    await renderEditor(entry);
+    const expectations: Array<[string, string]> = [
+      ["Entry Name", "INPUT"],
+      ["Type", "SELECT"],
+      ["Tracking Mode", "SELECT"],
+      ["Description", "TEXTAREA"],
+      ["Private Author Notes", "TEXTAREA"],
+    ];
+    const ids = new Set<string>();
+    for (const [label, tag] of expectations) {
+      const control = screen.getByLabelText(label);
+      expect(control.tagName).toBe(tag);
+      expect(control.id).not.toBe("");
+      ids.add(control.id);
+    }
+    expect(ids.size).toBe(expectations.length);
+    expect((screen.getByLabelText("Entry Name") as HTMLInputElement).value).toBe(entry.name);
+  });
 });
 
 describe("RelationEditorModal", () => {

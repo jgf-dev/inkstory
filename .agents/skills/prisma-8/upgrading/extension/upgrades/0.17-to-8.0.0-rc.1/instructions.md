@@ -63,8 +63,8 @@ changes:
     detection:
       glob: "**/*.{test,test-d}.ts"
       contains:
-        - "renderValueLiteral"
-        - "generateContractDts"
+        - 'renderValueLiteral'
+        - 'generateContractDts'
       anyMatch: true
   - id: driver-spi-splits-query-and-execute
     summary: |
@@ -102,7 +102,7 @@ The conformance harness that measures a codec's JSON projection against a real d
 ```
 
 ```ts
-import { runPostgresCodecProjection } from "@internal/postgres-codec-testkit";
+import { runPostgresCodecProjection } from '@internal/postgres-codec-testkit';
 ```
 
 The harness API is the same one the in-repo version had — you supply the connection and the cases; it encodes, stores, projects through your descriptor, executes, and compares the database's JSON against `encodeJson` and back through `decodeJson`. Cases move verbatim. If your `tsconfig.json` widened `rootDir` to make the cross-package relative import resolve, narrow it back to the pack.
@@ -112,12 +112,12 @@ The harness API is the same one the in-repo version had — you supply the conne
 Aggregate result typing is now declared rather than inferred. A target (or an extension) contributes `SqlAggregateDescriptor`s on `types.aggregateDescriptors`, a sibling of `codecTypes`:
 
 ```ts
-import type { SqlAggregateDescriptor } from "@internal/sql-relational-core/aggregate-descriptor-registry";
+import type { SqlAggregateDescriptor } from '@internal/sql-relational-core/aggregate-descriptor-registry';
 
 const sumOverMoney: SqlAggregateDescriptor = {
-  operation: "sum",
-  input: { kind: "codec", codecId: "ext/money@1" },
-  output: { kind: "codec", codecId: "ext/money@1" },
+  operation: 'sum',
+  input: { kind: 'codec', codecId: 'ext/money@1' },
+  output: { kind: 'codec', codecId: 'ext/money@1' },
   nullable: true,
 };
 ```
@@ -142,10 +142,10 @@ to implement `renderValueLiteral`:
 
 ```ts
 // Before — renderTsLiteral returned a single-quoted literal
-expect(codec.renderValueLiteral?.("low", "output")).toBe("'low'");
+expect(codec.renderValueLiteral?.('low', 'output')).toBe("'low'");
 
 // After
-expect(codec.renderValueLiteral?.("low", "output")).toBe('"low"');
+expect(codec.renderValueLiteral?.('low', 'output')).toBe('"low"');
 ```
 
 Two things worth knowing when you update these:

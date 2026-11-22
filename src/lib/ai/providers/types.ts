@@ -26,6 +26,17 @@ export interface ChatCompletionRequest {
   temperature?: number;
   topP?: number;
   stop?: string[];
+  /**
+   * Native Min-P (STO-1265). Only adapters that implement a verified mapping
+   * (currently OpenRouter) accept it; every other adapter rejects the request
+   * instead of silently dropping or forwarding it. Omitted ≠ 0.
+   */
+  minP?: number;
+  /**
+   * OpenRouter endpoint slug (e.g. `deepinfra/turbo`) the capability resolver
+   * verified. Other adapters reject it.
+   */
+  endpoint?: string;
   /** Abort an in-flight request (e.g. when the author cancels generation). */
   signal?: AbortSignal;
 }
@@ -63,6 +74,12 @@ export interface ProviderModel {
 
 export interface LlmProvider {
   readonly id: ProviderId;
+  /**
+   * True when the author configured a non-default base URL. Capability
+   * resolution treats such routes as unverified (no native samplers). The URL
+   * itself is never exposed here.
+   */
+  readonly customBaseUrl?: boolean;
   chat(request: ChatCompletionRequest): Promise<ChatCompletionResult>;
   listModels(options?: { signal?: AbortSignal }): Promise<ProviderModel[]>;
 }

@@ -38,17 +38,17 @@ changes:
 
 An aggregate's result is a value the database computes, and 8.0.0-rc.1 reads it back through the codec its target declares for that result rather than through whatever the driver happened to hand over. What each aggregate returns is now the target's answer, stated in the contract and honoured by the runtime:
 
-| Target     | Aggregate                                 | Reads as                                                            |
-| ---------- | ----------------------------------------- | ------------------------------------------------------------------- |
-| PostgreSQL | `count()` (with or without an argument)   | `bigint`                                                            |
-| PostgreSQL | `sum` over `int2` / `int4`                | `bigint` (the sum widens to `int8`)                                 |
-| PostgreSQL | `sum` over `int8`, `avg` over any integer | decimal `string` (the result is `numeric`)                          |
-| PostgreSQL | `sum` / `avg` over `float4` / `float8`    | `number`                                                            |
-| PostgreSQL | `min` / `max`                             | the column's own type — except over `varchar`, which returns `text` |
-| SQLite     | `count()`                                 | `bigint`                                                            |
-| SQLite     | `sum` over an integer column              | `bigint`                                                            |
-| SQLite     | `avg` over anything                       | `number` (SQLite's `avg` is always real)                            |
-| SQLite     | `min` / `max`                             | the column's own type                                               |
+| Target | Aggregate | Reads as |
+| --- | --- | --- |
+| PostgreSQL | `count()` (with or without an argument) | `bigint` |
+| PostgreSQL | `sum` over `int2` / `int4` | `bigint` (the sum widens to `int8`) |
+| PostgreSQL | `sum` over `int8`, `avg` over any integer | decimal `string` (the result is `numeric`) |
+| PostgreSQL | `sum` / `avg` over `float4` / `float8` | `number` |
+| PostgreSQL | `min` / `max` | the column's own type — except over `varchar`, which returns `text` |
+| SQLite | `count()` | `bigint` |
+| SQLite | `sum` over an integer column | `bigint` |
+| SQLite | `avg` over anything | `number` (SQLite's `avg` is always real) |
+| SQLite | `min` / `max` | the column's own type |
 
 The targets diverge on `avg`, and deliberately: PostgreSQL computes it as `numeric`, SQLite as a float. A query written against both handles both.
 
@@ -61,7 +61,7 @@ Two failure modes are worth sweeping for, because neither announces itself:
 
 Arithmetic mixing a bigint with a number also throws (`2n + 1` is a `TypeError`); convert one side deliberately.
 
-`having(...)` is the one place that does not move. A HAVING operand is compared inside SQL against the aggregate the database is computing, so it never crosses a codec: `having.count().gte(2)` keeps the plain number it always took. Only the aggregate's _result_ — the value that reaches your code — carries its target's type.
+`having(...)` is the one place that does not move. A HAVING operand is compared inside SQL against the aggregate the database is computing, so it never crosses a codec: `having.count().gte(2)` keeps the plain number it always took. Only the aggregate's *result* — the value that reaches your code — carries its target's type.
 
 Finally, regenerate your contracts:
 

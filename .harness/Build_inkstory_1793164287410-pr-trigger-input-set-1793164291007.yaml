@@ -1,0 +1,14 @@
+inputSet:
+  name: Build_inkstory_1793164287410-pr-trigger-input-set
+  identifier: Build_inkstory_1793164287410prtriggerinputset
+  orgIdentifier: default
+  projectIdentifier: inkstory
+  pipeline:
+    identifier: Build_inkstory_1793164287410
+    properties:
+      ci:
+        codebase:
+          build:
+            type: PR
+            spec:
+              number: <+trigger.prNumber>

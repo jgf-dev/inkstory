@@ -12,6 +12,12 @@ export { errorCodeForStatus };
 
 export const OPENROUTER_DEFAULT_BASE_URL = "https://openrouter.ai/api/v1";
 
+/** Whether `baseUrl` points anywhere other than the public OpenRouter API. */
+export function isCustomOpenRouterBaseUrl(baseUrl: string | null | undefined): boolean {
+  const trimmed = baseUrl?.trim().replace(/\/+$/, "");
+  return Boolean(trimmed) && trimmed !== OPENROUTER_DEFAULT_BASE_URL;
+}
+
 export interface OpenRouterProviderOptions {
   /** The author's own OpenRouter key. Never logged or returned. */
   apiKey: string;
@@ -40,5 +46,7 @@ export function createOpenRouterProvider(options: OpenRouterProviderOptions): Ll
     baseUrl: options.baseUrl?.trim() || OPENROUTER_DEFAULT_BASE_URL,
     headers,
     fetch: options.fetch,
+    openRouterRouting: true,
+    customBaseUrl: isCustomOpenRouterBaseUrl(options.baseUrl),
   });
 }

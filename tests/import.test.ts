@@ -7,6 +7,7 @@ import { GET as exportRoute } from "../src/app/api/books/[id]/export/route";
 import {
   buildManuscript,
   countWords,
+  detectedTitleUpdate,
   detectFormat,
   docxToHtml,
   htmlToBlocks,
@@ -421,6 +422,22 @@ describe("export → import round-trip (in memory)", () => {
   });
 });
 
+describe("detectedTitleUpdate (STO-1213)", () => {
+  it("returns only the detected, trimmed fields", () => {
+    expect(detectedTitleUpdate({ title: " Book ", subtitle: " Sub " })).toEqual({
+      title: "Book",
+      subtitle: "Sub",
+    });
+    expect(detectedTitleUpdate({ title: "Book", subtitle: null })).toEqual({ title: "Book" });
+    expect(detectedTitleUpdate({ title: null, subtitle: "Sub" })).toEqual({ subtitle: "Sub" });
+  });
+
+  it("returns null when nothing was detected", () => {
+    expect(detectedTitleUpdate({ title: null, subtitle: null })).toBeNull();
+    expect(detectedTitleUpdate({ title: "  ", subtitle: "" })).toBeNull();
+  });
+});
+
 describe("import service + route (database)", { timeout: 30_000 }, () => {
   const runId = crypto.randomUUID();
   const userId = crypto.randomUUID();
@@ -552,7 +569,7 @@ describe("import service + route (database)", { timeout: 30_000 }, () => {
   it("previews without writing", async () => {
     const res = await post(novelId, { file: mdFile(exportedMd) });
     expect(res.status).toBe(200);
-    const { preview } = await res.json();
+    const { preview } = await res.json<any>();
     expect(preview.totals).toEqual({ acts: 2, chapters: 2, scenes: 3, words: 16, summaries: 2 });
     const acts = await db.orm.public.Act.where((a) => a.novelId.eq(novelId)).all();
     expect(acts).toHaveLength(1);
@@ -629,11 +646,103 @@ describe("import service + route (database)", { timeout: 30_000 }, () => {
     }
   });
 
+  it("applies a manual structure override to preview and confirm (STO-1211)", async () => {
+    const overrideNovelId = `test-import-override-${runId}`;
+    await db.orm.public.Novel.create({
+      id: overrideNovelId,
+      ownerId: userId,
+      title: "Override",
+      updatedAt: Temporal.Now.plainDateTimeISO(),
+    });
+    try {
+      const structure = JSON.stringify({
+        scenes: [
+          { title: "Harbor", act: "Part One", chapter: "Arrival" },
+          { title: "Inn", act: null, chapter: "Night" },
+          { title: "Squall", act: null, chapter: null },
+        ],
+      });
+      const previewRes = await post(overrideNovelId, { file: mdFile(exportedMd), structure });
+      expect(previewRes.status).toBe(200);
+      const { preview } = await previewRes.json<any>();
+      expect(preview.totals).toMatchObject({ acts: 1, chapters: 2, scenes: 3, words: 16 });
+      expect(await db.orm.public.Act.where((a) => a.novelId.eq(overrideNovelId)).all()).toEqual([]);
+
+      const res = await post(overrideNovelId, {
+        file: mdFile(exportedMd),
+        structure,
+        confirm: "true",
+      });
+      expect(res.status).toBe(201);
+      const acts = await db.orm.public.Act.where((a) => a.novelId.eq(overrideNovelId)).all();
+      expect(acts.map((a) => a.title)).toEqual(["Part One"]);
+      const chapters = await db.orm.public.Chapter.where((c) => c.actId.eq(acts[0].id)).all();
+      const night = chapters.find((c) => c.title === "Night");
+      expect(chapters.map((c) => c.title).sort()).toEqual(["Arrival", "Night"]);
+      const scenes = await db.orm.public.Scene.where((s) => s.chapterId.eq(night!.id)).all();
+      const squall = scenes.find((s) => s.title === "Squall");
+      expect(scenes.map((s) => s.title).sort()).toEqual(["Inn", "Squall"]);
+      expect(squall).toMatchObject({ position: 1, content: "Rain fell for days." });
+
+      const mismatch = await post(overrideNovelId, {
+        file: mdFile(exportedMd),
+        structure: JSON.stringify({ scenes: [{ title: "x", act: "A", chapter: "C" }] }),
+      });
+      expect(mismatch.status).toBe(400);
+      expect((await mismatch.json<any>()).code).toBe("VALIDATION_FAILED");
+      const bad = await post(overrideNovelId, { file: mdFile(exportedMd), structure: "{" });
+      expect(bad.status).toBe(400);
+    } finally {
+      await db.orm.public.Novel.where({ id: overrideNovelId }).delete();
+    }
+  });
+
+  it("applies the detected title and subtitle only when asked (STO-1213)", async () => {
+    const titleNovelId = `test-import-title-${runId}`;
+    await db.orm.public.Novel.create({
+      id: titleNovelId,
+      ownerId: userId,
+      title: "Untitled",
+      updatedAt: Temporal.Now.plainDateTimeISO(),
+    });
+    try {
+      const kept = await post(titleNovelId, { file: mdFile(exportedMd), confirm: "true" });
+      expect(kept.status).toBe(201);
+      expect((await kept.json<any>()).titleApplied).toBe(false);
+      let novel = await db.orm.public.Novel.where({ id: titleNovelId }).first();
+      expect(novel).toMatchObject({ title: "Untitled", subtitle: null });
+
+      const applied = await post(titleNovelId, {
+        file: mdFile(exportedMd),
+        confirm: "true",
+        applyTitle: "true",
+      });
+      expect(applied.status).toBe(201);
+      const body = await applied.json<any>();
+      expect(body.titleApplied).toBe(true);
+      expect(body.actIds).toHaveLength(2);
+      novel = await db.orm.public.Novel.where({ id: titleNovelId }).first();
+      expect(novel).toMatchObject({ title: "The Glass Tide", subtitle: "A Novel" });
+
+      // No detected title: the flag is a no-op and the book keeps its title.
+      const untitled = await post(titleNovelId, {
+        file: mdFile("Just prose, no headings."),
+        confirm: "true",
+        applyTitle: "true",
+      });
+      expect((await untitled.json<any>()).titleApplied).toBe(false);
+      novel = await db.orm.public.Novel.where({ id: titleNovelId }).first();
+      expect(novel?.title).toBe("The Glass Tide");
+    } finally {
+      await db.orm.public.Novel.where({ id: titleNovelId }).delete();
+    }
+  });
+
   it("import → edit → export round-trip keeps structure and text (md + docx)", async () => {
     // 1. Import (summaries on).
     const res = await post(novelId, { file: mdFile(exportedMd), confirm: "true" });
     expect(res.status).toBe(201);
-    const { actIds, preview } = await res.json();
+    const { actIds, preview } = await res.json<any>();
     expect(actIds).toHaveLength(2);
     expect(preview.totals.scenes).toBe(3);
 

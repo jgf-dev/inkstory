@@ -1,12 +1,20 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import type { EditorScene } from "@/lib/writing/service";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { EditorScene, SceneRevisionListItem } from "@/lib/writing/service";
 import { POV_LABELS, POV_VALUES, TENSE_LABELS, TENSE_VALUES } from "@/lib/writing/meta";
 import type { PovValue, TenseValue } from "@/lib/writing/meta";
 import { countWords, formatWordCount } from "@/lib/writing/word-count";
 import { clearDraft, isDraftRecoverable, loadDraft, saveDraft } from "@/lib/writing/draft";
-import { apiPatch, ApiRequestError } from "./api";
+import {
+  appendPlainTextToDoc,
+  docFromPlainText,
+  plainTextFromDoc,
+  type TiptapDoc,
+} from "@/lib/writing/tiptap";
+import { apiGet, apiPatch, apiPost, ApiRequestError } from "./api";
+import { RichTextEditor, type EditorSelection, type RichTextEditorHandle } from "./RichTextEditor";
+import { CraftPanel, type CraftApplyResult } from "./CraftPanel";
 
 export interface SceneEditorProps {
   scene: EditorScene;
@@ -19,13 +27,24 @@ export interface SceneEditorProps {
    * repeated inserts of the same text still apply).
    */
   insertRequest?: { seq: number; text: string; sceneId: string } | null;
+  /**
+   * Live save-state/word-count stream for the Writer Mode status pill
+   * (JGF-128).
+   */
+  onStatusChange?: (status: SaveStatus, words: number) => void;
+  /**
+   * `"full"` renders the word count / save state / details cluster in the
+   * header; `"focus"` (Writer Mode) moves them to the workspace status pill.
+   */
+  chrome?: "full" | "focus";
 }
 
-type SaveStatus = "saved" | "dirty" | "saving" | "error";
+export type SaveStatus = "saved" | "dirty" | "saving" | "error";
 
 interface SceneSnapshot {
   title: string;
   content: string;
+  contentDoc: TiptapDoc | null;
   summary: string;
   pov: PovValue;
   tense: TenseValue;
@@ -38,6 +57,7 @@ function snapshotOf(scene: EditorScene): SceneSnapshot {
   return {
     title: scene.title,
     content: scene.content,
+    contentDoc: scene.contentDoc ?? null,
     summary: scene.summary ?? "",
     pov: scene.pov,
     tense: scene.tense,
@@ -46,26 +66,38 @@ function snapshotOf(scene: EditorScene): SceneSnapshot {
 }
 
 /**
- * Scene Editor (launch phase 3): distraction-free prose surface with a
- * debounced autosave (Cmd/Ctrl+S flushes), live word count, metadata drawer
- * (POV / Tense / Summary / exclude-from-AI), and a localStorage draft
- * fallback for failed saves.
+ * Scene Editor (STO-1156): Tiptap rich-text surface with debounced autosave
+ * (Cmd/Ctrl+S flushes), live word count, metadata drawer, localStorage draft
+ * fallback, and a minimal revision history / restore panel. The Craft panel
+ * (STO-1290) runs selection tools and applies results after a MANUAL
+ * checkpoint.
  */
 export function SceneEditor(props: SceneEditorProps) {
   const { scene } = props;
 
   const [title, setTitle] = useState(scene.title);
   const [content, setContent] = useState(scene.content);
+  const [contentDoc, setContentDoc] = useState<TiptapDoc | null>(scene.contentDoc ?? null);
   const [summary, setSummary] = useState(scene.summary ?? "");
   const [pov, setPov] = useState<PovValue>(scene.pov);
   const [tense, setTense] = useState<TenseValue>(scene.tense);
   const [excludeFromAi, setExcludeFromAi] = useState(scene.excludeFromAi);
   const [status, setStatus] = useState<SaveStatus>("saved");
   const [showMeta, setShowMeta] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [revisions, setRevisions] = useState<SceneRevisionListItem[]>([]);
+  const [revisionsLoading, setRevisionsLoading] = useState(false);
+  const [revisionsError, setRevisionsError] = useState<string | null>(null);
+  const [restoringId, setRestoringId] = useState<string | null>(null);
+  const [showCraft, setShowCraft] = useState(false);
+  const [selection, setSelection] = useState<EditorSelection | null>(null);
+  const editorHandleRef = useRef<RichTextEditorHandle | null>(null);
+  const inflightSaveRef = useRef<Promise<void> | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [restoreOffer, setRestoreOffer] = useState<{
     savedAt: number;
     content: string;
+    contentDoc?: TiptapDoc | null;
     title: string;
     summary: string;
     pov?: PovValue;
@@ -77,6 +109,7 @@ export function SceneEditor(props: SceneEditorProps) {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isSavingRef = useRef(false);
   const queuedSaveRef = useRef(false);
+  const manualFlushRef = useRef(false);
 
   // Local draft fallback check (per-scene mount; the workspace remounts the
   // editor with a key on scene switch).
@@ -86,6 +119,7 @@ export function SceneEditor(props: SceneEditorProps) {
       setRestoreOffer({
         savedAt: draft!.savedAt,
         content: draft!.content,
+        contentDoc: draft!.contentDoc,
         title: draft!.title,
         summary: draft!.summary,
         pov: draft!.pov,
@@ -103,8 +137,8 @@ export function SceneEditor(props: SceneEditorProps) {
   }, []);
 
   const current: SceneSnapshot = useMemo(
-    () => ({ title, content, summary, pov, tense, excludeFromAi }),
-    [title, content, summary, pov, tense, excludeFromAi],
+    () => ({ title, content, contentDoc, summary, pov, tense, excludeFromAi }),
+    [title, content, contentDoc, summary, pov, tense, excludeFromAi],
   );
 
   const currentRef = useRef<SceneSnapshot>(current);
@@ -114,6 +148,7 @@ export function SceneEditor(props: SceneEditorProps) {
     return (
       a.title !== b.title ||
       a.content !== b.content ||
+      JSON.stringify(a.contentDoc) !== JSON.stringify(b.contentDoc) ||
       a.summary !== b.summary ||
       a.pov !== b.pov ||
       a.tense !== b.tense ||
@@ -131,19 +166,31 @@ export function SceneEditor(props: SceneEditorProps) {
   function diffAgainstSaved(target: SceneSnapshot): Partial<{
     title: string;
     content: string;
+    contentDoc: TiptapDoc;
     summary: string;
     pov: PovValue;
     tense: TenseValue;
     excludeFromAi: boolean;
+    revisionReason: "AUTOSAVE" | "MANUAL";
   }> {
     const saved = savedRef.current;
     const patch: Record<string, unknown> = {};
     if (target.title !== saved.title) patch.title = target.title;
-    if (target.content !== saved.content) patch.content = target.content;
+    const contentChanged =
+      target.content !== saved.content ||
+      JSON.stringify(target.contentDoc) !== JSON.stringify(saved.contentDoc);
+    if (contentChanged) {
+      const doc = target.contentDoc ?? docFromPlainText(target.content);
+      patch.contentDoc = doc;
+      patch.content = plainTextFromDoc(doc);
+    }
     if (target.summary !== saved.summary) patch.summary = target.summary || null;
     if (target.pov !== saved.pov) patch.pov = target.pov;
     if (target.tense !== saved.tense) patch.tense = target.tense;
     if (target.excludeFromAi !== saved.excludeFromAi) patch.excludeFromAi = target.excludeFromAi;
+    if (Object.keys(patch).length > 0) {
+      patch.revisionReason = manualFlushRef.current ? "MANUAL" : "AUTOSAVE";
+    }
     return patch;
   }
 
@@ -160,15 +207,27 @@ export function SceneEditor(props: SceneEditorProps) {
     const patch = diffAgainstSaved(snapshotToPersist);
     if (Object.keys(patch).length === 0) {
       setStatus("saved");
+      manualFlushRef.current = false;
       return;
     }
 
     isSavingRef.current = true;
     setStatus("saving");
     setError(null);
+    const run = savePatch(snapshotToPersist, patch);
+    inflightSaveRef.current = run;
+    await run;
+  }
+
+  async function savePatch(
+    snapshotToPersist: SceneSnapshot,
+    patch: ReturnType<typeof diffAgainstSaved>,
+  ): Promise<void> {
     try {
       const res = await apiPatch<{ scene: EditorScene }>(`/api/scenes/${scene.id}`, patch);
-      savedRef.current = { ...savedRef.current, ...snapshotToPersist };
+      // The working snapshot we sent is authoritative for dirty tracking; the
+      // parent gets the server row via onSaved for outline rollups / breadcrumbs.
+      savedRef.current = { ...snapshotToPersist };
       const stillDirty = isSnapshotDirty(currentRef.current, savedRef.current);
       if (!stillDirty) {
         clearDraft(scene.id);
@@ -178,6 +237,7 @@ export function SceneEditor(props: SceneEditorProps) {
           sceneId: scene.id,
           title: currentRef.current.title,
           content: currentRef.current.content,
+          contentDoc: currentRef.current.contentDoc,
           summary: currentRef.current.summary,
           pov: currentRef.current.pov,
           tense: currentRef.current.tense,
@@ -195,6 +255,7 @@ export function SceneEditor(props: SceneEditorProps) {
         sceneId: scene.id,
         title: currentRef.current.title,
         content: currentRef.current.content,
+        contentDoc: currentRef.current.contentDoc,
         summary: currentRef.current.summary,
         pov: currentRef.current.pov,
         tense: currentRef.current.tense,
@@ -204,6 +265,8 @@ export function SceneEditor(props: SceneEditorProps) {
       });
     } finally {
       isSavingRef.current = false;
+      manualFlushRef.current = false;
+      inflightSaveRef.current = null;
       if (queuedSaveRef.current) {
         queuedSaveRef.current = false;
         void persist();
@@ -226,6 +289,7 @@ export function SceneEditor(props: SceneEditorProps) {
       sceneId: scene.id,
       title: current.title,
       content: current.content,
+      contentDoc: current.contentDoc,
       summary: current.summary,
       pov: current.pov,
       tense: current.tense,
@@ -248,16 +312,87 @@ export function SceneEditor(props: SceneEditorProps) {
       return;
     }
     appliedInsertSeqRef.current = props.insertRequest.seq;
-    setContent((prev) => {
-      const separator = prev && !prev.endsWith("\n") ? "\n\n" : prev ? "\n\n" : "";
-      return prev ? `${prev}${separator}${props.insertRequest!.text}` : props.insertRequest!.text;
-    });
+    const insertText = props.insertRequest.text;
+    const snap = currentRef.current;
+    const baseDoc = snap.contentDoc ?? docFromPlainText(snap.content);
+    const nextDoc = appendPlainTextToDoc(baseDoc, insertText);
+    setContentDoc(nextDoc);
+    setContent(plainTextFromDoc(nextDoc));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props.insertRequest?.seq]);
 
-  function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+  /**
+   * Saves until the stored scene matches the working copy (waiting out any
+   * in-flight or queued save). Returns false if a save failed.
+   */
+  async function flushSave(): Promise<boolean> {
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      if (inflightSaveRef.current) {
+        await inflightSaveRef.current;
+        continue;
+      }
+      if (!isSnapshotDirty(currentRef.current, savedRef.current)) return true;
+      manualFlushRef.current = true;
+      await persist();
+      if (!inflightSaveRef.current && isSnapshotDirty(currentRef.current, savedRef.current)) {
+        return false;
+      }
+    }
+    return !isSnapshotDirty(currentRef.current, savedRef.current);
+  }
+
+  /**
+   * Craft Apply: save pending edits, take a MANUAL checkpoint of the stored
+   * scene, then replace the range the tool ran on. The checkpoint is skipped
+   * (and nothing replaced) if the passage changed since the run.
+   */
+  async function applyCraft(range: EditorSelection, text: string): Promise<CraftApplyResult> {
+    const handle = editorHandleRef.current;
+    if (!handle) return { ok: false, message: "The editor is not ready yet." };
+    const changed = {
+      ok: false as const,
+      message:
+        "The selected passage changed since the tool ran. Select it again and rerun, or copy the result.",
+    };
+    if (!handle.matches(range)) return changed;
+    if (!(await flushSave())) {
+      return {
+        ok: false,
+        message: "Your latest edits could not be saved, so nothing was replaced. Try again.",
+      };
+    }
+    if (editorHandleRef.current !== handle) {
+      return {
+        ok: false,
+        message: "The editor changed before the edit could be applied, so nothing was replaced.",
+      };
+    }
+    try {
+      await apiPost(`/api/scenes/${scene.id}/revisions`, {});
+    } catch (err) {
+      return {
+        ok: false,
+        message: `Checkpoint failed, so nothing was replaced: ${
+          err instanceof ApiRequestError ? err.message : "request failed"
+        }`,
+      };
+    }
+    if (editorHandleRef.current !== handle) {
+      return {
+        ok: false,
+        message: "The editor changed before the edit could be applied, so nothing was replaced.",
+      };
+    }
+    if (!handle.replaceRange(range, text)) return changed;
+    setSelection(null);
+    if (showHistory) void loadRevisions();
+    return { ok: true };
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent) {
     if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") {
       e.preventDefault();
+      manualFlushRef.current = true;
       void persist();
     }
   }
@@ -266,6 +401,7 @@ export function SceneEditor(props: SceneEditorProps) {
     if (!restoreOffer) return;
     setTitle(restoreOffer.title);
     setContent(restoreOffer.content);
+    setContentDoc(restoreOffer.contentDoc ?? docFromPlainText(restoreOffer.content));
     setSummary(restoreOffer.summary);
     if (restoreOffer.pov !== undefined) setPov(restoreOffer.pov);
     if (restoreOffer.tense !== undefined) setTense(restoreOffer.tense);
@@ -278,13 +414,77 @@ export function SceneEditor(props: SceneEditorProps) {
     setRestoreOffer(null);
   }
 
+  const onEditorReady = useCallback((handle: RichTextEditorHandle | null) => {
+    editorHandleRef.current = handle;
+  }, []);
+
+  const onRichChange = useCallback((next: { contentDoc: TiptapDoc; content: string }) => {
+    setContentDoc(next.contentDoc);
+    setContent(next.content);
+  }, []);
+
+  const loadRevisions = useCallback(async () => {
+    setRevisionsLoading(true);
+    setRevisionsError(null);
+    try {
+      const res = await apiGet<{ revisions: SceneRevisionListItem[] }>(
+        `/api/scenes/${scene.id}/revisions?limit=20`,
+      );
+      setRevisions(res.revisions);
+    } catch (err) {
+      setRevisionsError(err instanceof ApiRequestError ? err.message : "Failed to load history");
+    } finally {
+      setRevisionsLoading(false);
+    }
+  }, [scene.id]);
+
+  useEffect(() => {
+    if (showHistory) {
+      void loadRevisions();
+    }
+  }, [showHistory, loadRevisions]);
+
+  async function handleRestoreRevision(revisionId: string) {
+    setRestoringId(revisionId);
+    setRevisionsError(null);
+    try {
+      const res = await apiPost<{ scene: EditorScene }>(
+        `/api/scenes/${scene.id}/revisions/${revisionId}/restore`,
+        {},
+      );
+      setTitle(res.scene.title);
+      setContent(res.scene.content);
+      setContentDoc(res.scene.contentDoc ?? null);
+      setSummary(res.scene.summary ?? "");
+      setPov(res.scene.pov);
+      setTense(res.scene.tense);
+      setExcludeFromAi(res.scene.excludeFromAi);
+      savedRef.current = snapshotOf(res.scene);
+      clearDraft(scene.id);
+      setStatus("saved");
+      props.onSaved(res.scene);
+      await loadRevisions();
+    } catch (err) {
+      setRevisionsError(err instanceof ApiRequestError ? err.message : "Restore failed");
+    } finally {
+      setRestoringId(null);
+    }
+  }
+
   const words = countWords(content);
+
+  // Stream save state + word count to the workspace (Writer Mode status pill).
+  const onStatusChangeRef = useRef(props.onStatusChange);
+  onStatusChangeRef.current = props.onStatusChange;
+  useEffect(() => {
+    onStatusChangeRef.current?.(status, words);
+  }, [status, words]);
 
   return (
     <div className="flex h-full min-w-0 flex-col" data-testid="scene-editor">
       <div className="border-ink-200 flex flex-wrap items-center gap-3 border-b px-6 py-3">
         <div className="min-w-0 flex-1">
-          <p className="text-ink-400 truncate text-xs">
+          <p className="text-muted truncate text-xs">
             {scene.actTitle} / {scene.chapterTitle}
           </p>
           <input
@@ -292,42 +492,60 @@ export function SceneEditor(props: SceneEditorProps) {
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             aria-label="Scene title"
-            className="w-full bg-transparent text-lg font-semibold text-ink-900 focus:outline-none"
+            className="w-full bg-transparent text-lg font-semibold text-primary focus:outline-none"
           />
         </div>
-        <div className="flex items-center gap-3">
-          <span className="text-ink-400 text-xs tabular-nums" data-testid="word-count">
-            {formatWordCount(words)}
-          </span>
-          <span
-            data-testid="save-status"
-            className={`text-xs font-medium ${
-              status === "error"
-                ? "text-red-600"
+        <button
+          type="button"
+          onClick={() => setShowCraft((v) => !v)}
+          aria-expanded={showCraft}
+          className="rounded-md border border-ink-200 px-2.5 py-1 text-xs font-medium text-ink-700 hover:bg-ink-50"
+        >
+          {showCraft ? "Hide craft" : "Craft"}
+        </button>
+        {props.chrome !== "focus" && (
+          <div className="flex items-center gap-3">
+            <span className="text-muted text-xs tabular-nums" data-testid="word-count">
+              {formatWordCount(words)}
+            </span>
+            <span
+              data-testid="save-status"
+              className={`text-xs font-medium ${
+                status === "error"
+                  ? "text-red-600"
+                  : status === "saving"
+                    ? "text-ink-500"
+                    : status === "dirty"
+                      ? "text-ink-400"
+                      : "text-emerald-600"
+              }`}
+            >
+              {status === "error"
+                ? "Save failed — draft kept locally"
                 : status === "saving"
-                  ? "text-ink-500"
+                  ? "Saving…"
                   : status === "dirty"
-                    ? "text-ink-400"
-                    : "text-emerald-600"
-            }`}
-          >
-            {status === "error"
-              ? "Save failed — draft kept locally"
-              : status === "saving"
-                ? "Saving…"
-                : status === "dirty"
-                  ? "Unsaved changes"
-                  : "All changes saved"}
-          </span>
-          <button
-            type="button"
-            onClick={() => setShowMeta((v) => !v)}
-            aria-expanded={showMeta}
-            className="rounded-md border border-ink-200 px-2.5 py-1 text-xs font-medium text-ink-700 hover:bg-ink-50"
-          >
-            {showMeta ? "Hide details" : "Details"}
-          </button>
-        </div>
+                    ? "Unsaved changes"
+                    : "All changes saved"}
+            </span>
+            <button
+              type="button"
+              onClick={() => setShowHistory((v) => !v)}
+              aria-expanded={showHistory}
+              className="rounded-md border border-ink-200 px-2.5 py-1 text-xs font-medium text-ink-700 hover:bg-ink-50"
+            >
+              {showHistory ? "Hide history" : "History"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowMeta((v) => !v)}
+              aria-expanded={showMeta}
+              className="rounded-md border border-ink-200 px-2.5 py-1 text-xs font-medium text-ink-700 hover:bg-ink-50"
+            >
+              {showMeta ? "Hide details" : "Details"}
+            </button>
+          </div>
+        )}
       </div>
 
       {restoreOffer && (
@@ -421,15 +639,86 @@ export function SceneEditor(props: SceneEditorProps) {
         </div>
       )}
 
-      <textarea
-        value={content}
-        onChange={(e) => setContent(e.target.value)}
-        onKeyDown={handleKeyDown}
-        placeholder="Start writing…"
-        aria-label="Scene text"
-        spellCheck
-        className="min-h-0 flex-1 resize-none bg-transparent px-6 py-5 font-serif text-[17px] leading-8 text-ink-900 placeholder:text-ink-300 focus:outline-none"
-      />
+      {showHistory && (
+        <div
+          className="border-ink-200 max-h-48 overflow-y-auto border-b bg-ink-50/40 px-6 py-3"
+          data-testid="scene-history"
+        >
+          <div className="mb-2 flex items-center justify-between">
+            <p className="text-ink-600 text-xs font-medium">Version history</p>
+            <button
+              type="button"
+              onClick={() => void loadRevisions()}
+              className="text-ink-500 text-xs hover:text-ink-800"
+            >
+              Refresh
+            </button>
+          </div>
+          {revisionsLoading && <p className="text-muted text-xs">Loading…</p>}
+          {revisionsError && <p className="text-xs text-red-600">{revisionsError}</p>}
+          {!revisionsLoading && revisions.length === 0 && (
+            <p className="text-muted text-xs">No versions yet — they appear after saves.</p>
+          )}
+          <ul className="space-y-2">
+            {revisions.map((rev) => (
+              <li
+                key={rev.id}
+                className="border-ink-200 flex items-start justify-between gap-3 rounded-md border bg-white px-3 py-2"
+                data-testid="revision-row"
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-xs font-medium text-ink-900">
+                    {rev.title}{" "}
+                    <span className="text-ink-400 font-normal">
+                      · {rev.reason.toLowerCase()} · {formatWordCount(rev.wordCount)}
+                    </span>
+                  </p>
+                  <p className="text-muted truncate text-[11px]">
+                    {new Date(rev.createdAt).toLocaleString()} — {rev.contentPreview || "(empty)"}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  disabled={restoringId === rev.id}
+                  onClick={() => void handleRestoreRevision(rev.id)}
+                  className="shrink-0 rounded border border-ink-200 px-2 py-1 text-[11px] font-medium text-ink-700 hover:bg-ink-50 disabled:opacity-50"
+                >
+                  {restoringId === rev.id ? "Restoring…" : "Restore"}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+          <RichTextEditor
+            contentDoc={contentDoc}
+            plainContent={content}
+            onChange={onRichChange}
+            onKeyDown={handleKeyDown}
+            onSelectionChange={setSelection}
+            onReady={onEditorReady}
+            placeholder="Start writing…"
+          />
+        </div>
+        {showCraft && (
+          <aside
+            aria-label="Craft tools"
+            className="border-ink-200 max-h-[50%] min-h-0 shrink-0 overflow-hidden border-t bg-card lg:max-h-none lg:w-80 lg:border-t-0 lg:border-l"
+          >
+            <CraftPanel
+              sceneId={scene.id}
+              content={content}
+              selection={selection}
+              excludeFromAi={excludeFromAi}
+              onApply={applyCraft}
+              onClose={() => setShowCraft(false)}
+            />
+          </aside>
+        )}
+      </div>
     </div>
   );
 }

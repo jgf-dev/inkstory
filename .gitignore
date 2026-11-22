@@ -5,6 +5,7 @@ node_modules
 .env*.local
 .env.*.local
 !.env.example
+!.env.test
 *.log
 .DS_Store
 .vercel
@@ -35,5 +36,20 @@ next-env.d.ts
 **/.temp/*
 .repo_memory
 .env*
+!.env.test
 .remember
 .mcp.json
+
+# OpenNext
+.open-next
+
+# wrangler files
+.wrangler
+.dev.vars*
+!.dev.vars.example
+.vinext/
+.cloudflare/
+worker-startup.cpuprofile
+.vitest/
+*.pyi
+.stubs/pyspark34

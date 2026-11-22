@@ -16,7 +16,7 @@ describe("Supabase Client Factories", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     process.env.NEXT_PUBLIC_SUPABASE_URL = "https://example.supabase.co";
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "test-anon-key";
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY = "test-anon-key";
   });
 
   describe("createSupabaseBrowserClient", () => {
@@ -37,6 +37,20 @@ describe("Supabase Client Factories", () => {
         "test-anon-key",
       );
       expect(client).toBeDefined();
+    });
+
+    it("falls back to NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY when NEXT_PUBLIC_SUPABASE_ANON_KEY is unset", async () => {
+      delete process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY = "sb_publishable_fallback";
+      mockCreateBrowserClient.mockReturnValue({ auth: {} });
+
+      const { createSupabaseBrowserClient } = await import("../src/lib/supabase/client");
+      createSupabaseBrowserClient();
+
+      expect(mockCreateBrowserClient).toHaveBeenCalledWith(
+        "https://example.supabase.co",
+        "sb_publishable_fallback",
+      );
     });
   });
 
@@ -143,12 +157,18 @@ describe("Supabase Client Factories", () => {
       const client = await createSupabaseServerClient();
 
       expect(mockCreateServerClient).not.toHaveBeenCalled();
-      const { data, error } = await client.auth.getUser();
+      const userPromise = client.auth.getUser();
+      expect(userPromise).toBeInstanceOf(Promise);
+      const { data, error } = await userPromise;
       expect(error).toBeNull();
       expect(data.user).toEqual(user);
-      const session = await client.auth.getSession();
+      const sessionPromise = client.auth.getSession();
+      expect(sessionPromise).toBeInstanceOf(Promise);
+      const session = await sessionPromise;
       expect(session.data.session?.user).toEqual(user);
-      const signOut = await client.auth.signOut();
+      const signOutPromise = client.auth.signOut();
+      expect(signOutPromise).toBeInstanceOf(Promise);
+      const signOut = await signOutPromise;
       expect(signOut.error).toBeNull();
     });
 

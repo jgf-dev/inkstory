@@ -7,6 +7,11 @@ import {
   POST as postOutline,
 } from "../src/app/api/novels/[id]/outline/route";
 import { GET as getScene, PATCH as patchScene } from "../src/app/api/scenes/[id]/route";
+import {
+  GET as getRevisions,
+  POST as checkpointRevision,
+} from "../src/app/api/scenes/[id]/revisions/route";
+import { POST as restoreRevision } from "../src/app/api/scenes/[id]/revisions/[revisionId]/restore/route";
 import * as writingService from "../src/lib/writing/service";
 import { CodexError } from "../src/lib/codex/errors";
 
@@ -63,7 +68,7 @@ describe("Writing REST Route Handlers", () => {
       const req = new NextRequest(`http://localhost:3000/api/novels/${novelId}/outline`);
       const res = await getOutline(req, { params: Promise.resolve({ id: novelId }) });
       expect(res.status).toBe(200);
-      const json = await res.json();
+      const json = await res.json<any>();
       expect(json.outline).toEqual(outline);
     });
 
@@ -123,7 +128,7 @@ describe("Writing REST Route Handlers", () => {
       });
       const res = await patchOutline(req, { params: Promise.resolve({ id: novelId }) });
       expect(res.status).toBe(200);
-      const json = await res.json();
+      const json = await res.json<any>();
       expect(json.renamed.title).toBe("Renamed");
       expect(json.moved.moved).toBe(true);
     });
@@ -135,6 +140,46 @@ describe("Writing REST Route Handlers", () => {
       });
       const res = await patchOutline(req, { params: Promise.resolve({ id: novelId }) });
       expect(res.status).toBe(400);
+    });
+
+    it("reorders via toIndex on PATCH", async () => {
+      vi.spyOn(writingService, "moveOutlineNode").mockResolvedValueOnce({
+        id: "scene-1",
+        kind: "scene",
+        moved: true,
+      } as any);
+      const req = new NextRequest(`http://localhost:3000/api/novels/${novelId}/outline`, {
+        method: "PATCH",
+        body: JSON.stringify({ kind: "scene", id: "scene-1", toIndex: 2 }),
+      });
+      const res = await patchOutline(req, { params: Promise.resolve({ id: novelId }) });
+      expect(res.status).toBe(200);
+      expect(writingService.moveOutlineNode).toHaveBeenCalledWith(userId, novelId, {
+        kind: "scene",
+        id: "scene-1",
+        direction: undefined,
+        toIndex: 2,
+      });
+    });
+
+    it("rejects PATCH with both direction and toIndex", async () => {
+      const req = new NextRequest(`http://localhost:3000/api/novels/${novelId}/outline`, {
+        method: "PATCH",
+        body: JSON.stringify({ kind: "scene", id: "scene-1", direction: "up", toIndex: 0 }),
+      });
+      const res = await patchOutline(req, { params: Promise.resolve({ id: novelId }) });
+      expect(res.status).toBe(400);
+    });
+
+    it("rejects PATCH with invalid toIndex", async () => {
+      for (const invalid of [-1, 1.5, "0"]) {
+        const req = new NextRequest(`http://localhost:3000/api/novels/${novelId}/outline`, {
+          method: "PATCH",
+          body: JSON.stringify({ kind: "scene", id: "scene-1", toIndex: invalid }),
+        });
+        const res = await patchOutline(req, { params: Promise.resolve({ id: novelId }) });
+        expect(res.status).toBe(400);
+      }
     });
 
     it("soft-deletes via DELETE with kind and nodeId", async () => {
@@ -166,7 +211,7 @@ describe("Writing REST Route Handlers", () => {
       const req = new NextRequest(`http://localhost:3000/api/scenes/${sceneId}`);
       const res = await getScene(req, { params: Promise.resolve({ id: sceneId }) });
       expect(res.status).toBe(200);
-      const json = await res.json();
+      const json = await res.json<any>();
       expect(json.scene).toEqual(scene);
     });
 
@@ -183,6 +228,81 @@ describe("Writing REST Route Handlers", () => {
       expect(writingService.updateScene).toHaveBeenCalledWith(userId, sceneId, {
         content: "hello world",
       });
+    });
+
+    it("PATCH accepts contentDoc", async () => {
+      const scene = { id: sceneId, content: "hello", contentFormat: "TIPTAP_JSON" } as any;
+      vi.spyOn(writingService, "updateScene").mockResolvedValueOnce(scene);
+      const doc = {
+        type: "doc",
+        content: [{ type: "paragraph", content: [{ type: "text", text: "hello" }] }],
+      };
+      const req = new NextRequest(`http://localhost:3000/api/scenes/${sceneId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ contentDoc: doc }),
+      });
+      const res = await patchScene(req, { params: Promise.resolve({ id: sceneId }) });
+      expect(res.status).toBe(200);
+      expect(writingService.updateScene).toHaveBeenCalledWith(userId, sceneId, { contentDoc: doc });
+    });
+
+    it("GET revisions lists history", async () => {
+      vi.spyOn(writingService, "listSceneRevisions").mockResolvedValueOnce([
+        { id: "rev-1", sceneId, title: "T", contentPreview: "hi" } as any,
+      ]);
+      const req = new NextRequest(`http://localhost:3000/api/scenes/${sceneId}/revisions?limit=5`);
+      const res = await getRevisions(req, { params: Promise.resolve({ id: sceneId }) });
+      expect(res.status).toBe(200);
+      const json = await res.json<any>();
+      expect(json.revisions).toHaveLength(1);
+      expect(writingService.listSceneRevisions).toHaveBeenCalledWith(userId, sceneId, 5);
+    });
+
+    it("POST revisions takes a MANUAL checkpoint", async () => {
+      vi.spyOn(writingService, "checkpointScene").mockResolvedValueOnce({
+        id: "rev-9",
+        sceneId,
+        reason: "MANUAL",
+      } as any);
+      const req = new NextRequest(`http://localhost:3000/api/scenes/${sceneId}/revisions`, {
+        method: "POST",
+      });
+      const res = await checkpointRevision(req, { params: Promise.resolve({ id: sceneId }) });
+      expect(res.status).toBe(201);
+      const json = await res.json<any>();
+      expect(json.revision).toMatchObject({ id: "rev-9", reason: "MANUAL" });
+      expect(writingService.checkpointScene).toHaveBeenCalledWith(userId, sceneId);
+    });
+
+    it("POST revisions maps access errors and requires a session", async () => {
+      vi.spyOn(writingService, "checkpointScene").mockRejectedValueOnce(
+        new CodexError("You do not have access", "FORBIDDEN", 403),
+      );
+      const url = `http://localhost:3000/api/scenes/${sceneId}/revisions`;
+      const denied = await checkpointRevision(new NextRequest(url, { method: "POST" }), {
+        params: Promise.resolve({ id: sceneId }),
+      });
+      expect(denied.status).toBe(403);
+
+      mockGetUser.mockResolvedValueOnce({ data: { user: null } });
+      const anon = await checkpointRevision(new NextRequest(url, { method: "POST" }), {
+        params: Promise.resolve({ id: sceneId }),
+      });
+      expect(anon.status).toBe(401);
+    });
+
+    it("POST restore applies a revision", async () => {
+      const scene = { id: sceneId, content: "restored" } as any;
+      vi.spyOn(writingService, "restoreSceneRevision").mockResolvedValueOnce(scene);
+      const req = new NextRequest(
+        `http://localhost:3000/api/scenes/${sceneId}/revisions/rev-1/restore`,
+        { method: "POST" },
+      );
+      const res = await restoreRevision(req, {
+        params: Promise.resolve({ id: sceneId, revisionId: "rev-1" }),
+      });
+      expect(res.status).toBe(200);
+      expect(writingService.restoreSceneRevision).toHaveBeenCalledWith(userId, sceneId, "rev-1");
     });
 
     it("PATCH with an empty body returns 400", async () => {

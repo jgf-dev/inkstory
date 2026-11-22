@@ -1,72 +1,100 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
-import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { useRef, useState } from "react";
+import { TurnstileWidget, type TurnstileWidgetHandle } from "@/app/_components/TurnstileWidget";
+import { getTurnstileSiteKey, TURNSTILE_TOKEN_FIELD } from "@/lib/turnstile";
+import { AuthTextField } from "@/lib/ui/AuthTextField";
 
-export function LoginForm() {
+export function LoginForm({
+  siteKey,
+  initialError = null,
+}: {
+  siteKey?: string;
+  initialError?: string | null;
+} = {}) {
   const router = useRouter();
+  const turnstileRef = useRef<TurnstileWidgetHandle | null>(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [turnstileToken, setTurnstileToken] = useState("");
+  const [error, setError] = useState<string | null>(initialError);
   const [loading, setLoading] = useState(false);
+
+  const resolvedSiteKey = siteKey ?? getTurnstileSiteKey();
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
-    setLoading(true);
 
-    const supabase = createSupabaseBrowserClient();
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
-    if (signInError) {
-      setError(signInError.message);
-      setLoading(false);
+    if (!turnstileToken) {
+      setError("Please complete the verification challenge.");
       return;
     }
 
-    router.push("/dashboard");
-    router.refresh();
+    setLoading(true);
+
+    try {
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email,
+          password,
+          [TURNSTILE_TOKEN_FIELD]: turnstileToken,
+        }),
+      });
+      const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+
+      if (!response.ok) {
+        setError(payload?.error ?? "Unable to log in. Please try again.");
+        turnstileRef.current?.reset();
+        setLoading(false);
+        return;
+      }
+
+      router.push("/dashboard");
+      router.refresh();
+    } catch {
+      setError("Unable to reach the server. Please try again.");
+      turnstileRef.current?.reset();
+      setLoading(false);
+    }
   }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div>
-        <label htmlFor="email" className="block text-sm font-medium">
-          Email
-        </label>
-        <input
-          id="email"
-          type="email"
-          required
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="border-ink-300 mt-1 block w-full rounded-md border px-3 py-2 text-sm"
-        />
-      </div>
-      <div>
-        <label htmlFor="password" className="block text-sm font-medium">
-          Password
-        </label>
-        <input
-          id="password"
-          type="password"
-          required
-          minLength={6}
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className="border-ink-300 mt-1 block w-full rounded-md border px-3 py-2 text-sm"
-        />
-      </div>
+      <AuthTextField
+        id="email"
+        label="Email"
+        type="email"
+        required
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+      />
+      <AuthTextField
+        id="password"
+        label="Password"
+        type="password"
+        required
+        minLength={6}
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+      />
+
+      <TurnstileWidget
+        ref={turnstileRef}
+        siteKey={resolvedSiteKey}
+        action="login"
+        onTokenChange={setTurnstileToken}
+      />
 
       {error && <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
 
       <button
         type="submit"
         disabled={loading}
+        title={loading ? "Logging in, please wait" : undefined}
         className="bg-ink-700 text-ink-50 hover:bg-ink-800 w-full rounded-md px-4 py-2 text-sm font-medium disabled:opacity-50"
       >
         {loading ? "Logging in…" : "Log in"}

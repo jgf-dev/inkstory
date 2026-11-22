@@ -1,8 +1,10 @@
 "use client";
 
-import React from "react";
+import React, { useId } from "react";
 import type { CodexTrackingMode, CodexType } from "@/lib/codex/types";
 import { useCodexCreateForm } from "./useCodexCreateForm";
+import { a11yClasses } from "@/lib/ui/a11y-classes";
+import { CodexLabeledSelect } from "./CodexLabeledSelect";
 
 interface CodexCreateModalProps {
   isOpen: boolean;
@@ -48,6 +50,8 @@ export function CodexCreateModal({
     onClose,
   });
 
+  const fieldId = useId();
+
   if (!isOpen) return null;
 
   return (
@@ -66,53 +70,43 @@ export function CodexCreateModal({
 
         <form onSubmit={actions.handleSubmit} className="space-y-4">
           <div>
-            <label className="text-ink-600 block text-xs font-semibold uppercase tracking-wider">
+            <label
+              className="text-ink-600 block text-xs font-semibold uppercase tracking-wider"
+              htmlFor={`${fieldId}-name`}
+            >
               Name *
             </label>
             <input
+              id={`${fieldId}-name`}
               type="text"
               required
               value={formState.name}
               onChange={(e) => actions.setName(e.target.value)}
               placeholder="e.g. Mara Vance, Sunken Archives"
-              className="border-ink-200 bg-ink-100 focus:border-ink-400 mt-1 w-full rounded-md border p-2 text-sm focus:outline-hidden"
+              className={a11yClasses.codexCreateField}
             />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-ink-600 block text-xs font-semibold uppercase tracking-wider">
-                Type
-              </label>
-              <select
-                value={formState.type}
-                onChange={(e) => actions.setType(e.target.value as CodexType)}
-                className="border-ink-200 bg-ink-100 focus:border-ink-400 mt-1 w-full rounded-md border p-2 text-sm focus:outline-hidden"
-              >
-                {CODEX_TYPES.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <CodexLabeledSelect
+              id={`${fieldId}-type`}
+              label="Type"
+              value={formState.type}
+              onChange={(e) => actions.setType(e.target.value as CodexType)}
+              options={CODEX_TYPES}
+              className={a11yClasses.codexCreateField}
+              labelClassName="text-ink-600 block text-xs font-semibold uppercase tracking-wider"
+            />
 
-            <div>
-              <label className="text-ink-600 block text-xs font-semibold uppercase tracking-wider">
-                Tracking Mode
-              </label>
-              <select
-                value={formState.trackingMode}
-                onChange={(e) => actions.setTrackingMode(e.target.value as CodexTrackingMode)}
-                className="border-ink-200 bg-ink-100 focus:border-ink-400 mt-1 w-full rounded-md border p-2 text-sm focus:outline-hidden"
-              >
-                {TRACKING_MODES.map((m) => (
-                  <option key={m} value={m}>
-                    {m}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <CodexLabeledSelect
+              id={`${fieldId}-tracking-mode`}
+              label="Tracking Mode"
+              value={formState.trackingMode}
+              onChange={(e) => actions.setTrackingMode(e.target.value as CodexTrackingMode)}
+              options={TRACKING_MODES}
+              className={a11yClasses.codexCreateField}
+              labelClassName="text-ink-600 block text-xs font-semibold uppercase tracking-wider"
+            />
           </div>
 
           <ScopeSelector
@@ -130,54 +124,60 @@ export function CodexCreateModal({
             onNovelChange={actions.setSelectedNovelId}
           />
 
-          <ColorPresetPicker
-            currentColor={formState.color}
-            onSelectColor={actions.setColor}
-          />
+          <ColorPresetPicker currentColor={formState.color} onSelectColor={actions.setColor} />
 
           <div>
-            <label className="text-ink-600 block text-xs font-semibold uppercase tracking-wider">
+            <label
+              className="text-ink-600 block text-xs font-semibold uppercase tracking-wider"
+              htmlFor={`${fieldId}-aliases`}
+            >
               Aliases (comma separated)
             </label>
             <input
+              id={`${fieldId}-aliases`}
               type="text"
               value={formState.aliasesText}
               onChange={(e) => actions.setAliasesText(e.target.value)}
               placeholder="e.g. The Glass Weaver, Mara"
-              className="border-ink-200 bg-ink-100 focus:border-ink-400 mt-1 w-full rounded-md border p-2 text-sm focus:outline-hidden"
+              className={a11yClasses.codexCreateField}
             />
           </div>
 
           <div>
-            <label className="text-ink-600 block text-xs font-semibold uppercase tracking-wider">
+            <label
+              className="text-ink-600 block text-xs font-semibold uppercase tracking-wider"
+              htmlFor={`${fieldId}-description`}
+            >
               Description
             </label>
             <textarea
+              id={`${fieldId}-description`}
               rows={3}
               value={formState.description}
               onChange={(e) => actions.setDescription(e.target.value)}
               placeholder="Primary world bible description..."
-              className="border-ink-200 bg-ink-100 focus:border-ink-400 mt-1 w-full rounded-md border p-2 text-sm focus:outline-hidden"
+              className={a11yClasses.codexCreateField}
             />
           </div>
 
           <div>
-            <label className="text-ink-600 block text-xs font-semibold uppercase tracking-wider">
+            <label
+              className="text-ink-600 block text-xs font-semibold uppercase tracking-wider"
+              htmlFor={`${fieldId}-notes`}
+            >
               Private Author Notes
             </label>
             <textarea
+              id={`${fieldId}-notes`}
               rows={2}
               value={formState.notes}
               onChange={(e) => actions.setNotes(e.target.value)}
               placeholder="Secret backstory, plot triggers, author reminders..."
-              className="border-ink-200 bg-ink-100 focus:border-ink-400 mt-1 w-full rounded-md border p-2 text-sm focus:outline-hidden"
+              className={a11yClasses.codexCreateField}
             />
           </div>
 
-          <ModalFooter
-            onClose={onClose}
-            loading={formState.loading}
-          />
+          <ModalFooter onClose={onClose} loading={formState.loading} />
         </form>
       </div>
     </div>
@@ -191,7 +191,8 @@ function ModalHeader({ onClose }: { onClose: () => void }) {
       <button
         type="button"
         onClick={onClose}
-        className="text-ink-400 hover:text-ink-700 text-sm"
+        className={a11yClasses.dialogCloseButton}
+        aria-label="Close dialog"
       >
         ✕
       </button>
@@ -219,7 +220,7 @@ function ScopeSelector({
             checked={!seriesScoped}
             onChange={() => onScopeChange(false)}
           />
-          Book-specific
+          <span>Book-specific</span>
         </label>
         <label className="flex items-center gap-1.5 text-sm">
           <input
@@ -228,7 +229,7 @@ function ScopeSelector({
             checked={seriesScoped}
             onChange={() => onScopeChange(true)}
           />
-          Series-wide
+          <span>Series-wide</span>
         </label>
       </div>
     </div>
@@ -252,17 +253,23 @@ function TargetSelector({
   onSeriesChange: (id: string) => void;
   onNovelChange: (id: string) => void;
 }) {
+  const selectId = useId();
+
   if (seriesScoped) {
     return (
       <div>
-        <label className="text-ink-600 block text-xs font-semibold uppercase tracking-wider">
+        <label
+          className="text-ink-600 block text-xs font-semibold uppercase tracking-wider"
+          htmlFor={series.length > 0 ? selectId : undefined}
+        >
           Target Series *
         </label>
         {series.length > 0 ? (
           <select
+            id={selectId}
             value={selectedSeriesId}
             onChange={(e) => onSeriesChange(e.target.value)}
-            className="border-ink-200 bg-ink-100 focus:border-ink-400 mt-1 w-full rounded-md border p-2 text-sm focus:outline-hidden"
+            className={a11yClasses.codexCreateField}
           >
             {series.map((s) => (
               <option key={s.id} value={s.id}>
@@ -281,14 +288,18 @@ function TargetSelector({
 
   return (
     <div>
-      <label className="text-ink-600 block text-xs font-semibold uppercase tracking-wider">
+      <label
+        className="text-ink-600 block text-xs font-semibold uppercase tracking-wider"
+        htmlFor={novels.length > 0 ? selectId : undefined}
+      >
         Target Novel *
       </label>
       {novels.length > 0 ? (
         <select
+          id={selectId}
           value={selectedNovelId}
           onChange={(e) => onNovelChange(e.target.value)}
-          className="border-ink-200 bg-ink-100 focus:border-ink-400 mt-1 w-full rounded-md border p-2 text-sm focus:outline-hidden"
+          className={a11yClasses.codexCreateField}
         >
           {novels.map((n) => (
             <option key={n.id} value={n.id}>
@@ -312,21 +323,28 @@ function ColorPresetPicker({
   currentColor: string;
   onSelectColor: (color: string) => void;
 }) {
+  const headingId = useId();
+
   return (
     <div>
-      <label className="text-ink-600 block text-xs font-semibold uppercase tracking-wider">
+      <span
+        id={headingId}
+        className="text-ink-600 block text-xs font-semibold uppercase tracking-wider"
+      >
         Color Theme
-      </label>
-      <div className="mt-1 flex items-center gap-2">
+      </span>
+      <div role="group" aria-labelledby={headingId} className="mt-1 flex items-center gap-2">
         {COLOR_PRESETS.map((preset) => (
           <button
             key={preset}
             type="button"
+            aria-label={`Color ${preset}`}
+            aria-pressed={currentColor === preset}
             onClick={() => onSelectColor(preset)}
-            className={`h-6 w-6 rounded-full transition-transform ${
+            className={`${a11yClasses.colorSwatchBase} ${
               currentColor === preset
-                ? "scale-110 ring-2 ring-ink-800 ring-offset-1"
-                : "hover:scale-105"
+                ? a11yClasses.colorSwatchSelected
+                : a11yClasses.colorSwatchIdle
             }`}
             style={{ backgroundColor: preset }}
           />
@@ -336,13 +354,7 @@ function ColorPresetPicker({
   );
 }
 
-function ModalFooter({
-  onClose,
-  loading,
-}: {
-  onClose: () => void;
-  loading: boolean;
-}) {
+function ModalFooter({ onClose, loading }: { onClose: () => void; loading: boolean }) {
   return (
     <div className="flex items-center justify-end gap-2 border-t border-ink-200 pt-4">
       <button

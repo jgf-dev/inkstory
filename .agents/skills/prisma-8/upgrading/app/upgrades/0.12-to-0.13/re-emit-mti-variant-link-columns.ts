@@ -23,16 +23,16 @@
  *   --check   dry-run; lists contract-spaces that still need re-emitting and
  *             exits 1 if any remain.
  */
-import { execFile } from "node:child_process";
-import { access, readdir, readFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
-import { promisify } from "node:util";
+import { execFile } from 'node:child_process';
+import { access, readdir, readFile } from 'node:fs/promises';
+import { dirname, join } from 'node:path';
+import { promisify } from 'node:util';
 
 const execFileAsync = promisify(execFile);
 
-const SKIP_DIRS = new Set(["node_modules", ".git", "dist", "build"]);
+const SKIP_DIRS = new Set(['node_modules', '.git', 'dist', 'build']);
 
-const dryRun = process.argv.includes("--check");
+const dryRun = process.argv.includes('--check');
 const projectRoot = process.cwd();
 
 async function pathExists(path: string): Promise<boolean> {
@@ -45,7 +45,7 @@ async function pathExists(path: string): Promise<boolean> {
 }
 
 function isJsonObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 async function findPrismaNextConfigDirs(root: string): Promise<string[]> {
@@ -62,7 +62,7 @@ async function findPrismaNextConfigDirs(root: string): Promise<string[]> {
       if (entry.isDirectory()) {
         if (SKIP_DIRS.has(entry.name)) continue;
         await walk(join(dir, entry.name));
-      } else if (entry.isFile() && entry.name === "prisma.config.ts") {
+      } else if (entry.isFile() && entry.name === 'prisma.config.ts') {
         out.push(dir);
       }
     }
@@ -74,10 +74,10 @@ async function findPrismaNextConfigDirs(root: string): Promise<string[]> {
 
 function contractJsonCandidates(configDir: string): string[] {
   return [
-    join(configDir, "src", "contract.json"),
-    join(configDir, "src", "prisma", "contract.json"),
-    join(configDir, "prisma", "contract.json"),
-    join(configDir, "contract.json"),
+    join(configDir, 'src', 'contract.json'),
+    join(configDir, 'src', 'prisma', 'contract.json'),
+    join(configDir, 'prisma', 'contract.json'),
+    join(configDir, 'contract.json'),
   ];
 }
 
@@ -102,36 +102,36 @@ function contractNeedsMtiLinkColumns(raw: string): boolean {
   }
   if (!isJsonObject(parsed)) return false;
 
-  const domain = parsed["domain"];
-  const storage = parsed["storage"];
+  const domain = parsed['domain'];
+  const storage = parsed['storage'];
   if (!isJsonObject(domain) || !isJsonObject(storage)) return false;
 
-  const domainNamespaces = domain["namespaces"];
-  const storageNamespaces = storage["namespaces"];
+  const domainNamespaces = domain['namespaces'];
+  const storageNamespaces = storage['namespaces'];
   if (!isJsonObject(domainNamespaces) || !isJsonObject(storageNamespaces)) return false;
 
   for (const [nsKey, ns] of Object.entries(domainNamespaces)) {
     if (!isJsonObject(ns)) continue;
-    const models = ns["models"];
+    const models = ns['models'];
     if (!isJsonObject(models)) continue;
     for (const model of Object.values(models)) {
       if (!isJsonObject(model)) continue;
-      if (!isJsonObject(model["base"])) continue;
-      const variantStorage = model["storage"];
+      if (!isJsonObject(model['base'])) continue;
+      const variantStorage = model['storage'];
       if (!isJsonObject(variantStorage)) continue;
-      const tableName = variantStorage["table"];
+      const tableName = variantStorage['table'];
       // The variant table's namespace defaults to the model's enclosing domain
       // namespace when `storage.namespace` is absent.
       const namespaceId =
-        typeof variantStorage["namespace"] === "string" ? variantStorage["namespace"] : nsKey;
-      if (typeof tableName !== "string") continue;
+        typeof variantStorage['namespace'] === 'string' ? variantStorage['namespace'] : nsKey;
+      if (typeof tableName !== 'string') continue;
       const storageNs = storageNamespaces[namespaceId];
       if (!isJsonObject(storageNs)) continue;
-      const tables = storageNs["tables"];
+      const tables = storageNs['tables'];
       if (!isJsonObject(tables)) continue;
       const table = tables[tableName];
       if (!isJsonObject(table)) continue;
-      if (table["primaryKey"] === undefined || table["primaryKey"] === null) {
+      if (table['primaryKey'] === undefined || table['primaryKey'] === null) {
         return true;
       }
     }
@@ -140,16 +140,16 @@ function contractNeedsMtiLinkColumns(raw: string): boolean {
 }
 
 async function packageJsonHasScript(dir: string, name: string): Promise<boolean> {
-  const pkgPath = join(dir, "package.json");
+  const pkgPath = join(dir, 'package.json');
   if (!(await pathExists(pkgPath))) return false;
-  const raw = await readFile(pkgPath, "utf-8");
+  const raw = await readFile(pkgPath, 'utf-8');
   try {
     const parsed: unknown = JSON.parse(raw);
     if (!isJsonObject(parsed)) return false;
-    const scripts = parsed["scripts"];
+    const scripts = parsed['scripts'];
     if (!isJsonObject(scripts)) return false;
     const value = scripts[name];
-    return typeof value === "string" && value.length > 0;
+    return typeof value === 'string' && value.length > 0;
   } catch {
     return false;
   }
@@ -162,24 +162,24 @@ async function resolveEmitInvocation(configDir: string): Promise<{
 }> {
   let dir = configDir;
   while (dir.startsWith(projectRoot)) {
-    if (await packageJsonHasScript(dir, "emit")) {
-      return { cwd: dir, args: ["emit"], key: `script:${dir}` };
+    if (await packageJsonHasScript(dir, 'emit')) {
+      return { cwd: dir, args: ['emit'], key: `script:${dir}` };
     }
     const parent = dirname(dir);
     if (parent === dir) break;
     dir = parent;
   }
-  const configPath = join(configDir, "prisma.config.ts");
+  const configPath = join(configDir, 'prisma.config.ts');
   return {
     cwd: projectRoot,
-    args: ["exec", "prisma-next", "contract", "emit", "--config", configPath],
+    args: ['exec', 'prisma-next', 'contract', 'emit', '--config', configPath],
     key: `config:${configPath}`,
   };
 }
 
 async function runEmit(configDir: string): Promise<void> {
   const { cwd, args } = await resolveEmitInvocation(configDir);
-  await execFileAsync("pnpm", args, { cwd, env: process.env });
+  await execFileAsync('pnpm', args, { cwd, env: process.env });
 }
 
 const configDirs = await findPrismaNextConfigDirs(projectRoot);
@@ -187,10 +187,10 @@ const emitKeys = new Set<string>();
 const targets: Array<{ configDir: string; contractPath: string }> = [];
 
 for (const configDir of configDirs) {
-  if (await packageJsonHasScript(configDir, "build:contract-space")) continue;
+  if (await packageJsonHasScript(configDir, 'build:contract-space')) continue;
   const contractPath = await resolveContractJson(configDir);
   if (contractPath === null) continue;
-  const raw = await readFile(contractPath, "utf-8");
+  const raw = await readFile(contractPath, 'utf-8');
   if (!contractNeedsMtiLinkColumns(raw)) continue;
   const { key } = await resolveEmitInvocation(configDir);
   if (emitKeys.has(key)) continue;
@@ -206,8 +206,8 @@ if (targets.length === 0) {
 let needsFix = 0;
 
 for (const { configDir, contractPath } of targets) {
-  const rel = configDir.slice(projectRoot.length + 1) || ".";
-  const raw = await readFile(contractPath, "utf-8");
+  const rel = configDir.slice(projectRoot.length + 1) || '.';
+  const raw = await readFile(contractPath, 'utf-8');
   if (!contractNeedsMtiLinkColumns(raw)) {
     console.log(`OK    ${rel}`);
     continue;
@@ -223,7 +223,7 @@ for (const { configDir, contractPath } of targets) {
 
 console.log();
 console.log(
-  `${targets.length} contract-space(s): ${needsFix} ${dryRun ? "needing re-emit" : "re-emitted"}.`,
+  `${targets.length} contract-space(s): ${needsFix} ${dryRun ? 'needing re-emit' : 're-emitted'}.`,
 );
 
 if (dryRun && needsFix > 0) process.exit(1);

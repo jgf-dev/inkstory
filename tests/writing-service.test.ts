@@ -6,10 +6,15 @@ import {
   deleteOutlineNode,
   getNovelOutline,
   getSceneForEditor,
+  checkpointScene,
+  getSceneRevision,
+  listSceneRevisions,
   moveOutlineNode,
   renameOutlineNode,
+  restoreSceneRevision,
   updateScene,
 } from "../src/lib/writing/service";
+import { plainTextFromDoc } from "../src/lib/writing/tiptap";
 import { countWords } from "../src/lib/writing/word-count";
 
 describe("Writing Service (outline, scenes, attachments)", { timeout: 30_000 }, () => {
@@ -152,6 +157,60 @@ describe("Writing Service (outline, scenes, attachments)", { timeout: 30_000 }, 
     await moveOutlineNode(userId, novelId, { kind: "act", id: secondActId, direction: "down" });
   });
 
+  it("moves an outline node to an absolute sibling index in one step", async () => {
+    const third = await createOutlineNode(userId, novelId, { kind: "act", title: "Act III" });
+    const thirdId = (third.node as { id: string }).id;
+
+    let outline = await getNovelOutline(userId, novelId);
+    expect(outline.acts.map((a) => a.title)).toEqual(["Act I", "Act II", "Act III"]);
+
+    const moved = await moveOutlineNode(userId, novelId, {
+      kind: "act",
+      id: thirdId,
+      toIndex: 0,
+    });
+    expect(moved.moved).toBe(true);
+    outline = await getNovelOutline(userId, novelId);
+    expect(outline.acts.map((a) => a.title)).toEqual(["Act III", "Act I", "Act II"]);
+    expect(outline.acts.map((a) => a.position)).toEqual([0, 1, 2]);
+
+    const noop = await moveOutlineNode(userId, novelId, {
+      kind: "act",
+      id: thirdId,
+      toIndex: 0,
+    });
+    expect(noop.moved).toBe(false);
+
+    await expect(moveOutlineNode(userId, novelId, { kind: "act", id: thirdId })).rejects.toThrow(
+      /exactly one of direction or toIndex/,
+    );
+
+    await expect(
+      moveOutlineNode(userId, novelId, { kind: "act", id: thirdId, toIndex: -1 }),
+    ).rejects.toThrow(/toIndex must be a non-negative integer/);
+
+    // Clamping to end: toIndex 999 moves Act III back to index 2
+    const clamped = await moveOutlineNode(userId, novelId, {
+      kind: "act",
+      id: thirdId,
+      toIndex: 999,
+    });
+    expect(clamped.moved).toBe(true);
+    outline = await getNovelOutline(userId, novelId);
+    expect(outline.acts.map((a) => a.title)).toEqual(["Act I", "Act II", "Act III"]);
+
+    // Clean up the extra act so later tests see the original two.
+    await deleteOutlineNode(userId, novelId, "act", thirdId);
+    // Restore Act I first if needed
+    outline = await getNovelOutline(userId, novelId);
+    if (outline.acts[0].title !== "Act I") {
+      const actI = outline.acts.find((a) => a.title === "Act I");
+      if (actI) {
+        await moveOutlineNode(userId, novelId, { kind: "act", id: actI.id, toIndex: 0 });
+      }
+    }
+  });
+
   it("computes act positions per novel, not across novels", async () => {
     const ts = await now();
     const novelA = `ws-pos-a-${runId}`;
@@ -228,6 +287,8 @@ describe("Writing Service (outline, scenes, attachments)", { timeout: 30_000 }, 
     expect(editor.chapterTitle).toBe("Chapter One");
     expect(editor.pov).toBe("THIRD_LIMITED");
     expect(typeof editor.updatedAt).toBe("string");
+    expect(editor.contentFormat).toBe("PLAIN");
+    expect(editor.contentDoc).toBeNull();
 
     await expect(getSceneForEditor(otherUserId, sceneId)).rejects.toThrow(/do not have access/);
   });
@@ -254,6 +315,98 @@ describe("Writing Service (outline, scenes, attachments)", { timeout: 30_000 }, 
     await expect(updateScene(otherUserId, sceneId, { content: "hijack" })).rejects.toThrow(
       /do not have access/,
     );
+  });
+
+  it("dual-writes contentDoc and creates revision snapshots", async () => {
+    const doc = {
+      type: "doc",
+      content: [
+        {
+          type: "paragraph",
+          content: [{ type: "text", text: "Rich prose for the quay.", marks: [{ type: "bold" }] }],
+        },
+      ],
+    };
+    const updated = await updateScene(userId, sceneId, {
+      contentDoc: doc,
+      revisionReason: "MANUAL",
+    });
+    expect(updated.contentFormat).toBe("TIPTAP_JSON");
+    expect(updated.content).toBe("Rich prose for the quay.");
+    expect(updated.wordCount).toBe(countWords("Rich prose for the quay."));
+    expect(updated.contentDoc).toEqual(doc);
+
+    const revisions = await listSceneRevisions(userId, sceneId);
+    expect(revisions.length).toBeGreaterThanOrEqual(1);
+    expect(revisions[0].reason).toBe("MANUAL");
+    expect(revisions[0].title).toBe("Storm Climb");
+
+    // Mismatched content + contentDoc is rejected.
+    await expect(
+      updateScene(userId, sceneId, {
+        contentDoc: doc,
+        content: "totally different",
+      }),
+    ).rejects.toThrow(/does not match/);
+
+    // Plain-only patch after TIPTAP_JSON wraps into a doc.
+    const plain = await updateScene(userId, sceneId, {
+      content: "Plain overwrite after rich.",
+      revisionReason: "MANUAL",
+    });
+    expect(plain.contentFormat).toBe("TIPTAP_JSON");
+    expect(plain.content).toBe("Plain overwrite after rich.");
+    expect(plainTextFromDoc(plain.contentDoc)).toBe("Plain overwrite after rich.");
+  });
+
+  it("loads a single revision detail", async () => {
+    const revisions = await listSceneRevisions(userId, sceneId, 5);
+    expect(revisions.length).toBeGreaterThan(0);
+    const detail = await getSceneRevision(userId, sceneId, revisions[0].id);
+    expect(detail.id).toBe(revisions[0].id);
+    expect(typeof detail.content).toBe("string");
+    await expect(getSceneRevision(userId, sceneId, "no-such")).rejects.toThrow(/not found/);
+  });
+
+  it("restores a revision after snapshotting the live scene", async () => {
+    // Ensure at least one content revision exists to restore.
+    const before = await updateScene(userId, sceneId, {
+      content: "Version A alpha",
+      revisionReason: "MANUAL",
+    });
+    expect(before.content).toBe("Version A alpha");
+
+    const mid = await updateScene(userId, sceneId, {
+      content: "Version B beta",
+      revisionReason: "MANUAL",
+    });
+    expect(mid.content).toBe("Version B beta");
+
+    const revisions = await listSceneRevisions(userId, sceneId, 10);
+    // Newest snapshot is the pre-B state (Version A) created when saving B.
+    const target = revisions.find((r) => r.contentPreview.includes("Version A"));
+    expect(target).toBeTruthy();
+
+    const restored = await restoreSceneRevision(userId, sceneId, target!.id);
+    expect(restored.content).toBe("Version A alpha");
+
+    const after = await listSceneRevisions(userId, sceneId, 10);
+    expect(after.some((r) => r.reason === "RESTORE")).toBe(true);
+
+    await expect(listSceneRevisions(otherUserId, sceneId)).rejects.toThrow(/do not have access/);
+    await expect(restoreSceneRevision(userId, sceneId, "missing-rev")).rejects.toThrow(/not found/);
+  });
+
+  it("checkpoints the stored scene as a MANUAL revision without changing it", async () => {
+    const live = await updateScene(userId, sceneId, { content: "Checkpoint me" });
+    const revision = await checkpointScene(userId, sceneId);
+    expect(revision.reason).toBe("MANUAL");
+    expect(revision.contentPreview).toBe("Checkpoint me");
+    expect(revision.sceneId).toBe(sceneId);
+    const [latest] = await listSceneRevisions(userId, sceneId, 1);
+    expect(latest.id).toBe(revision.id);
+    expect((await getSceneForEditor(userId, sceneId)).updatedAt).toBe(live.updatedAt);
+    await expect(checkpointScene(otherUserId, sceneId)).rejects.toThrow(/do not have access/);
   });
 
   it("soft-deletes scenes, cascading chapters and acts", async () => {

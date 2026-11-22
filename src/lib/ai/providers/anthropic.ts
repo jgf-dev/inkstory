@@ -1,3 +1,4 @@
+import { assertAdvancedControlsMappable } from "./advanced";
 import { createTransportError, readJsonResponse, stripTrailingSlashes } from "./http";
 import {
   ProviderError,
@@ -214,6 +215,7 @@ export function createAnthropicProvider(options: AnthropicProviderOptions): LlmP
 
     async chat(request: ChatCompletionRequest): Promise<ChatCompletionResult> {
       validateRequest(request);
+      assertAdvancedControlsMappable(request, "anthropic", "Anthropic", false);
       const mapped = toAnthropicMessages(request.messages);
       const payload: Record<string, unknown> = {
         model: request.model,

@@ -33,7 +33,7 @@ Walk every file matched by `detection.glob`. For each `pg.Client` or `pg.Pool` y
 
 ```ts
 const client = new pg.Client({ connectionString });
-client.on("error", () => {});
+client.on('error', () => {});
 await client.connect();
 ```
 

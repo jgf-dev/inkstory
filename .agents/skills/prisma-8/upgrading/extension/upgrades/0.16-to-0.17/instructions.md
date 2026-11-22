@@ -25,7 +25,7 @@ changes:
     detection:
       glob: "**/*.{json,ts,mts,cts,tsx}"
       contains:
-        - "sha256:"
+        - 'sha256:'
       anyMatch: true
     script: ./strip-sha256-hash-prefixes.ts
   - id: migration-contract-snapshots-moved-to-content-addressed-store
@@ -523,7 +523,7 @@ changes:
       devDependencies to compile against those declarations — that workaround is now the
       hazard. `pg` ships no types of its own, so a second `@types/pg` copy at a different
       version gives `pg.Client` / `pg.Pool` two identities, and handing your own client or
-      pool to a Prisma Next API stops compiling with `Argument of type 'Client' is not
+      pool to a Prisma 8 API stops compiling with `Argument of type 'Client' is not
       assignable to parameter of type 'Client'` (`Type 'Client' is missing the following
       properties from type 'Client': connection, setTypeParser, getTypeParser`). Drop
       `@types/pg` from your extension and take it transitively, or pin it to the version
@@ -614,17 +614,16 @@ Relational JSON container AST construction now requires an explicit value-projec
 `FunctionSource.of(fn, args, alias)` now groups alias state so returned-column aliases cannot exist without a table alias. Replace a string third argument such as `FunctionSource.of(fn, args, 'rows')` with `FunctionSource.of(fn, args, { alias: 'rows' })`; when returned-column names are required, pass `{ alias: 'rows', columnAliases: ['value', 'ordinality'] }`. Calls that omit the alias remain unchanged.
 
 When an extension forwards an existing `ProjectionItem` through a derived-table or row-number wrapper, preserve its known codec in the reconstructed projection: use `ProjectionItem.of(item.alias, ColumnRef.of(wrapperAlias, item.alias), item.codec)`. Leave the codec undefined only for computed or otherwise unknown projected results. After applying the applicable edits, run the extension's typecheck and tests; update AST-shape fixtures to assert the explicit wrapper nodes and preserved codec metadata.
-
 ## `rls-wire-name-helpers-moved-to-sql-schema-ir-naming`
 
 The wire-name mechanics are family-shared from 0.17 (they now serve secondary indexes as well as RLS policies), so the helpers moved from the target-postgres RLS module to `@internal/sql-schema-ir/naming` under generalized names. Apply the mechanical rename:
 
 | 0.16 (`@internal/target-postgres/rls-canonicalize`) | 0.17 (`@internal/sql-schema-ir/naming`) |
-| --------------------------------------------------- | --------------------------------------- |
-| `formatRlsPolicyWireName(prefix, hash)`             | `formatWireName(prefix, hash)`          |
-| `parseRlsPolicyWireName(name)`                      | `parseWireName(name)`                   |
-| `normalizePredicate(sql)`                           | `normalizeSqlBody(sql)`                 |
-| `RlsPolicyWireName` (type)                          | `WireName` (type)                       |
+| --- | --- |
+| `formatRlsPolicyWireName(prefix, hash)` | `formatWireName(prefix, hash)` |
+| `parseRlsPolicyWireName(name)` | `parseWireName(name)` |
+| `normalizePredicate(sql)` | `normalizeSqlBody(sql)` |
+| `RlsPolicyWireName` (type) | `WireName` (type) |
 
 Behavior is byte-identical — same `<prefix>_<8hex>` format and parse pattern, same treat-as-all-prefix contract for names that do not parse, same minimal trim-and-collapse normalizer (still a stability commitment: any change would re-suffix every wire name). `@internal/target-postgres/rls-canonicalize` keeps the RLS-specific exports (`computeContentHash`, `ContentHashParts`, `POLICY_OPERATION_PREDICATES`, `RlsPolicyOperation`); there are no re-export shims for the moved names. The naming module additionally exposes `computeIndexContentHash`, `WIRE_NAME_PREFIX_MAX_LENGTH` (54), and `assertWireNamePrefixLength` — the index-side siblings of the RLS hash assembly.
 
@@ -655,10 +654,10 @@ Re-emit your pack's contract space with the upgraded toolchain (`build:contract-
 
 `PostgresRlsPolicyMigrationInput` is gone. The parameter `Migration#createRlsPolicy` accepts, and the shape `CreatePostgresRlsPolicyCall.renderTypeScript` writes into a generated migration, is now `RenderedRlsPolicyLiteral` — `PostgresRlsPolicyInput` with absent-valued keys omittable, which is how a machine-rendered literal spells absence. The practical difference is the name:
 
-| 0.16                                                | 0.17                                                               |
-| --------------------------------------------------- | ------------------------------------------------------------------ |
+| 0.16 | 0.17 |
+| --- | --- |
 | `name: "post_owner_a1b2c3d4", prefix: "post_owner"` | `naming: { kind: "wire", prefix: "post_owner", hash: "a1b2c3d4" }` |
-| `name: "Tenant members can read"`                   | `naming: { kind: "exact", name: "Tenant members can read" }`       |
+| `name: "Tenant members can read"` | `naming: { kind: "exact", name: "Tenant members can read" }` |
 
 The two flat fields could disagree; the union cannot be written wrong, which is why the migration authoring surface carries it.
 
@@ -672,7 +671,7 @@ For every codec descriptor contributed by a PostgreSQL extension, add `@internal
 
 Change a PostgreSQL-bound descriptor that extends `CodecDescriptorImpl<P>` to extend `PostgresCodecDescriptor<P>`. Keep its codec id, traits, target types, `paramsSchema`, factory, output renderer and column helpers unchanged; there is no longer a `meta` / `metaFor` channel to carry alongside, and the descriptor's `nativeTypeFor()` is the only place a native type is declared. Add `protected override nativeType(params: P): string` returning the same trusted PostgreSQL native type spelling the extension already uses, and add `protected override jsonProjection(expression: ProjectionExpr, params: P): ProjectionExpr`.
 
-`return expression` is a claim, not a placeholder: the production JSON renderers call `projectJson()` for every column-valued entry they build, so an identity projection asserts that your codec's stored form already _is_ its canonical JSON. Write one only where that holds, and where it does not, see `codec-json-projections-must-agree-with-encode-json` below.
+`return expression` is a claim, not a placeholder: the production JSON renderers call `projectJson()` for every column-valued entry they build, so an identity projection asserts that your codec's stored form already *is* its canonical JSON. Write one only where that holds, and where it does not, see `codec-json-projections-must-agree-with-encode-json` below.
 
 When the extension contributes a reusable target-neutral SQL descriptor instead of owning its descriptor class, keep the generic descriptor unchanged and wrap it with `postgresCodec(genericDescriptor, { nativeType, jsonProjection })`. Supply the native type and the canonical JSON projection as above. The wrapper delegates the generic descriptor's codec id, literals, parameter schema, factory, renderers and target types, and adds the PostgreSQL discriminant and target methods.
 
@@ -688,7 +687,7 @@ After the migration, run the extension package's typecheck, lint, and tests. Ver
 
 `@internal/postgres`, `@internal/extension-supabase`, and `@internal/driver-postgres` re-export `pg` types from their published `.d.mts` files, so each declares `@types/pg` under `dependencies` from 0.17. Compiling against those declarations no longer requires your extension to supply `@types/pg` itself.
 
-If your extension's `package.json` declares `@types/pg`, act on it. `pg` carries no types of its own, so two `@types/pg` copies in the tree give `pg.Client` and `pg.Pool` two distinct identities. Any call that hands your own client or pool to a Prisma Next API — `new PostgresControlDriver(client)`, a driver `connect: { pool }` — then fails:
+If your extension's `package.json` declares `@types/pg`, act on it. `pg` carries no types of its own, so two `@types/pg` copies in the tree give `pg.Client` and `pg.Pool` two distinct identities. Any call that hands your own client or pool to a Prisma 8 API — `new PostgresControlDriver(client)`, a driver `connect: { pool }` — then fails:
 
 ```text
 Argument of type 'Client' is not assignable to parameter of type 'Client'.
@@ -697,11 +696,11 @@ Argument of type 'Client' is not assignable to parameter of type 'Client'.
 
 The error names the same type on both sides; the two paths under `node_modules/.pnpm/@types+pg@<version>/` in the full message are what identify it.
 
-Prefer dropping `@types/pg` from your extension's `devDependencies` and taking it transitively, so its version tracks Prisma Next's. If you keep the entry — because your own code imports `pg` directly and you want the dependency explicit — pin it to the version `@internal/postgres` depends on rather than a range that can resolve elsewhere.
+Prefer dropping `@types/pg` from your extension's `devDependencies` and taking it transitively, so its version tracks Prisma 8's. If you keep the entry — because your own code imports `pg` directly and you want the dependency explicit — pin it to the version `@internal/postgres` depends on rather than a range that can resolve elsewhere.
 
 ## Incidental lint-config bumps
 
-Biome `$schema` version alignment in `packages/3-extensions/` (dependabot `dev-deps` group, PR #1058) requires no Prisma Next-specific upgrade action by extension authors.
+Biome `$schema` version alignment in `packages/3-extensions/` (dependabot `dev-deps` group, PR #1058) requires no Prisma 8-specific upgrade action by extension authors.
 
 ## `codec-json-projections-must-agree-with-encode-json`
 
@@ -710,7 +709,7 @@ Slice-2 shipped `jsonProjection` as a typed hook that every descriptor implement
 The ordering is the part worth internalising, because it is the same in all three shapes it has taken:
 
 - a numeric cast to `text` sits inside the projected expression, so it applies before the JSON constructor can render the value as a JSON number;
-- a base64 encoding _replaces_ the target's own conversion rather than post-processing it, because the target would otherwise have already emitted its hex form;
+- a base64 encoding *replaces* the target's own conversion rather than post-processing it, because the target would otherwise have already emitted its hex form;
 - a widening of a narrow float to a wider one happens before any text rendering, because the printing is what discards precision.
 
 In each case a transformation applied to the constructor's output would be too late. If you are authoring a projection, ask what the target does to the value if you do nothing, and whether that is recoverable.
@@ -723,7 +722,7 @@ The route matters as much as the destination here. Casting a vector's text form 
 
 ## `default-literal-value-resolves-through-the-codec-json-channel`
 
-Before this change the emitted type said a literal default had the codec's _application_ type. That was true only while the two coincided. For a codec whose application value is a `bigint` and whose canonical JSON is a decimal string, it described a `bigint` sitting in a file that holds `"0"` — which surfaced as an assignability failure rather than as a wrong-but-quiet type.
+Before this change the emitted type said a literal default had the codec's *application* type. That was true only while the two coincided. For a codec whose application value is a `bigint` and whose canonical JSON is a decimal string, it described a `bigint` sitting in a file that holds `"0"` — which surfaced as an assignability failure rather than as a wrong-but-quiet type.
 
 Regenerating is sufficient; no hand edits to a `contract.d.ts` are needed.
 

@@ -1,5 +1,7 @@
+import { getEntitlements, resolveContextTokenBudget } from "@/lib/billing/entitlements";
 import { NextRequest } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { inspectAssembledContext } from "@/lib/codex/context-inspection";
 import { parseAssembleContextBody } from "@/lib/codex/context-request";
 import { assembleCodexContextForScene, handleCodexApiError } from "@/lib/codex/service";
 
@@ -9,7 +11,9 @@ export const dynamic = "force-dynamic";
  * POST /api/context/assemble
  *
  * Returns the full `AssembledContext` for a scene + beat, the same object a
- * generation call receives, so authors and Prompt Preview can inspect it.
+ * generation call receives, plus request-time formatted Codex telemetry.
+ * Counts use the same entitlement ceiling, budgeter and formatter as Generate.
+ * Original entries/meta remain unchanged; inspection.context is post-budget.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -28,7 +32,13 @@ export async function POST(request: NextRequest) {
     }
 
     const context = await assembleCodexContextForScene(user.id, parsed.input);
-    return Response.json(context);
+    const { maxContextTokens } = await getEntitlements(user.id);
+    return Response.json(
+      inspectAssembledContext(context, resolveContextTokenBudget(undefined, maxContextTokens)),
+      {
+        headers: { "Cache-Control": "private, no-store" },
+      },
+    );
   } catch (err) {
     return handleCodexApiError(err);
   }
