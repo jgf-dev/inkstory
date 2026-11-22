@@ -102,6 +102,7 @@ describe("GET /api/craft/tools", () => {
       "expand",
       "rewrite",
       "show_dont_tell",
+      "transition",
     ]);
     expect(json.tools[0].contract.output.suggestedAction).toBe("replace_selection");
   });
