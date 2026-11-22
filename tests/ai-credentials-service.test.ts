@@ -18,7 +18,7 @@ const TEST_KEY_B64 = Buffer.alloc(32, 11).toString("base64");
 
 describe("BYOK credentials service (STO-1178)", { timeout: 20_000 }, () => {
   const runId = crypto.randomUUID();
-  const userId = `test-byok-user-${runId}`;
+  const userId = crypto.randomUUID();
   const prevKey = process.env.BYOK_ENCRYPTION_KEY;
 
   beforeAll(async () => {
@@ -264,7 +264,7 @@ describe("BYOK credentials service (STO-1178)", { timeout: 20_000 }, () => {
   });
 
   it("patchCredential updates fields and handles errors", async () => {
-    const otherUserId = `other-user-${runId}`;
+    const otherUserId = crypto.randomUUID();
     const cred = await upsertCredential(userId, {
       provider: "OPENROUTER",
       label: "work",
