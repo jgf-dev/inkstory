@@ -19,7 +19,7 @@ vi.mock("../src/lib/supabase/server", () => ({
 
 describe("BYOK credentials API (STO-1178)", { timeout: 20_000 }, () => {
   const runId = crypto.randomUUID();
-  const userId = `test-byok-api-${runId}`;
+  const userId = crypto.randomUUID();
   const prevKey = process.env.BYOK_ENCRYPTION_KEY;
 
   beforeAll(async () => {

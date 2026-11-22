@@ -47,9 +47,9 @@ const lorebook = JSON.stringify({
 
 describe("Codex lorebook interchange service (STO-1262)", { timeout: 30_000 }, () => {
   const runId = crypto.randomUUID();
-  const userId = `lore-user-${runId}`;
-  const freeUserId = `lore-free-${runId}`;
-  const otherUserId = `lore-other-${runId}`;
+  const userId = crypto.randomUUID();
+  const freeUserId = crypto.randomUUID();
+  const otherUserId = crypto.randomUUID();
   const seriesId = `lore-series-${runId}`;
   const novelId = `lore-novel-${runId}`;
   const freeNovelId = `lore-free-novel-${runId}`;

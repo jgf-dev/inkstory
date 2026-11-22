@@ -3,7 +3,7 @@
 
 namespace public {
   model User {
-    id           String             @id(map: "users_pkey")
+    id           Uuid               @id(map: "users_pkey")
     email        String
     name         String?
     avatarUrl    String?            @map("avatar_url")
@@ -30,6 +30,7 @@ namespace public {
     @@index([deletedAt], map: "users_deleted_at_idx")
     @@index([email], map: "users_email_key", unique: true)
     @@map("users")
+    @@rls
   }
 
   model StripeWebhookEvent {
@@ -41,6 +42,8 @@ namespace public {
     createdAt TimestampTemporal(3) @default(now()) @map("created_at")
 
     @@map("stripe_webhook_events")
+
+    @@rls
   }
 
   model Series {
@@ -51,7 +54,7 @@ namespace public {
     createdAt    TimestampTemporal(3)       @default(now()) @map("created_at")
     updatedAt    TimestampTemporal(3)       @map("updated_at")
     deletedAt    TimestampTemporal(3)?      @map("deleted_at")
-    ownerId      String             @map("owner_id")
+    ownerId      Uuid               @map("owner_id")
 
     owner        User               @relation(fields: [ownerId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "series_owner_id_fkey", index: false)
     novels       Novel[]
@@ -60,6 +63,7 @@ namespace public {
     @@index([ownerId, deletedAt], map: "series_owner_id_deleted_at_idx")
     @@index([ownerId, position], map: "series_owner_id_position_idx")
     @@map("series")
+    @@rls
   }
 
   model Novel {
@@ -71,7 +75,7 @@ namespace public {
     createdAt    TimestampTemporal(3)       @default(now()) @map("created_at")
     updatedAt    TimestampTemporal(3)       @map("updated_at")
     deletedAt    TimestampTemporal(3)?      @map("deleted_at")
-    ownerId      String             @map("owner_id")
+    ownerId      Uuid               @map("owner_id")
     seriesId     String?            @map("series_id")
 
     owner        User               @relation(fields: [ownerId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "novels_owner_id_fkey", index: false)
@@ -84,6 +88,7 @@ namespace public {
     @@index([ownerId, position], map: "novels_owner_id_position_idx")
     @@index([seriesId], map: "novels_series_id_idx")
     @@map("novels")
+    @@rls
   }
 
   model Act {
@@ -101,6 +106,7 @@ namespace public {
     @@index([novelId, deletedAt], map: "acts_novel_id_deleted_at_idx")
     @@index([novelId, position], map: "acts_novel_id_position_idx")
     @@map("acts")
+    @@rls
   }
 
   model Chapter {
@@ -118,6 +124,7 @@ namespace public {
     @@index([actId, deletedAt], map: "chapters_act_id_deleted_at_idx")
     @@index([actId, position], map: "chapters_act_id_position_idx")
     @@map("chapters")
+    @@rls
   }
 
   model Scene {
@@ -146,6 +153,7 @@ namespace public {
     @@index([chapterId, deletedAt], map: "scenes_chapter_id_deleted_at_idx")
     @@index([chapterId, position], map: "scenes_chapter_id_position_idx")
     @@map("scenes")
+    @@rls
   }
 
   // Scene revision snapshots (STO-1156). Authz via scene → novel owner chain.
@@ -167,6 +175,7 @@ namespace public {
 
     @@index([sceneId, createdAt], map: "scene_revisions_scene_id_created_at_idx")
     @@map("scene_revisions")
+    @@rls
   }
 
   model CodexEntry {
@@ -184,7 +193,7 @@ namespace public {
     createdAt                    TimestampTemporal(3)               @default(now()) @map("created_at")
     updatedAt                    TimestampTemporal(3)               @map("updated_at")
     deletedAt                    TimestampTemporal(3)?              @map("deleted_at")
-    ownerId                      String                     @map("owner_id")
+    ownerId                      Uuid                       @map("owner_id")
     novelId                      String?                    @map("novel_id")
     seriesId                     String?                    @map("series_id")
 
@@ -203,6 +212,7 @@ namespace public {
     @@index([trackingMode], map: "codex_entries_tracking_mode_idx")
     @@index([type], map: "codex_entries_type_idx")
     @@map("codex_entries")
+    @@rls
   }
 
   model CodexAlias {
@@ -218,6 +228,7 @@ namespace public {
     @@index([entryId, deletedAt], map: "codex_aliases_entry_id_deleted_at_idx")
     @@index([name], map: "codex_aliases_name_idx")
     @@map("codex_aliases")
+    @@rls
   }
 
   model CodexTag {
@@ -234,6 +245,7 @@ namespace public {
     @@index([entryId, deletedAt], map: "codex_tags_entry_id_deleted_at_idx")
     @@index([name], map: "codex_tags_name_idx")
     @@map("codex_tags")
+    @@rls
   }
 
   model CodexRelation {
@@ -254,6 +266,7 @@ namespace public {
     @@index([sourceEntryId, deletedAt], map: "codex_relations_source_entry_id_deleted_at_idx")
     @@index([targetEntryId, deletedAt], map: "codex_relations_target_entry_id_deleted_at_idx")
     @@map("codex_relations")
+    @@rls
   }
 
   model CodexProgression {
@@ -275,6 +288,7 @@ namespace public {
     @@index([sceneId, deletedAt], map: "codex_progressions_scene_id_deleted_at_idx")
     @@index([sceneId, position], map: "codex_progressions_scene_id_position_idx")
     @@map("codex_progressions")
+    @@rls
   }
 
 
@@ -282,7 +296,7 @@ namespace public {
   // with BYOK_ENCRYPTION_KEY; APIs never return ciphertext/iv/authTag/plaintext.
   model UserProviderCredential {
     id           String           @id(map: "user_provider_credentials_pkey")
-    ownerId      String           @map("owner_id")
+    ownerId      Uuid             @map("owner_id")
     provider     pg.enum(AiProvider)
     label        String           @default("default")
 
@@ -305,6 +319,7 @@ namespace public {
     @@index([ownerId, deletedAt], map: "user_provider_credentials_owner_id_deleted_at_idx")
     @@index([ownerId, provider, deletedAt], map: "user_provider_credentials_owner_provider_deleted_at_idx")
     @@map("user_provider_credentials")
+    @@rls
   }
 
 
@@ -328,7 +343,7 @@ namespace public {
     role        pg.enum(PromptRole) @default("SYSTEM")
     position    Int                 @default(0)
     isActive    Boolean             @default(true) @map("is_active")
-    ownerId     String?             @map("owner_id")
+    ownerId     Uuid?               @map("owner_id")
     novelId     String?             @map("novel_id")
     createdAt   TimestampTemporal(3)        @default(now()) @map("created_at")
     updatedAt   TimestampTemporal(3)        @map("updated_at")
@@ -342,6 +357,7 @@ namespace public {
     @@index([novelId, deletedAt], map: "prompts_novel_id_deleted_at_idx")
     @@index([mode, isActive, deletedAt], map: "prompts_mode_is_active_deleted_at_idx")
     @@map("prompts")
+    @@rls
   }
 
   model PromptComponent {
@@ -352,7 +368,7 @@ namespace public {
     role        pg.enum(PromptRole) @default("SYSTEM")
     // Versioned craft/portability contract (STO-1275). Null = legacy STO-1158 behavior.
     contract    Jsonb?              @map("contract")
-    ownerId     String?             @map("owner_id")
+    ownerId     Uuid?               @map("owner_id")
     createdAt   TimestampTemporal(3)        @default(now()) @map("created_at")
     updatedAt   TimestampTemporal(3)        @map("updated_at")
     deletedAt   TimestampTemporal(3)?       @map("deleted_at")
@@ -362,6 +378,7 @@ namespace public {
 
     @@index([ownerId, deletedAt], map: "prompt_components_owner_id_deleted_at_idx")
     @@map("prompt_components")
+    @@rls
   }
 
   model PromptComponentLink {
@@ -380,6 +397,7 @@ namespace public {
     @@index([promptId, position], map: "prompt_component_links_prompt_id_position_idx")
     @@index([componentId], map: "prompt_component_links_component_id_idx")
     @@map("prompt_component_links")
+    @@rls
   }
 
 
