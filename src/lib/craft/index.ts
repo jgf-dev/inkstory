@@ -28,7 +28,14 @@ export {
   renderCraftPrompt,
   resolveToolInputs,
 } from "./prompt";
-export { prepareCraftPrompt, type CraftRequestInput, type PreparedCraftPrompt } from "./service";
+export {
+  DEFAULT_CRAFT_OUTPUT_WORDS,
+  craftCompletionBudget,
+  parseTargetWords,
+  prepareCraftPrompt,
+  type CraftRequestInput,
+  type PreparedCraftPrompt,
+} from "./service";
 export {
   DIAGNOSIS_WORD_ALLOWANCE,
   MAX_CRAFT_OUTPUT_CHARS,
