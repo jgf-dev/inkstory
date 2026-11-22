@@ -13,16 +13,31 @@ const ALLOWED_OTP_TYPES = new Set<EmailOtpType>([
   "email",
 ]);
 
-function resolveSafeNextPath(rawNext: string | null): string {
-  if (
-    !rawNext ||
-    !rawNext.startsWith("/") ||
-    rawNext.startsWith("//") ||
-    rawNext.startsWith("/\\")
-  ) {
-    return "/dashboard";
+function hasControlCharacters(value: string): boolean {
+  for (let i = 0; i < value.length; i += 1) {
+    const code = value.charCodeAt(i);
+    if (code < 0x20 || code === 0x7f) {
+      return true;
+    }
   }
-  return rawNext;
+  return false;
+}
+
+function resolveSafeRedirectUrl(rawNext: string | null, origin: string): URL {
+  const fallback = new URL("/dashboard", origin);
+  if (!rawNext || !rawNext.startsWith("/") || hasControlCharacters(rawNext)) {
+    return fallback;
+  }
+
+  try {
+    const resolved = new URL(rawNext, origin);
+    if (resolved.origin !== origin || resolved.pathname.startsWith("//")) {
+      return fallback;
+    }
+    return resolved;
+  } catch {
+    return fallback;
+  }
 }
 
 export async function GET(request: NextRequest) {
@@ -30,13 +45,13 @@ export async function GET(request: NextRequest) {
   const code = url.searchParams.get("code");
   const tokenHash = url.searchParams.get("token_hash");
   const type = url.searchParams.get("type");
-  const nextPath = resolveSafeNextPath(url.searchParams.get("next"));
+  const redirectUrl = resolveSafeRedirectUrl(url.searchParams.get("next"), url.origin);
 
   if (code) {
     const supabase = await createSupabaseServerClient();
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
-      return NextResponse.redirect(new URL(nextPath, url.origin));
+      return NextResponse.redirect(redirectUrl);
     }
   } else if (tokenHash && type && ALLOWED_OTP_TYPES.has(type as EmailOtpType)) {
     const supabase = await createSupabaseServerClient();
@@ -45,7 +60,7 @@ export async function GET(request: NextRequest) {
       type: type as EmailOtpType,
     });
     if (!error) {
-      return NextResponse.redirect(new URL(nextPath, url.origin));
+      return NextResponse.redirect(redirectUrl);
     }
   }
 

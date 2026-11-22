@@ -94,6 +94,7 @@ export function LoginForm({
       <button
         type="submit"
         disabled={loading}
+        title={loading ? "Logging in, please wait" : undefined}
         className="bg-ink-700 text-ink-50 hover:bg-ink-800 w-full rounded-md px-4 py-2 text-sm font-medium disabled:opacity-50"
       >
         {loading ? "Logging in…" : "Log in"}
