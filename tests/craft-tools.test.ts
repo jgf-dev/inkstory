@@ -43,6 +43,7 @@ describe("craft tool registry", () => {
       "expand",
       "rewrite",
       "show_dont_tell",
+      "transition",
       "brainstorm",
     ]);
     expect(listCraftTools().map((t) => t.id)).toEqual([
@@ -50,6 +51,7 @@ describe("craft tool registry", () => {
       "expand",
       "rewrite",
       "show_dont_tell",
+      "transition",
       "brainstorm",
     ]);
     expect(validatePromptContract(describeTool.contract)).toEqual(describeTool.contract);
