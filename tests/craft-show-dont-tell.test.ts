@@ -9,6 +9,7 @@ import {
   filterBindingsBySlices,
   getCraftTool,
   isCraftToolId,
+  listCraftTools,
   parseDiagnosisAndProse,
   renderCraftPrompt,
   resolveToolInputs,
@@ -74,11 +75,12 @@ describe("Show Don't Tell tool (STO-1270)", () => {
   });
 
   it("reuses the shared scaffold system prompt and slices", () => {
-    const sectioned = tool.parts[0].body.replace(
+    expect(tool.parts[0].body).not.toBe(describeTool.parts[0].body);
+    const asProse = tool.parts[0].body.replace(
       CRAFT_SECTIONED_FORMAT_RULE,
       CRAFT_PROSE_FORMAT_RULE,
     );
-    expect(sectioned).toBe(describeTool.parts[0].body);
+    expect(asProse).toBe(describeTool.parts[0].body);
     expect(tool.contract.contextSlices).toEqual(describeTool.contract.contextSlices);
     expect(tool.allowedContextSlices).toEqual(describeTool.allowedContextSlices);
   });
@@ -118,11 +120,18 @@ describe("Show Don't Tell tool (STO-1270)", () => {
     expect(system.toLowerCase()).not.toContain("prose only");
     expect(user.toLowerCase()).not.toContain("prose-only");
     expect(user).not.toContain("replaces the");
-    for (const id of ["describe", "expand", "rewrite"] as const) {
-      const prose = getCraftTool(id);
-      expect(prose.contract.output?.mode).toBe("prose");
-      expect(prose.parts[0].body).toContain(CRAFT_PROSE_FORMAT_RULE);
-      expect(prose.parts[0].body).not.toContain(CRAFT_SECTIONED_FORMAT_RULE);
+
+    const allTools = listCraftTools();
+    expect(allTools.some((t) => t.contract.output?.mode === "prose")).toBe(true);
+    for (const candidate of allTools) {
+      const systemBody = candidate.parts.find((p) => p.role === "system")?.body ?? "";
+      if (candidate.contract.output?.mode === "prose") {
+        expect(systemBody).toContain(CRAFT_PROSE_FORMAT_RULE);
+        expect(systemBody).not.toContain(CRAFT_SECTIONED_FORMAT_RULE);
+      } else {
+        expect(systemBody).not.toContain(CRAFT_PROSE_FORMAT_RULE);
+        expect(systemBody.toLowerCase()).not.toContain("prose only");
+      }
     }
   });
 });

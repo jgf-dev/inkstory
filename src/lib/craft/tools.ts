@@ -97,12 +97,12 @@ function craftSystemBody(formatRule: string): string {
   ].join("\n");
 }
 
-/** System prompt for `prose` output tools (Describe, Expand, Rewrite). */
+/** Format rule embedded in the system prompt for `prose` output tools. */
 export const CRAFT_PROSE_FORMAT_RULE =
   "Return prose only — no headings, no commentary, no markdown fences.";
 const CRAFT_SYSTEM_BODY = craftSystemBody(CRAFT_PROSE_FORMAT_RULE);
 
-/** System prompt for tools whose user message defines labelled output sections. */
+/** Format rule embedded in the system prompt for tools whose user message defines labelled output sections. */
 export const CRAFT_SECTIONED_FORMAT_RULE =
   "Answer in exactly the labelled sections the request specifies — no other headings, no extra commentary, no markdown fences.";
 const CRAFT_SECTIONED_SYSTEM_BODY = craftSystemBody(CRAFT_SECTIONED_FORMAT_RULE);
