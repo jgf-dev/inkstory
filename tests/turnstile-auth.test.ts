@@ -338,5 +338,24 @@ describe("Turnstile verification and auth route handlers", () => {
         "https://syncodex.xyz/login?error=confirmation_failed",
       );
     });
+
+    it.each([
+      ["tab-injected protocol-relative URL", "/\t/evil.com"],
+      ["newline-injected protocol-relative URL", "/\n/evil.com"],
+      ["backslash-prefixed URL", "/\\evil.com"],
+      ["triple-slash host URL", "///evil.com"],
+      ["absolute external URL", "https://evil.com/dashboard"],
+    ])("blocks open-redirect bypass (%s) and falls back to /dashboard", async (_label, next) => {
+      mockExchangeCodeForSession.mockResolvedValue({ data: { session: {} }, error: null });
+
+      const { GET } = await import("../src/app/auth/callback/route");
+      const url = new URL("https://syncodex.xyz/auth/callback");
+      url.searchParams.set("code", "auth-code-123");
+      url.searchParams.set("next", next);
+
+      const response = await GET(new NextRequest(url));
+      expect(response.status).toBe(307);
+      expect(response.headers.get("location")).toBe("https://syncodex.xyz/dashboard");
+    });
   });
 });
