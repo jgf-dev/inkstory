@@ -28,7 +28,6 @@ export default defineConfig({
       ...responseStore.applicationWorker.env,
       ASSETS: bindings.assets(),
       IMAGES: bindings.images(),
-      TURNSTILE_HOSTNAMES: bindings.text("syncodex.xyz,inkstory.jgeof.workers.dev"),
       AI_GATEWAY_BASE_URL: bindings.text("https://ai-gateway.vercel.sh/v1"),
       AI_MODEL: bindings.text("anthropic/claude-sonnet-4.6"),
       NEXT_PUBLIC_SUPABASE_JWKS_URL: bindings.text(
@@ -38,20 +37,16 @@ export default defineConfig({
         "sb_publishable_DDo1gXilrcXEYIE4aA_2EQ_aMIIUc1X",
       ),
       NEXT_PUBLIC_SUPABASE_URL: bindings.text("https://wntgnjrrzfndunqaiobo.supabase.co"),
+      TURNSTILE_HOSTNAMES: bindings.text(
+        "syncodex.xyz,inkstory.jgeof.workers.dev,pre.syncodex.xyz",
+      ),
       NEXT_PUBLIC_TURNSTILE_SITE_KEY: bindings.text("0x4AAAAAAGGPGpjMBFjy08CL"),
       TURNSTILE_SITE_KEY: bindings.text("0x4AAAAAAGGPGpjMBFjy08CL"),
     },
     observability: {
-      issues: {
-        enabled: true,
-      },
-      logs: {
-        destinations: ["newr"],
-        enabled: false,
-      },
-      traces: {
-        enabled: true,
-      },
+      logs: { destinations: ["newr"], enabled: true, persist: true },
+      traces: { enabled: true, persist: true },
+      issues: { enabled: true },
     },
   }),
 });

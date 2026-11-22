@@ -1,14 +1,74 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { EditorContent, useEditor } from "@tiptap/react";
-import type { JSONContent } from "@tiptap/core";
+import type { Editor, JSONContent } from "@tiptap/core";
 import {
   createEditorExtensions,
   docForEditor,
   plainTextFromDoc,
+  plainTextToInsertContent,
   type TiptapDoc,
 } from "@/lib/writing/tiptap";
+
+/** A non-empty text selection in the editor (ProseMirror positions + plain text). */
+export interface EditorSelection {
+  from: number;
+  to: number;
+  text: string;
+}
+
+/**
+ * Imperative surface for selection-aware tools (Craft, STO-1290). Kept tiny so
+ * the parent never reaches into Tiptap directly.
+ */
+export interface RichTextEditorHandle {
+  getSelection: () => EditorSelection | null;
+  /** Whether `range` still holds exactly `range.text`. */
+  matches: (range: EditorSelection) => boolean;
+  /**
+   * Replaces `range` with plain `text` as one undoable edit. Returns false
+   * (and changes nothing) if the range no longer holds `range.text`, e.g. the
+   * author edited the passage after the tool ran.
+   */
+  replaceRange: (range: EditorSelection, text: string) => boolean;
+}
+
+/** Block separator for selection text; matches `plainTextFromDoc`. */
+const BLOCK_SEPARATOR = "\n\n";
+
+function rangeText(editor: Editor, from: number, to: number): string {
+  return editor.state.doc.textBetween(from, to, BLOCK_SEPARATOR, "\n");
+}
+
+export function selectionOf(editor: Editor): EditorSelection | null {
+  const { from, to, empty } = editor.state.selection;
+  if (empty) return null;
+  const text = rangeText(editor, from, to);
+  return text.trim() ? { from, to, text } : null;
+}
+
+export function createEditorHandle(editor: Editor): RichTextEditorHandle {
+  const matches = (range: EditorSelection) => {
+    const size = editor.state.doc.content.size;
+    if (range.from < 0 || range.to > size || range.from >= range.to) return false;
+    return rangeText(editor, range.from, range.to) === range.text;
+  };
+  return {
+    getSelection: () => selectionOf(editor),
+    matches,
+    replaceRange: (range, text) => {
+      if (!matches(range)) return false;
+      const content = plainTextToInsertContent(text);
+      if (content.length === 0) return false;
+      return editor
+        .chain()
+        .focus()
+        .insertContentAt({ from: range.from, to: range.to }, content as JSONContent[])
+        .run();
+    },
+  };
+}
 
 export interface RichTextEditorProps {
   /** Initial / external doc (or null to wrap plainContent). */
@@ -19,6 +79,10 @@ export interface RichTextEditorProps {
   onKeyDown?: (event: React.KeyboardEvent) => void;
   placeholder?: string;
   editable?: boolean;
+  /** Fires when the text selection changes (null = caret only / empty). */
+  onSelectionChange?: (selection: EditorSelection | null) => void;
+  /** Receives the imperative handle once the editor mounts (null on unmount). */
+  onReady?: (handle: RichTextEditorHandle | null) => void;
 }
 
 /**
@@ -26,6 +90,11 @@ export interface RichTextEditorProps {
  * Toolbar lives in the parent so SceneEditor can share header space.
  */
 export function RichTextEditor(props: RichTextEditorProps) {
+  const onSelectionChangeRef = useRef(props.onSelectionChange);
+  onSelectionChangeRef.current = props.onSelectionChange;
+  const onReadyRef = useRef(props.onReady);
+  onReadyRef.current = props.onReady;
+
   const editor = useEditor({
     immediatelyRender: false,
     extensions: createEditorExtensions(),
@@ -52,7 +121,16 @@ export function RichTextEditor(props: RichTextEditorProps) {
       const json = ed.getJSON() as TiptapDoc;
       props.onChange({ contentDoc: json, content: plainTextFromDoc(json) });
     },
+    onSelectionUpdate: ({ editor: ed }) => {
+      onSelectionChangeRef.current?.(selectionOf(ed));
+    },
   });
+
+  useEffect(() => {
+    if (!editor) return;
+    onReadyRef.current?.(createEditorHandle(editor));
+    return () => onReadyRef.current?.(null);
+  }, [editor]);
 
   // External plain inserts (AI drawer) / restore: when the parent doc or plain
   // extract drifts from the editor, reset. Plain-only equality is not enough —
