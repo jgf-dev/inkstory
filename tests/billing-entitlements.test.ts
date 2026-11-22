@@ -12,8 +12,8 @@ import { db } from "../src/lib/prisma";
 
 describe("billing entitlements & quota guards", { timeout: 20_000 }, () => {
   const runId = crypto.randomUUID();
-  const freeUserId = `test-ent-free-${runId}`;
-  const proUserId = `test-ent-pro-${runId}`;
+  const freeUserId = crypto.randomUUID();
+  const proUserId = crypto.randomUUID();
   const novelId = `test-ent-novel-${runId}`;
 
   beforeAll(async () => {
@@ -51,7 +51,7 @@ describe("billing entitlements & quota guards", { timeout: 20_000 }, () => {
   it("resolves tier and entitlements; unknown users are Free", async () => {
     expect(await getPlanTierForUser(freeUserId)).toBe("FREE");
     expect(await getPlanTierForUser(proUserId)).toBe("PRO");
-    expect(await getPlanTierForUser("missing-user")).toBe("FREE");
+    expect(await getPlanTierForUser(crypto.randomUUID())).toBe("FREE");
 
     expect(await getEntitlements(proUserId)).toMatchObject({
       maxNovels: Number.POSITIVE_INFINITY,

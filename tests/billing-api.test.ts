@@ -63,8 +63,8 @@ function webhookRequest(event: unknown, signature = "sig_valid"): Promise<Respon
 
 describe("billing routes", { timeout: 20_000 }, () => {
   const runId = crypto.randomUUID();
-  const userId = `test-billing-user-${runId}`;
-  const novellessUserId = `test-billing-nocust-${runId}`;
+  const userId = crypto.randomUUID();
+  const novellessUserId = crypto.randomUUID();
 
   beforeAll(async () => {
     const now = Temporal.Now.plainDateTimeISO();
