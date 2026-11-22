@@ -1,225 +1,301 @@
 # InkStory
 
-A novel-writing and world-building platform with an AI-aware Codex (story bible).
+A novel-writing and world-building platform with an AI-aware Story Codex (story bible).
 
 Linear project: [novel-writing-app](https://linear.app/jgfdev/project/novel-writing-app-3c3f658f0d44).
 
 ## Stack
 
-| Layer     | Choice                                 | Why                                                               |
-| --------- | -------------------------------------- | ----------------------------------------------------------------- |
-| Framework | Next.js 16 (App Router) + React 19     | Server Components, Server Actions, `src/proxy.ts` session refresh |
-| Language  | TypeScript (strict)                    | Type safety across the Codex domain model                         |
-| Database  | Supabase Postgres                      | Auth + Postgres; Prisma 8 talks to it via `DIRECT_URL`            |
-| ORM       | Prisma 8 (Prisma Next, contract-first) | `prisma/contract.prisma` + `@prisma/orm-postgres`                 |
-| Auth      | Supabase Auth (cookie session)         | Email + password; Codex APIs require a session                    |
-| Styling   | Tailwind CSS 4                         | Utility-first                                                     |
-| Tooling   | bun + vite-plus (`vp`)                 | CI/Vercel install with bun; lint/format/test via `vp`             |
-| Hosting   | Vercel                                 | `vercel.json` runs `bun install` / `bun run build`                |
+| Layer               | Choice                                                 | Details                                                                                                                                    |
+| ------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| Framework & Hosting | `vinext` (`^1.4.4`) + React 19 on Cloudflare Workers   | App Router served via Vite+ & `cloudflare.config.ts` (`inkstory` + `inkstory-response-store` cache worker); `src/proxy.ts` session refresh |
+| Language            | TypeScript (strict)                                    | Type-checked via Vite+ (`vp check`)                                                                                                        |
+| Database            | Supabase Postgres 17                                   | Prisma 8 talks to DDL via `DIRECT_URL` (port 5432) and runtime via `DATABASE_URL` (port 6543)                                              |
+| ORM                 | Prisma 8 (Prisma Next, contract-first)                 | `prisma/contract.prisma` (source of truth) + `@prisma/orm-postgres` (`db.orm.public.*`) + `temporal-polyfill`                              |
+| Auth & Anti-Abuse   | Supabase Auth (`@supabase/ssr`) + Cloudflare Turnstile | Cookie sessions refreshed in `src/proxy.ts`; login/signup verify Turnstile tokens server-side (fail-closed)                                |
+| Editor & Styling    | TipTap 3 + Tailwind CSS 4                              | Rich-text JSON + plain-text extract; OKLCH "Parchment Desk" (light) / "Obsidian Desk" (dark) CSS token ramp                                |
+| AI, BYOK & Craft    | Vercel AI Gateway + 5 BYOK providers                   | OpenRouter, OpenAI, Anthropic, Ollama, LM Studio (AES-256-GCM credentials, server-resolved capabilities, Craft Studio tools)               |
+| Billing             | Stripe                                                 | `FREE` / `PRO` / `STUDIO` tiers with quota enforcement and idempotent webhook processing                                                   |
+| Tooling             | Bun (`1.4.4`) + Vite+ (`vp`) + Playwright              | `bun.lock` is canonical; lint/format/typecheck/build/Vitest via `vp`                                                                       |
 
-## Acceptance criteria covered
+## What's implemented
 
-- [x] App boots successfully (`bun run dev` or `npm run dev`)
-- [x] User can sign up and log in (Supabase email + password)
-- [x] Dashboard renders after login (series / novel / Codex counts; Codex manager at `/dashboard/codex`)
-- [x] Core tables exist: `User`, `Series`, `Novel`, `Act`, `Chapter`, `Scene` (STO-1150)
-- [x] Codex tables exist: `CodexEntry`, `CodexAlias`, `CodexTag`, `CodexRelation`, `CodexProgression` (STO-1167)
-- [x] Can create a Novel with hierarchical structure and Codex entries via seed script (`bun run db:seed`)
+- **Auth & Accounts**: Email/password signup and login gated by Cloudflare Turnstile, Supabase cookie sessions, and automatic sync into `public.users`.
+- **Library & Writing Desk (`/dashboard`, `/dashboard/novels/[id]`)**: Series/novel creation, onboarding starter bible, hierarchical outliner (`Act → Chapter → Scene`) with advisory-locked concurrent ordering (`pg_advisory_xact_lock`), TipTap 3 scene editor with debounced autosave, localStorage draft recovery, scene revision
+  snapshots & restore, and three operating modes (`Writer`, `Stage` [fixture preview], `Architect`).
+- **Story Codex & Context Assembly (`/dashboard/codex`, `/api/context/assemble`)**: Book- and series-scoped entries, aliases, tags, directed relations (`RelationEngine` BFS with cycle detection), scene-ordered temporal progressions (`ProgressionEngine`), word-boundary mention detection, deterministic context assembly, token
+  budgeting (`TokenBudgetBar`), and `<codex_context>` XML prompt formatting.
+- **Codex Interchange APIs (`/api/codex/interchange/*`)**: Preview, import, and export for SillyTavern Lorebooks and Character Card v2 (JSON/YAML/PNG), preserving third-party metadata under `CodexEntry.customFields._inkstoryInterchange`. _(Import/export UI dialog is not yet wired into `CodexManager`.)_
+- **AI Generation, BYOK, Prompts & Craft Studio (`/dashboard/settings`, `/api/ai/*`, `/api/prompts/*`, `/api/craft/*`)**: Scene continuation and beat expansion with zero-spend prompt-builder fallback when unconfigured; encrypted BYOK credentials (`UserProviderCredential`) for OpenRouter, OpenAI, Anthropic, Ollama, and LM Studio;
+  server-resolved model capabilities (`minP`, `avoidanceGuidance`, OpenRouter endpoint pinning); reusable prompt templates & portable versioned contracts; Craft Studio tools (`describe`, `expand`, `rewrite`, `show_dont_tell`, `transition`) with an in-editor `CraftPanel`.
+- **Manuscript Import & Export (`/api/books/[id]/{import,export}`)**: 10 MB streaming `.docx`/`.md`/`.html` import with preview, structure override, and title adoption; Markdown and DOCX manuscript export.
+- **Stripe Billing (`/api/billing/*`)**: Free (1 novel, 30 codex entries, 4k context tokens), Author Pro ($15/mo or $144/yr, unlimited, 6k tokens), and Studio ($35/mo, unlimited, 6k tokens, series sharing) enforced with `402 QUOTA_EXCEEDED`.
 
-Signup/login still has an open tracking issue ([#60](https://github.com/jgf-dev/inkstory/issues/60)); confirm email settings in the Supabase project if local auth fails.
+### In progress / partial UI parity
+
+- **Stage Mode**: Enactment console currently runs typed static fixtures (`src/lib/stage/fixtures.ts`); multi-agent backend is not wired yet.
+- **Craft Studio**: `describe`, `expand`, `rewrite`, `show_dont_tell`, and `transition` are registered and wired into `CraftPanel`; `brainstorm` is pending.
+- **Codex Interchange & Prompts UI**: Backend APIs are complete; `CodexManager` does not yet expose an interchange dialog, and `/dashboard/settings` currently only duplicates `SYSTEM_DEFAULT` prompts (no full prompt/component editor).
 
 ## Local setup
 
-### 1. Install
+### 1. Install dependencies
 
-CI and Vercel use **bun**. npm scripts in `package.json` are equivalent.
+Use **Bun** (`bun.lock` is canonical; avoid `npm install` or `vp install`):
 
 ```bash
 bun install
 ```
 
-`postinstall` runs `prisma contract emit`. If install used `--ignore-scripts` (as CI does), emit manually:
+`postinstall` runs `prisma contract emit`. If you installed with `--ignore-scripts` (as CI does), emit the contract manually:
 
 ```bash
 bun run contract:emit
 ```
 
-### 2. Create a Supabase project
+### 2. Configure Supabase & environment variables
 
-1. Go to [supabase.com/dashboard](https://supabase.com/dashboard) and create a project.
-2. In **Settings → Database**, copy the **session pooler** URL (port **5432**, IPv4, DDL-safe) → `DIRECT_URL`.
-3. Copy the **transaction pooler** URL (port **6543**) → `DATABASE_URL` for runtime queries.
-4. In **Settings → API**, copy **Project URL** → `NEXT_PUBLIC_SUPABASE_URL` and **anon public** → `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`.
-5. Copy the **service_role** key → `SUPABASE_SERVICE_ROLE_KEY`. Never expose this to the browser.
-6. Copy `.env.example` to `.env` (or `.env.local`) and fill in the values.
+1. Create a project at <https://supabase.com/dashboard>.
+2. In **Settings → Database**, copy:
 
-`prisma.config.ts` prefers `DIRECT_URL`, then `DATABASE_URL`.
+- **Session pooler** URL (port **5432**, IPv4, DDL-safe) → `DIRECT_URL`
+- **Transaction pooler** URL (port **6543**) → `DATABASE_URL`
 
-### 3. Initialize the database
+3. In **Settings → API**, copy:
 
-Prisma 8 is contract-first. There is no `db:migrate` or `db:studio` script.
+- **Project URL** → `NEXT_PUBLIC_SUPABASE_URL`
+- **Publishable / anon key** → `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
+- **Service role key** → `SUPABASE_SERVICE_ROLE_KEY` _(server-only; never expose to the browser)_
+
+4. Copy `.env.example` to `.env.local` and fill in the Supabase values.
+
+`prisma.config.ts` loads `.env.local` then `.env` (skipped under Vitest) and prefers `DIRECT_URL`, then `DATABASE_URL`.
+
+### 3. Configure Cloudflare Turnstile (required for login & signup)
+
+`POST /api/auth/login` and `POST /api/auth/signup` verify Turnstile tokens server-side and **fail closed with HTTP 403** if `TURNSTILE_SECRET` or `TURNSTILE_HOSTNAMES` is empty.
+
+In `.env.local`, set:
+
+- `NEXT_PUBLIC_TURNSTILE_SITE_KEY` and `TURNSTILE_SECRET` (from your Cloudflare Turnstile widget or Cloudflare's official Turnstile testing keys for local development)
+- `TURNSTILE_HOSTNAMES="localhost,127.0.0.1"` _(local dev only — never allow localhost in production)_
+
+> **Optional services:** Leaving `AI_GATEWAY_API_KEY`, `BYOK_ENCRYPTION_KEY`, and `STRIPE_*` empty is safe for local development: AI generation returns `503 AI_NOT_CONFIGURED` with the copyable assembled prompt, and billing routes return `503 BILLING_NOT_CONFIGURED`.
+
+### 4. Initialize the database
+
+Prisma 8 is contract-first (`prisma/contract.prisma`). There is no `db:migrate` or `db:studio` script.
 
 ```bash
-bun run db:update   # apply the contract to the database (use DIRECT_URL)
-bun run db:seed     # optional: demo series / novel / Codex fixtures
+bun run db:update   # apply prisma/contract.prisma to the database (uses DIRECT_URL)
+bun run db:seed     # optional: demo series, novel, Codex entries, and system prompts
 ```
 
-Related: `bun run db:verify`, `bun run db:sign`, `bun run contract:emit`.
+Related commands: `bun run contract:emit`, `bun run db:verify`, `bun run db:sign`.
 
-### 4. Start the dev server
+### 5. Start the dev server
 
 ```bash
 bun run dev
 ```
 
-Visit [http://localhost:3000](http://localhost:3000), sign up, and you should land on `/dashboard`. Codex UI: `/dashboard/codex`.
+Visit <http://localhost:3000>, sign up, and explore `/dashboard`, `/dashboard/codex`, `/dashboard/novels/[id]`, and `/dashboard/settings`.
+
+## Cloudflare Workers deployment
+
+`cloudflare.config.ts` defines the primary `inkstory` Worker (`vinext/server/fetch-handler`) and the auxiliary `inkstory-response-store` cache Worker (`compatibilityFlags: ["nodejs_compat", "global_fetch_strictly_public"]`).
+
+```bash
+bun run build                   # Vite+ production build
+bun run preview                 # local production preview
+bun run deploy:response-store   # deploy auxiliary cache Worker
+bun run deploy                  # deploy primary app via vinext-cloudflare
+bun run cf-typegen              # regenerate .cloudflare/types
+```
+
+Store all secrets (`DATABASE_URL`, `DIRECT_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `BYOK_ENCRYPTION_KEY`, `AI_GATEWAY_API_KEY`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `TURNSTILE_SECRET`) as Cloudflare Worker secrets — never in plaintext `cloudflare.config.ts` bindings or `NEXT_PUBLIC_*` variables.
 
 ## Project layout
 
-```
-src/
-├── app/
-│   ├── api/health/              # GET /api/health
-│   ├── api/codex/               # Session-authed Codex REST
-│   ├── dashboard/               # Authed dashboard + Codex UI
-│   ├── login/ / signup/
-│   ├── layout.tsx / page.tsx
-│   └── globals.css
-├── lib/
-│   ├── prisma.ts                # Prisma 8 client (`db.orm.public.*`)
-│   ├── codex/                   # Domain service, actions, engines, types
-│   └── supabase/                # Browser/server clients, session helper, user sync
-└── proxy.ts                     # Next 16 session refresh (not middleware.ts)
+```text
+cloudflare.config.ts              # Cloudflare Workers + response-store config
+vite.config.ts                    # Vite+ / vinext / Vitest / Oxlint / Oxfmt config
+prisma.config.ts                  # Prisma 8 contract & DB connection config
 prisma/
-├── contract.prisma              # Prisma 8 data contract (source of truth)
-├── schema.prisma                # Legacy Prisma 7 schema (not the runtime contract)
-└── seed.ts
+├── contract.prisma               # Prisma 8 data contract (17 models, 11 enums — source of truth)
+├── contract.json / contract.d.ts # Emitted contract artifacts
+└── seed.ts                       # Demo fixtures + SYSTEM_DEFAULT prompts
+scripts/
+└── test-db.ts                    # Disposable Postgres 17 + Prisma update + Vitest runner
+src/
+├── proxy.ts                      # Supabase session refresh boundary (not middleware.ts)
+├── app/
+│   ├── page.tsx / layout.tsx / globals.css
+│   ├── login/ / signup/ / auth/callback/
+│   ├── dashboard/
+│   │   ├── page.tsx              # Library metrics, LibraryCreator, OnboardingWizard
+│   │   ├── codex/                # CodexManager, CodexEditor, relation/progression modals
+│   │   ├── novels/[id]/          # WritingWorkspace (Writer/Stage/Architect), TipTap SceneEditor, CraftPanel, AI drawer
+│   │   └── settings/             # BYOK credentials & system prompt duplication
+│   └── api/                      # 46 route handlers (health, auth, codex, context, ai, craft, prompts, books, novels, scenes, billing)
+└── lib/
+    ├── prisma.ts                 # Prisma 8 client singleton (`db.orm.public.*`)
+    ├── database-env.ts           # Non-test `.env.local`/`.env` loader
+    ├── test-database-guard.ts    # Blocks tests from touching hosted Supabase DBs
+    ├── turnstile.ts              # Server-side Cloudflare Turnstile verification
+    ├── stripe.ts                 # Lazy Stripe SDK client
+    ├── supabase/                 # Browser/server/middleware clients + syncAuthUser
+    ├── library/                  # Novel/series creation + starter bible onboarding
+    ├── writing/                  # Outline tree, TipTap helpers, scene revisions, advisory lock
+    ├── codex/                    # Domain service, actions, errors, engines, context assembler, interchange/
+    ├── ai/                       # Gateway generation, shared execution, providers/, credentials/, capabilities/
+    ├── prompts/                  # Prompt templates, variable interpolation, portable contracts
+    ├── craft/                    # Craft Studio registry (`describe`, `expand`, `rewrite`, `show_dont_tell`, `transition`)
+    ├── import/ / export/         # Manuscript `.docx`/`.md`/`.html` import and MD/DOCX export
+    ├── billing/                  # Plan limits, quota guards, Stripe subscription sync
+    ├── stage/                    # Stage mode fixture rehearsal beats
+    └── ui/                       # Theme/font/mode preferences & shared UI helpers
+tests/                            # Vitest unit/integration suites + tests/e2e/ Playwright specs
 ```
 
-## Codex
+## Story Codex & core engines
 
-Hierarchical story model: `User → Series → Novel → Act → Chapter → Scene`.
+Hierarchical story model: `User → Series → Novel → Act → Chapter → Scene (→ SceneRevision)`.
 
-Codex entries are the story bible: character / location / item / lore / faction / concept / other. Book-scoped entries bind to one novel; series-scoped entries are shared across books in that series. Soft-delete via `deletedAt` (pass `?hard=true` to hard-delete).
+Codex entries represent story-bible elements (`CHARACTER`, `LOCATION`, `ITEM`, `LORE`, `FACTION`, `CONCEPT`, `OTHER`) scoped to either a single novel or an entire series, with tracking modes `ALWAYS`, `DETECTED`, or `NEVER` and soft-delete (`deletedAt`; pass `?hard=true` to hard-delete).
 
-| Concern        | Where                                                                                                                                                                                                                                  |
-| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Domain API     | `src/lib/codex/service.ts` (`CodexError`, CRUD, mentions, `resolveCodexEntryAtScene`)                                                                                                                                                  |
-| Server Actions | `src/lib/codex/actions.ts` (`{ success, data }` or `{ success: false, error, code, status }`)                                                                                                                                          |
-| Types          | `src/lib/codex/types.ts` (`CodexType`, `CodexTrackingMode`, `ProgressionMode`)                                                                                                                                                         |
-| Mentions       | `src/lib/codex/mention-detection.ts` — case-insensitive, word-boundary, longer-match wins                                                                                                                                              |
-| Progressions   | `src/lib/codex/progression-engine.ts` (STO-1153) — reading order Act→Chapter→Scene; `ADDITION` appends, `REPLACEMENT` replaces                                                                                                         |
-| Relations      | `src/lib/codex/relation-engine.ts` (STO-1154) — pure `RelationEngine`: BFS graph expansion from a seed entry, cycle detection, depth limit (default 2), dedupe; DB-agnostic edge input; unit-tested in `tests/relation-engine.test.ts` |
+| Concern                          | Module                                                                                                    |
+| -------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| Domain service & context loading | `src/lib/codex/service.ts` (CRUD, mentions, `resolveCodexEntryAtScene`, `assembleCodexContextForScene`)   |
+| Server Actions                   | `src/lib/codex/actions.ts` (`{ success: true, data }` \| `{ success: false, error, code, status }`)       |
+| Error contract                   | `src/lib/codex/errors.ts` (`CodexError`, `handleCodexApiError`)                                           |
+| Mention detection                | `src/lib/codex/mention-detection.ts` — case-insensitive, word-boundary, longer-match wins                 |
+| Temporal progressions            | `src/lib/codex/progression-engine.ts` — Act → Chapter → Scene reading order; `ADDITION` / `REPLACEMENT`   |
+| Relations graph                  | `src/lib/codex/relation-engine.ts` — pure BFS expansion, cycle detection, depth limit (default 2), dedupe |
+| Context assembly & budgeting     | `src/lib/codex/context-assembler.ts`, `token-budgeter.ts`, `prompt-formatter.ts`, `budget-segments.ts`    |
+| Third-party interchange          | `src/lib/codex/interchange/*` — SillyTavern Lorebook & Character Card v2 PNG/JSON                         |
 
-Tracking modes: `ALWAYS`, `DETECTED`, `NEVER`.
+## REST API overview
 
-There is **no** HTTP endpoint for “resolve entry at scene”; use `resolveCodexEntryAtScene` in the service layer. Relation **CRUD** is on the API, and the graph expansion engine (STO-1154, `RelationEngine`) ships on `main` as a pure library — call it from the service layer; there is no dedicated HTTP endpoint for expansion.
+All routes except `/api/health`, `/api/auth/*`, and `/api/billing/webhook` require an authenticated Supabase session cookie (returning `401` otherwise).
 
-### REST (cookie session required; 401 if missing)
+### Health & Auth
 
-| Method           | Path                                                                       | Role                                          |
-| ---------------- | -------------------------------------------------------------------------- | --------------------------------------------- |
-| GET              | `/api/health`                                                              | Liveness `{ status, service, version, time }` |
-| GET              | `/api/codex/entries?novelId\|seriesId&type&trackingMode&search&seriesOnly` | List                                          |
-| POST             | `/api/codex/entries`                                                       | Create (`CreateCodexEntryInput`)              |
-| GET/PATCH/DELETE | `/api/codex/entries/[id]`                                                  | Read / update / delete (`?hard=true`)         |
-| POST             | `/api/codex/entries/[id]/aliases`                                          | Add alias                                     |
-| DELETE           | `/api/codex/aliases/[id]`                                                  | Remove alias                                  |
-| POST             | `/api/codex/entries/[id]/tags`                                             | Add tag                                       |
-| DELETE           | `/api/codex/tags/[id]`                                                     | Remove tag                                    |
-| POST             | `/api/codex/relations`                                                     | Create relation                               |
-| PATCH/DELETE     | `/api/codex/relations/[id]`                                                | Update / delete                               |
-| POST             | `/api/codex/progressions`                                                  | Create progression                            |
-| PATCH/DELETE     | `/api/codex/progressions/[id]`                                             | Update / delete                               |
-| POST             | `/api/codex/mentions`                                                      | `{ text, novelId? \| sceneId? }`              |
+| Method | Path               | Role                                                                      |
+| ------ | ------------------ | ------------------------------------------------------------------------- |
+| `GET`  | `/api/health`      | Liveness `{ status, service, version, time }` (no DB required)            |
+| `POST` | `/api/auth/login`  | Turnstile-verified email/password sign-in                                 |
+| `POST` | `/api/auth/signup` | Turnstile-verified email/password sign-up                                 |
+| `GET`  | `/auth/callback`   | Supabase email OTP / PKCE verification callback with safe-redirect checks |
 
-Error payload: `{ error, code }`. Codes: `NOT_FOUND`, `FORBIDDEN`, `VALIDATION_FAILED`, `SCOPING_ERROR`, `CONFLICT`, `INVALID_JSON` (malformed body → 400, not 500).
+### Writing, Scenes & Manuscript Import/Export
+
+| Method                        | Path                                              | Role                                                                                                    |
+| ----------------------------- | ------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `GET`/`POST`/`PATCH`/`DELETE` | `/api/novels/[id]/outline`                        | Read, create, rename/reorder (advisory-locked), or delete Act/Chapter/Scene nodes                       |
+| `GET`/`PATCH`                 | `/api/scenes/[id]`                                | Read scene for editor; autosave prose/TipTap doc/metadata (recomputes word count)                       |
+| `GET`/`POST`                  | `/api/scenes/[id]/revisions`                      | List revisions or create a `MANUAL` checkpoint                                                          |
+| `POST`                        | `/api/scenes/[id]/revisions/[revisionId]/restore` | Snapshot live scene (`RESTORE`) and restore revision                                                    |
+| `POST`                        | `/api/books/[id]/import`                          | Multipart `.docx`/`.md`/`.html` preview or confirm (`confirm=true`, optional `structure`, `applyTitle`) |
+| `GET`                         | `/api/books/[id]/export`                          | Download manuscript as Markdown (`format=md`) or DOCX (`format=docx`)                                   |
+
+### Story Codex, Context & Interchange
+
+| Method                    | Path                                                         | Role                                                          |
+| ------------------------- | ------------------------------------------------------------ | ------------------------------------------------------------- |
+| `GET`/`POST`              | `/api/codex/entries`                                         | List (`novelId` \| `seriesId`, filters) or create Codex entry |
+| `GET`/`PATCH`/`DELETE`    | `/api/codex/entries/[id]`                                    | Read, update, or delete (`?hard=true`) entry                  |
+| `POST` / `DELETE`         | `/api/codex/entries/[id]/aliases`, `/api/codex/aliases/[id]` | Add / remove alias                                            |
+| `POST` / `DELETE`         | `/api/codex/entries/[id]/tags`, `/api/codex/tags/[id]`       | Add / remove tag                                              |
+| `POST` / `PATCH`/`DELETE` | `/api/codex/relations`, `/api/codex/relations/[id]`          | Manage directed relations                                     |
+| `POST` / `PATCH`/`DELETE` | `/api/codex/progressions`, `/api/codex/progressions/[id]`    | Manage scene-linked progressions                              |
+| `POST`                    | `/api/codex/mentions`                                        | Detect Codex mentions in `{ text, novelId? \| sceneId? }`     |
+| `POST`                    | `/api/context/assemble`                                      | Assemble & inspect token-budgeted Codex context for a scene   |
+| `GET`                     | `/api/codex/interchange/matrix`                              | V1 interchange support matrix & policy                        |
+| `POST`                    | `/api/codex/interchange/lorebook/{preview,import,export}`    | SillyTavern Lorebook preview / import / export                |
+| `POST`                    | `/api/codex/interchange/card/{preview,import,export}`        | Character Card v2 (JSON/YAML/PNG) preview / import / export   |
+
+### AI, BYOK, Craft Studio, Prompts & Billing
+
+| Method                                         | Path                                                                               | Role                                                                                                               |
+| ---------------------------------------------- | ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `POST`                                         | `/api/ai/generate`                                                                 | Generate continuation or beat expansion (platform gateway or explicit BYOK)                                        |
+| `POST`                                         | `/api/ai/preview`                                                                  | Render exact `messages[]` without calling a provider                                                               |
+| `GET`                                          | `/api/ai/capabilities`                                                             | Server-resolved advanced control capabilities for platform or BYOK route                                           |
+| `GET`/`PUT` / `GET`/`PATCH`/`DELETE`           | `/api/ai/credentials`, `/api/ai/credentials/[id]`                                  | Manage encrypted BYOK provider credentials (key hints only; never exposes secrets)                                 |
+| `GET` / `POST`                                 | `/api/craft/tools`, `/api/craft/[tool]`                                            | List Craft Studio tools and run `describe`, `expand`, `rewrite`, `show_dont_tell`, or `transition` (with `dryRun`) |
+| `GET`/`POST` / `GET`/`PATCH`/`DELETE` / `POST` | `/api/prompts`, `/api/prompts/[id]`, `/api/prompts/[id]/duplicate`                 | Manage prompt templates and duplicate read-only `SYSTEM_DEFAULT` rows                                              |
+| `GET`/`POST` / `PATCH`/`DELETE`                | `/api/prompts/components`, `/api/prompts/components/[id]`                          | Manage reusable prompt components and contracts                                                                    |
+| `GET` / `POST`                                 | `/api/prompts/components/[id]/export`, `/api/prompts/components/import{,/preview}` | Export, preview, and import portable prompt component JSON                                                         |
+| `POST`                                         | `/api/billing/{checkout,portal,webhook}`                                           | Stripe Checkout session, Billing Portal session, and signed webhook handler                                        |
+
+Standard error payload: `{ error, code }`. Codex/domain error codes include `NOT_FOUND`, `FORBIDDEN`, `VALIDATION_FAILED`, `SCOPING_ERROR`, `CONFLICT`, `QUOTA_EXCEEDED` (402), `CONTEXT_ASSEMBLY_FAILED` (422), and `INVALID_JSON` (400).
 
 ## Scripts
 
-| Script                                        | Purpose                                                      |
-| --------------------------------------------- | ------------------------------------------------------------ |
-| `bun run dev`                                 | Next.js dev server                                           |
-| `bun run build` / `start`                     | Production build / serve                                     |
-| `bun run lint`                                | oxlint via `vp lint --fix`                                   |
-| `bun run format` / `format:check`             | `vp fmt`                                                     |
-| `bun run typecheck`                           | `vp check --no-fmt --no-lint`                                |
-| `bun run test` / `test:cov`                   | Vitest via `vp test` (loads `.env.test` only; see below)     |
-| `bun run test:db`                             | Start local test Postgres, apply schema, run Vitest          |
-| `bun run test:e2e`                            | Playwright (`tests/e2e`, Chrome at `/usr/bin/google-chrome`) |
-| `bun run contract:emit`                       | `prisma contract emit`                                       |
-| `bun run db:update` / `db:verify` / `db:sign` | Prisma 8 schema apply / verify / sign                        |
-| `bun run db:seed`                             | Demo data                                                    |
+| Script                                        | Purpose                                                                                |
+| --------------------------------------------- | -------------------------------------------------------------------------------------- |
+| `bun run dev`                                 | Start Vite+ / `vinext` dev server on port 3000 (`vp dev --port 3000`)                  |
+| `bun run build` / `preview` / `start`         | Production build and local preview (`vp build` / `vp preview`)                         |
+| `bun run deploy` / `deploy:response-store`    | Deploy primary app (`vinext-cloudflare deploy`) and cache Worker                       |
+| `bun run cf-typegen`                          | Generate Cloudflare Workers TypeScript definitions (`cf workers types`)                |
+| `bun run lint`                                | Type-aware oxlint with autofix (`vp lint --fix`)                                       |
+| `bun run format` / `format:check`             | Format / check formatting (`vp fmt`)                                                   |
+| `bun run typecheck`                           | Type-check (`vp check --no-fmt --no-lint`)                                             |
+| `bun run test` / `test:db`                    | Start or reuse disposable local Postgres 17, apply contract, run full Vitest suite     |
+| `bun run test:no-db`                          | Fast unit-only Vitest run (`INKSTORY_NO_DB=1 vp test`, skipping DB integration suites) |
+| `bun run test:cov`                            | Vitest with V8 coverage (requires a running local test Postgres)                       |
+| `bun run test:e2e` / `test:e2e:ui`            | Playwright E2E suite (`tests/e2e`, sets `NEXT_PUBLIC_E2E=true`)                        |
+| `bun run contract:emit`                       | Emit `prisma/contract.json` and `prisma/contract.d.ts`                                 |
+| `bun run db:update` / `db:verify` / `db:sign` | Prisma 8 schema apply / verify / sign                                                  |
+| `bun run db:seed`                             | Seed demo fixtures and `SYSTEM_DEFAULT` prompts (`vpx prisma/seed.ts`)                 |
 
 ## Tests
 
 ```bash
-bun run test          # unit / integration (Vitest). Loads `.env.test` only.
-bun run test:db       # start disposable Postgres, apply schema, run Vitest
-bun run test:e2e      # Playwright; sets NEXT_PUBLIC_E2E=true and starts `npm run dev`
+bun run test          # full suite: ensures local Postgres 17, runs `prisma db update`, runs Vitest
+bun run test:no-db    # unit tests only (no Postgres required)
+bun run test:e2e      # Playwright E2E; sets NEXT_PUBLIC_E2E=true
 ```
 
-E2E launches Chromium with `executablePath: /usr/bin/google-chrome`. Codex tests that share a database can race; isolate fixtures rather than pointing every suite at one live DB.
+Playwright uses `/usr/bin/google-chrome` when present (CI) and falls back to Playwright's bundled Chromium locally.
 
 ### Local test database
 
-Integration tests issue live Prisma queries. They must use a disposable local Postgres, never the repo `.env` / `.env.local` or a hosted Supabase project (prod ref `wntgnjrrzfndunqaiobo`, preview ref `oobhhexdoufnwdltoren`).
+Integration tests issue live Prisma queries and must use a disposable local Postgres — never `.env`, `.env.local`, or a hosted Supabase project (prod ref `wntgnjrrzfndunqaiobo`, preview ref `oobhhexdoufnwdltoren`).
 
-The setup matches the Sonar CI job in `.github/workflows/sonarqube.yml`: Postgres 17, database `inkstory_test`, user/password `postgres`/`postgres`, on `localhost:5432` by default.
+The setup matches CI (`.github/workflows/sonarqube.yml`): Postgres 17, database `inkstory_test`, user/password `postgres`/`postgres` on `localhost:5432` by default.
 
 ```bash
-# One command: start the DB, apply the Prisma contract (`prisma db update`, same as CI), run tests
-bun run test:db
-
-# Use a different host port when 5432 is already taken
-INKSTORY_TEST_POSTGRES_PORT=55432 bun run test:db
-# or: bun run test:db -- --port 55432
-
-# Or step by step (default port 5432, matching `.env.test`)
-docker compose -f docker-compose.test.yml up -d --wait
-# Then, with only `.env.test` loaded (do not export a URL from `.env`):
-./node_modules/.bin/prisma db update -y --db "$DATABASE_URL"
+# One command: start/reuse local Postgres, apply contract, run full Vitest suite
 bun run test
 
-# Stop the disposable DB when finished
+# Use a different host port when 5432 is already taken
+INKSTORY_TEST_POSTGRES_PORT=55432 bun run test
+# or: bun run test -- --port 55432
+
+# If pulling ghcr.io/jgf-dev/postgres:17 fails without GHCR auth, use official postgres:17
+INKSTORY_TEST_POSTGRES_IMAGE=postgres:17 bun run test
+
+# Stop the disposable container when finished
 docker compose -f docker-compose.test.yml down
 ```
 
-`bun run test` and `bun run test:cov` load **only** `.env.test`. They do not read `.env` or `.env.local`. A hard guard then refuses to run if `DATABASE_URL` or `DIRECT_URL` contains a blocked project ref or a non-local host (only `localhost`, `127.0.0.1`, and `::1` are allowed — the same host CI uses). If a URL is already set in your shell, that value wins over `.env.test` and will be rejected unless it is loopback.
-
-If a local Postgres 17 is already accepting the test URL (after any port override), `bun run test:db` reuses it and skips Compose. Otherwise it starts `docker-compose.test.yml`.
-
-The host port defaults to `5432` to match CI and the committed `.env.test`. `bun run test:db` reloads `.env.test` with override, so exporting `DATABASE_URL` cannot change the port. Set `INKSTORY_TEST_POSTGRES_PORT` or pass `--port` instead; the script rewrites `DATABASE_URL` and `DIRECT_URL` and publishes Compose on that host port. The safety guard still allows only `localhost`, `127.0.0.1`, and `::1`.
-
-The compose file defaults to `ghcr.io/jgf-dev/postgres:17`, the image CI uses (a mirror of official `postgres:17`). If a local pull of that tag fails because GHCR auth is missing, use the official image of the same major:
-
-```bash
-INKSTORY_TEST_POSTGRES_IMAGE=postgres:17 bun run test:db
-```
-
-`.env.test` is committed and contains only these local credentials. Never point it at prod, preview, or any other remote database.
+`tests/setup-env.ts` loads **only** `.env.test` (never `.env` or `.env.local`), and `src/lib/test-database-guard.ts` aborts (`INKSTORY_UNSAFE_TEST_DATABASE`) if `DATABASE_URL` or `DIRECT_URL` contains a blocked Supabase ref or any host other than `localhost`, `127.0.0.1`, or `::1`. Committed `.env.test` contains only these local
+credentials — never point it at a remote database.
 
 ## Troubleshooting
 
-| Symptom                                               | Likely cause                                                                                                                            |
-| ----------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| `db:update` / seed hangs                              | Transaction pooler (port 6543) blocks DDL. Point `DIRECT_URL` at the **session** pooler (port 5432). Direct hostnames can be IPv6-only. |
-| `command not found: db:migrate` / `db:studio`         | Those Prisma 7 scripts were removed. Use `db:update` and the contract files.                                                            |
-| Seed never exits                                      | Historical: undrained `pg.Pool`. Current `prisma/seed.ts` should exit; if it hangs, check the pooler URL first.                         |
-| Server Components look logged-out                     | `src/proxy.ts` must refresh the Supabase cookie; do not reintroduce a separate `middleware.ts` that skips `@supabase/ssr`.              |
-| Codex API 401                                         | No session cookie. Sign in via `/login`; there is no API-key auth.                                                                      |
-| Playwright cannot find Chrome                         | Config expects `/usr/bin/google-chrome`.                                                                                                |
-| `prisma contract emit` missing after install          | CI uses `bun install --ignore-scripts`; run `bun run contract:emit`.                                                                    |
-| Tests refuse to run / `INKSTORY_UNSAFE_TEST_DATABASE` | `DATABASE_URL` or `DIRECT_URL` points at a remote or Supabase host. Unset them and use `.env.test` / `bun run test:db`.                 |
-| `bun run test:db` cannot pull the GHCR image          | Use `INKSTORY_TEST_POSTGRES_IMAGE=postgres:17 bun run test:db` (official Postgres 17).                                                  |
-| `bun run test:db` fails because port 5432 is in use   | Set `INKSTORY_TEST_POSTGRES_PORT=55432` or pass `--port 55432`. The leftover process on 5432 can stay running.                          |
-
-## What's next (Epic 1)
-
-- [x] Codex database schema & models ([STO-1167](https://linear.app/jgfdev/issue/STO-1167))
-- [x] Codex CRUD API & Server Actions ([STO-1168](https://linear.app/jgfdev/issue/STO-1168))
-- [x] Basic Codex UI List + Editor ([STO-1169](https://linear.app/jgfdev/issue/STO-1169))
-- [x] Mention Detection Service ([STO-1152](https://linear.app/jgfdev/issue/STO-1152))
-- [x] Temporal Progressions ([STO-1153](https://linear.app/jgfdev/issue/STO-1153))
-- [x] Relations Graph Engine ([STO-1154](https://linear.app/jgfdev/issue/STO-1154))
-- [ ] Context Assembler ([STO-1170](https://linear.app/jgfdev/issue/STO-1170) / [STO-1171](https://linear.app/jgfdev/issue/STO-1171))
+| Symptom                                                         | Likely cause & fix                                                                                                                                                   |
+| --------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Login / signup returns `403 Security verification failed`       | `TURNSTILE_SECRET` or `TURNSTILE_HOSTNAMES` is missing/mismatched in `.env.local`. Set valid Turnstile keys and `TURNSTILE_HOSTNAMES="localhost,127.0.0.1"` locally. |
+| `POST /api/ai/generate` returns `503 AI_NOT_CONFIGURED`         | Expected when `AI_GATEWAY_API_KEY` is unset and no BYOK credential is selected; the response still returns the assembled prompt for copy/paste.                      |
+| `/api/billing/*` returns `503 BILLING_NOT_CONFIGURED`           | Expected when `STRIPE_SECRET_KEY` (or `STRIPE_WEBHOOK_SECRET` for webhooks) is unset.                                                                                |
+| `db:update` / seed hangs                                        | Transaction pooler (port 6543) blocks DDL. Point `DIRECT_URL` at the **session** pooler (port 5432). Direct DB hostnames can be IPv6-only.                           |
+| `command not found: db:migrate` / `db:studio`                   | Removed in Prisma 8. Use `bun run db:update` and `prisma/contract.prisma`.                                                                                           |
+| Server Components look logged-out                               | `src/proxy.ts` must refresh the Supabase cookie; do not add a separate `middleware.ts` that skips `@supabase/ssr`.                                                   |
+| API returns `401 Unauthorized`                                  | Missing Supabase session cookie. Sign in via `/login`.                                                                                                               |
+| Missing `prisma/contract.json` or `contract.d.ts` after install | Install ran with `--ignore-scripts`; run `bun run contract:emit`.                                                                                                    |
+| Tests abort with `INKSTORY_UNSAFE_TEST_DATABASE`                | `DATABASE_URL` or `DIRECT_URL` in your shell points at a remote or Supabase host. Unset them and use `bun run test` / `.env.test`.                                   |
+| `bun run test` cannot pull the GHCR Postgres image              | Run `INKSTORY_TEST_POSTGRES_IMAGE=postgres:17 bun run test`.                                                                                                         |
+| `bun run test` fails because port 5432 is in use                | Run `INKSTORY_TEST_POSTGRES_PORT=55432 bun run test` or `bun run test -- --port 55432`.                                                                              |

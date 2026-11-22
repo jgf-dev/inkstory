@@ -1,12 +1,12 @@
 /**
  * Seed script — creates a demo user, series, novel, act, chapter, scene, and codex entities.
- * Run with: npm run db:seed
+ * Run with: bun run db:seed
  *
  * The seed user is `seed@inkstory.local` (no password — for local dev only).
  * Sign up a real account via the app instead.
  */
 
-// tsx runs this directly (not via prisma.config.ts), so we load env manually.
+// Executed directly via `vpx prisma/seed.ts` (not via prisma.config.ts), so load env manually.
 import { config } from "dotenv";
 config({ path: ".env.local", override: false });
 config({ path: ".env", override: false });
