@@ -70,7 +70,8 @@ describe("Brainstorm tool (STO-1272)", () => {
       expect(tool.allowedContextSlices).toContain(slice);
     }
     expect(tool.allowedContextSlices).toEqual(describeTool.allowedContextSlices);
-    expect(tool.parts[0].body).toBe(describeTool.parts[0].body);
+    // Options output defers to the format its user message specifies (STO-1297), like show_dont_tell.
+    expect(tool.parts[0].body).toBe(getCraftTool("show_dont_tell").parts[0].body);
     expect(tool.contract.output).toEqual({ mode: "options", suggestedAction: "copy_only" });
     expect(tool.contract.inputs.every((input) => !input.required)).toBe(true);
     expect(contractReadsSlice(tool.contract, "scene.summary")).toBe(true);
