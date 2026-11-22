@@ -1,12 +1,12 @@
 /**
  * Code-owned Craft Studio tool registry (STO-1266 scaffold, STO-1267 Describe,
- * STO-1268 Expand, STO-1269 Rewrite, STO-1270 Show Don't Tell).
+ * STO-1268 Expand, STO-1269 Rewrite, STO-1270 Show Don't Tell, STO-1271 Transition).
  *
  * Each tool is a built-in reusable Prompt Component: a validated STO-1275
  * contract (declared craft inputs, context slices, output behavior) plus
  * system/user bodies rendered through the same closed-catalog interpolation
  * as scene Generate. No tables: tools live in code. The remaining v1 tools
- * (Transition, Brainstorm) register here in EL build order.
+ * (Brainstorm) register here in EL build order.
  */
 
 import {
@@ -19,7 +19,13 @@ import {
 import { PromptError } from "@/lib/prompts/errors";
 import type { PromptPart } from "@/lib/prompts/types";
 
-export const CRAFT_TOOL_IDS = ["describe", "expand", "rewrite", "show_dont_tell"] as const;
+export const CRAFT_TOOL_IDS = [
+  "describe",
+  "expand",
+  "rewrite",
+  "show_dont_tell",
+  "transition",
+] as const;
 export type CraftToolId = (typeof CRAFT_TOOL_IDS)[number];
 
 /** Default raw value per craft input, applied when the author leaves it blank. */
@@ -73,15 +79,77 @@ export const SHOW_DONT_TELL_DEFAULT_TARGET_WORDS = 200;
 export const DIAGNOSIS_MARKER = "DIAGNOSIS:";
 export const REWRITE_MARKER = "REWRITE:";
 
-const CRAFT_SYSTEM_BODY = [
-  "You are a skilled fiction craft assistant embedded in InkStory, a novel-writing workspace.",
-  "Story: {{novel.title}} — {{chapter.title}} / {{scene.title}}.",
-  "Write in {{scene.pov}} and {{scene.tense}} tense, matching the author's established voice, diction and pacing.",
-  "Story bible entries that apply to this scene are provided below. Respect their facts and current state; never contradict them.",
-  "Return prose only — no headings, no commentary, no markdown fences.",
+/**
+ * Shared craft system prompt. The output-format rule varies by output mode so
+ * the system and user messages never contradict each other (STO-1297):
+ * prose tools get the prose-only rule; sectioned tools defer to the format
+ * their user message specifies.
+ */
+function craftSystemBody(formatRule: string): string {
+  return [
+    "You are a skilled fiction craft assistant embedded in InkStory, a novel-writing workspace.",
+    "Story: {{novel.title}} — {{chapter.title}} / {{scene.title}}.",
+    "Write in {{scene.pov}} and {{scene.tense}} tense, matching the author's established voice, diction and pacing.",
+    "Story bible entries that apply to this scene are provided below. Respect their facts and current state; never contradict them.",
+    formatRule,
+    "",
+    "{{codex.context}}",
+  ].join("\n");
+}
+
+/** Format rule embedded in the system prompt for `prose` output tools. */
+export const CRAFT_PROSE_FORMAT_RULE =
+  "Return prose only — no headings, no commentary, no markdown fences.";
+const CRAFT_SYSTEM_BODY = craftSystemBody(CRAFT_PROSE_FORMAT_RULE);
+
+/** Format rule embedded in the system prompt for tools whose user message defines labelled output sections. */
+export const CRAFT_SECTIONED_FORMAT_RULE =
+  "Answer in exactly the labelled sections the request specifies — no other headings, no extra commentary, no markdown fences.";
+const CRAFT_SECTIONED_SYSTEM_BODY = craftSystemBody(CRAFT_SECTIONED_FORMAT_RULE);
+
+const CONTINUITY_LINES = [
+  'Author guidance:\n"""\n{{craft.instructions}}\n"""',
   "",
-  "{{codex.context}}",
-].join("\n");
+  "Surrounding scene, for continuity only (do not rewrite it):",
+  '"""',
+  "{{scene.content}}",
+  '"""',
+];
+
+/** A labelled, triple-quoted prompt block for one interpolated value. */
+function quoted(label: string, placeholder: string): string[] {
+  return ["", label, '"""', placeholder, '"""'];
+}
+
+/** Shared optional length-target input; bounds differ per tool. */
+function targetWordsInput(min: number, max: number) {
+  return {
+    key: "craft.target_words",
+    type: "integer",
+    required: false,
+    label: "Target length (words)",
+    min,
+    max,
+  } as const;
+}
+
+/** Shared optional free-text guidance input. */
+function instructionsInput(label = "Extra guidance") {
+  return {
+    key: "craft.instructions",
+    type: "text",
+    required: false,
+    label,
+    maxLength: 1000,
+  } as const;
+}
+
+const SELECTION_INPUT = {
+  key: "craft.selection",
+  type: "text",
+  required: true,
+  label: "Selected prose",
+} as const;
 
 const DESCRIBE_USER_BODY = [
   "Rewrite the selected passage so it is rich in concrete sensory description.",
@@ -89,17 +157,8 @@ const DESCRIBE_USER_BODY = [
   "Keep every event, action, line of dialogue and story fact from the selection. Add texture, not plot: do not introduce new characters, events or revelations.",
   "Aim for roughly {{craft.target_words}} words.",
   "",
-  'Author guidance:\n"""\n{{craft.instructions}}\n"""',
-  "",
-  "Surrounding scene, for continuity only (do not rewrite it):",
-  '"""',
-  "{{scene.content}}",
-  '"""',
-  "",
-  "Selected passage to describe:",
-  '"""',
-  "{{craft.selection}}",
-  '"""',
+  ...CONTINUITY_LINES,
+  ...quoted("Selected passage to describe:", "{{craft.selection}}"),
 ].join("\n");
 
 const EXPAND_USER_BODY = [
@@ -108,17 +167,8 @@ const EXPAND_USER_BODY = [
   "Keep every event, action, line of dialogue and story fact from the selection, in the same order. Expand what is there, not the plot: do not introduce new characters, events or revelations, and do not move the story past the end of the selection.",
   "Aim for roughly {{craft.target_words}} words in total.",
   "",
-  'Author guidance:\n"""\n{{craft.instructions}}\n"""',
-  "",
-  "Surrounding scene, for continuity only (do not rewrite it):",
-  '"""',
-  "{{scene.content}}",
-  '"""',
-  "",
-  "Selected passage to expand:",
-  '"""',
-  "{{craft.selection}}",
-  '"""',
+  ...CONTINUITY_LINES,
+  ...quoted("Selected passage to expand:", "{{craft.selection}}"),
 ].join("\n");
 
 const REWRITE_USER_BODY = [
@@ -129,17 +179,8 @@ const REWRITE_USER_BODY = [
   "Keep every event, action, line of dialogue and story fact from the selection, in the same order. Change how it is told, not what happens: do not introduce new characters, events or revelations.",
   "Aim for roughly {{craft.target_words}} words.",
   "",
-  'Author guidance:\n"""\n{{craft.instructions}}\n"""',
-  "",
-  "Surrounding scene, for continuity only (do not rewrite it):",
-  '"""',
-  "{{scene.content}}",
-  '"""',
-  "",
-  "Selected passage to rewrite:",
-  '"""',
-  "{{craft.selection}}",
-  '"""',
+  ...CONTINUITY_LINES,
+  ...quoted("Selected passage to rewrite:", "{{craft.selection}}"),
 ].join("\n");
 
 const SHOW_DONT_TELL_USER_BODY = [
@@ -150,7 +191,7 @@ const SHOW_DONT_TELL_USER_BODY = [
   "",
   'Author guidance:\n"""\n{{craft.instructions}}\n"""',
   "",
-  "For this tool the format below replaces the prose-only rule: the diagnosis is shown to the author and only the rewrite can be applied to the manuscript.",
+  "The diagnosis is shown to the author; only the rewrite can be applied to the manuscript.",
   "Answer in exactly this format and nothing else:",
   `${DIAGNOSIS_MARKER}`,
   "- One short bullet per instance of telling: quote the telling words, then name what could show it instead. At most five bullets. If nothing is told, write a single bullet saying so.",
@@ -181,7 +222,7 @@ const DESCRIBE = defineTool({
   contract: {
     schemaVersion: 1,
     inputs: [
-      { key: "craft.selection", type: "text", required: true, label: "Selected prose" },
+      SELECTION_INPUT,
       {
         key: "craft.sensory_focus",
         type: "enum",
@@ -189,21 +230,8 @@ const DESCRIBE = defineTool({
         label: "Sensory focus",
         options: [...SENSORY_FOCUS_OPTIONS],
       },
-      {
-        key: "craft.target_words",
-        type: "integer",
-        required: false,
-        label: "Target length (words)",
-        min: 10,
-        max: 1000,
-      },
-      {
-        key: "craft.instructions",
-        type: "text",
-        required: false,
-        label: "Extra guidance",
-        maxLength: 1000,
-      },
+      targetWordsInput(10, 1000),
+      instructionsInput(),
     ],
     contextSlices: [
       "selection",
@@ -247,34 +275,8 @@ const EXPAND = defineTool({
     "Deepen the selected prose with atmosphere and inner monologue without changing what happens.",
   contract: {
     schemaVersion: 1,
-    inputs: [
-      { key: "craft.selection", type: "text", required: true, label: "Selected prose" },
-      {
-        key: "craft.target_words",
-        type: "integer",
-        required: false,
-        label: "Target length (words)",
-        min: 20,
-        max: 2000,
-      },
-      {
-        key: "craft.instructions",
-        type: "text",
-        required: false,
-        label: "Extra guidance",
-        maxLength: 1000,
-      },
-    ],
-    contextSlices: [
-      "selection",
-      "scene.content",
-      "scene.title",
-      "scene.pov",
-      "scene.tense",
-      "chapter.title",
-      "novel.title",
-      "codex.context",
-    ],
+    inputs: [SELECTION_INPUT, targetWordsInput(20, 2000), instructionsInput()],
+    contextSlices: [...DESCRIBE.contract.contextSlices],
     output: { mode: "prose", suggestedAction: "replace_selection" },
     attribution: null,
   },
@@ -282,17 +284,7 @@ const EXPAND = defineTool({
     { role: "system", body: CRAFT_SYSTEM_BODY, name: "craft-expand-system" },
     { role: "user", body: EXPAND_USER_BODY, name: "craft-expand-user" },
   ],
-  allowedContextSlices: [
-    "selection",
-    "scene.content",
-    "scene.summary",
-    "scene.title",
-    "scene.pov",
-    "scene.tense",
-    "chapter.title",
-    "novel.title",
-    "codex.context",
-  ],
+  allowedContextSlices: DESCRIBE.allowedContextSlices,
   defaults: {
     "craft.target_words": EXPAND_DEFAULT_TARGET_WORDS,
     "craft.instructions": "None.",
@@ -307,7 +299,7 @@ const REWRITE = defineTool({
   contract: {
     schemaVersion: 1,
     inputs: [
-      { key: "craft.selection", type: "text", required: true, label: "Selected prose" },
+      SELECTION_INPUT,
       {
         key: "craft.rewrite_preset",
         type: "enum",
@@ -315,21 +307,8 @@ const REWRITE = defineTool({
         label: "Preset",
         options: [...REWRITE_PRESETS],
       },
-      {
-        key: "craft.target_words",
-        type: "integer",
-        required: false,
-        label: "Target length (words)",
-        min: 10,
-        max: 2000,
-      },
-      {
-        key: "craft.instructions",
-        type: "text",
-        required: false,
-        label: "Custom instructions",
-        maxLength: 1000,
-      },
+      targetWordsInput(10, 2000),
+      instructionsInput("Custom instructions"),
     ],
     contextSlices: [...DESCRIBE.contract.contextSlices],
     output: { mode: "prose", suggestedAction: "replace_selection" },
@@ -386,7 +365,7 @@ const SHOW_DONT_TELL = defineTool({
     attribution: null,
   },
   parts: [
-    { role: "system", body: CRAFT_SYSTEM_BODY, name: "craft-show-dont-tell-system" },
+    { role: "system", body: CRAFT_SECTIONED_SYSTEM_BODY, name: "craft-show-dont-tell-system" },
     { role: "user", body: SHOW_DONT_TELL_USER_BODY, name: "craft-show-dont-tell-user" },
   ],
   allowedContextSlices: [
@@ -406,11 +385,53 @@ const SHOW_DONT_TELL = defineTool({
   },
 });
 
+/** Default output-length target for Transition bridges (words). */
+export const TRANSITION_DEFAULT_TARGET_WORDS = 150;
+
+const TRANSITION_USER_BODY = [
+  "Write a short bridging passage that connects the end of the BEFORE passage to the start of the AFTER passage, as scene or chapter glue.",
+  "Carry any shift in time, place, point of view or mood smoothly so the reader arrives at the AFTER passage oriented and in the right emotional register.",
+  "Do not repeat, summarize or rewrite either passage. Do not introduce new plot events, characters or revelations: the bridge only connects what is already there.",
+  "Aim for roughly {{craft.target_words}} words.",
+  "",
+  ...CONTINUITY_LINES,
+  ...quoted("BEFORE passage (the bridge starts where this ends):", "{{craft.before_passage}}"),
+  ...quoted("AFTER passage (the bridge must lead into this):", "{{craft.after_passage}}"),
+].join("\n");
+
+const TRANSITION = defineTool({
+  id: "transition",
+  name: "Transition",
+  summary: "Bridge two passages with connective prose that carries time, place, POV and mood.",
+  contract: {
+    schemaVersion: 1,
+    inputs: [
+      { key: "craft.before_passage", type: "text", required: true, label: "Passage before" },
+      { key: "craft.after_passage", type: "text", required: true, label: "Passage after" },
+      targetWordsInput(10, 1000),
+      instructionsInput(),
+    ],
+    contextSlices: DESCRIBE.contract.contextSlices.filter((slice) => slice !== "selection"),
+    output: { mode: "prose", suggestedAction: "insert_between" },
+    attribution: null,
+  },
+  parts: [
+    { role: "system", body: CRAFT_SYSTEM_BODY, name: "craft-transition-system" },
+    { role: "user", body: TRANSITION_USER_BODY, name: "craft-transition-user" },
+  ],
+  allowedContextSlices: DESCRIBE.allowedContextSlices,
+  defaults: {
+    "craft.target_words": TRANSITION_DEFAULT_TARGET_WORDS,
+    "craft.instructions": "None.",
+  },
+});
+
 const CRAFT_TOOLS: Record<CraftToolId, CraftToolDefinition> = {
   describe: DESCRIBE,
   expand: EXPAND,
   rewrite: REWRITE,
   show_dont_tell: SHOW_DONT_TELL,
+  transition: TRANSITION,
 };
 
 export function isCraftToolId(value: unknown): value is CraftToolId {

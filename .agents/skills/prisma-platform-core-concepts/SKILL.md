@@ -2,7 +2,7 @@
 name: prisma-platform-core-concepts
 metadata:
   library: "prisma"
-  library_version: "8.0.0-rc.27"
+  library_version: "8.0.0-rc.34"
   version: 2026.9.2
 description: >-
   Use when hosting, deploying, or operating an app on the Prisma Platform:
@@ -58,8 +58,13 @@ step and no connection strings to wire by hand; Composer injects them.
 
 ## Project setup
 
-The CLI carries every command named here, but an app's own code needs its
-dependencies installed. Start from:
+`prisma init` prepares local configuration and copies this skill from the
+installed `prisma` package into the configured agent directories. Database
+provisioning and deployment are separate choices. Keep the project's existing
+database and hosting setup unless the user wants to change it.
+
+For a Prisma Composer (Early Access) app deployed to Prisma Compute, install
+the app's dependencies:
 
 ```sh
 npm install prisma @prisma/composer @prisma/composer-prisma-cloud
@@ -89,6 +94,7 @@ import { defineConfig as orm } from "@prisma/orm-postgres/config";
 
 export default definePrismaConfig({
   composer: composer({
+    entry: "./module.ts",
     extensions: [prismaCloud(), nodeBuild()],
     state: prismaState(),
   }),
@@ -139,10 +145,10 @@ branch is the environment, and branches come into being by deploying to them:
 1. **Push a git branch** (with the GitHub integration connected and the
    deploy workflow in the repository): the workflow builds and deploys, and
    the platform creates the branch environment on the fly.
-2. **Deploy a stage from the CLI**: `prisma deploy module.ts --stage pr-42`
+2. **Deploy an environment from the CLI**: `prisma deploy --environment pr-42`
    creates a branch named `pr-42` and deploys the identical app graph into
-   it. A stage name must be a valid git ref name; an invalid name is a hard
-   error.
+   it. An environment name must be a valid git ref name; an invalid name is
+   a hard error.
 
 A preview branch that needs a database gets a fresh, empty one, wired in as a
 branch-scoped `DATABASE_URL`. Preview work can never touch production data
@@ -203,13 +209,23 @@ Opening a pull request does not itself deploy anything; previews track
 branch pushes. A connected repository without the workflow gets branch
 bookkeeping and preview teardown from the platform, and no builds.
 
-**CLI.** `prisma deploy module.ts` deploys production directly; add
-`--stage <name>` for a preview. Authenticate once with `prisma auth login`
+**CLI.** `prisma deploy` deploys production directly; add `--environment <name>`
+for a preview. It deploys the entry file named by `entry` in the `composer`
+section of `prisma.config.ts`; `--entry <path>` overrides it. `prisma deploy
+list` (same `--environment`) lists each deployed node's address, kind, platform ID
+and URL. Authenticate once with `prisma auth login`
 (interactive), or set `PRISMA_SERVICE_TOKEN` (plus `PRISMA_WORKSPACE_ID`
 when the token can see more than one workspace) for CI and other headless
 runs. The first deploy creates the project, named after your module; the
 name must be unique in the workspace, and `--name` deploys under a different
 one.
+
+Before deploying, configure the Composer root module and the `composer`
+section in `prisma.config.ts`, then build the app. A new project also needs
+a region in `prismaCloud({ region: ... })` or `PRISMA_REGION`. The
+[deployment guide](https://www.prisma.io/docs/composer/deploying) covers
+these prerequisites; running `prisma init` alone does not prepare a
+deployable app.
 
 Both paths converge the same declaration, so they are mutually idempotent:
 a repo can be connected to GitHub and still be deployed from the CLI.
@@ -280,6 +296,16 @@ it. On paid plans, backups are automated, listable, and restorable.
 Per-database usage metrics are queryable; the `postgres` group covers all of
 it.
 
+A database outside any project comes from the separate
+[`create-db` tool](https://www.prisma.io/docs/postgres/npx-create-db):
+`npx create-db@latest` needs no account and prints a connection string and a
+claim URL. The database is deleted after 24 hours unless claimed; claiming it
+with a Prisma account keeps it for free. Give the user the claim URL itself
+and the deletion time: opening that URL is the only way to keep the database.
+Use it when the user has no Prisma account or project yet. When the project
+is on the platform, create the database in the project with the `postgres`
+group, or declare it in the module, instead.
+
 ## Object storage
 
 Buckets are S3-compatible object stores that live inside the project,
@@ -329,7 +355,7 @@ over deploying whenever you want to show the user a change or verify your
 own work:
 
 1. Build the app exactly as you would for deploy, then run
-   `prisma dev module.ts`. It provisions a local Prisma Postgres database,
+   `prisma dev` (it runs the config's `entry`, like deploy). It provisions a local Prisma Postgres database,
    applies the schema, creates local stand-ins for declared buckets, starts
    the services, and prints a local URL. It watches built output and
    restarts a service when its build changes.
@@ -346,7 +372,7 @@ own work:
    shows every local instance on the machine.
 4. Deploying is the same pipeline pointed at the platform: switching from
    local to hosted is a configuration change, not a code change. Reach for
-   `prisma deploy --stage <name>` only when you need a shareable URL or
+   `prisma deploy --environment <name>` only when you need a shareable URL or
    platform behaviour (sleeping, real DNS, production-like config).
 5. For pure frontend iteration the framework's own dev server also works;
    the Composer local stack is what mirrors the deployed wiring.
@@ -371,8 +397,8 @@ Windows is not supported for the local stack yet.
 6. **Production shows a stale value after an environment-variable change.**
    Variables are resolved at deploy time. Re-deploy (or promote) so the new
    value is picked up.
-7. **A stage name is rejected.** Stage names must be valid git ref names;
-   rename it.
+7. **An environment name is rejected.** Environment names must be valid git
+   ref names; rename it.
 8. **A resource disappeared from the platform after a deploy.** It was
    removed from `module.ts`; the module is the source of truth and deploy
    converges to it. Restore the declaration and re-deploy.
@@ -396,9 +422,9 @@ Windows is not supported for the local stack yet.
 Name the gap instead of inventing an API:
 
 1. **No branch create or delete from the CLI.** The `branch` group only
-   lists. Branches are created by pushing or by deploying a stage, and
-   removed by deleting the upstream git branch; there is no CLI teardown
-   verb for a stage yet.
+   lists. Branches are created by pushing or by deploying an environment,
+   and removed by deleting the upstream git branch; there is no CLI teardown
+   verb for an environment yet.
 2. **No build retry.** A failed build is finished; the retry is the next
    push or the next deploy.
 3. **No reading environment-variable values back**, anywhere. This is a
