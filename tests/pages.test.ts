@@ -36,7 +36,11 @@ vi.mock("../src/lib/supabase/auth", () => ({
 }));
 
 vi.mock("../src/app/login/LoginForm", () => ({
-  LoginForm: () => React.createElement("form", { "data-testid": "login-form" }),
+  LoginForm: (props: { initialError?: string | null }) =>
+    React.createElement("form", {
+      "data-testid": "login-form",
+      "data-initial-error": props.initialError ?? "",
+    }),
 }));
 
 vi.mock("../src/app/signup/SignupForm", () => ({
@@ -272,6 +276,18 @@ describe("Pages & Server Components", () => {
       expect(html).toContain("Log in to continue writing.");
       expect(html).toContain('href="/signup"');
       expect(html).toContain("Create an account");
+    });
+
+    it("passes confirmation error message to LoginForm when error=confirmation_failed", async () => {
+      mockGetUser.mockResolvedValue({ data: { user: null }, error: null });
+
+      const { default: LoginPage } = await import("../src/app/login/page");
+      const element = await LoginPage({
+        searchParams: Promise.resolve({ error: "confirmation_failed" }),
+      });
+      const html = renderToStaticMarkup(element);
+
+      expect(html).toContain("We could not complete email verification automatically.");
     });
   });
 

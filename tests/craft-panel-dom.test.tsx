@@ -22,6 +22,8 @@ const EXPANDish = {
   defaults: {},
 };
 
+const EXPAND = toCraftToolDto(listCraftTools().find((t) => t.id === "expand")!);
+
 const selection = { from: 1, to: 15, text: "The rain fell." };
 
 type Route = (url: string, init?: RequestInit) => { status: number; body: unknown } | undefined;
@@ -474,5 +476,29 @@ describe("CraftPanel (STO-1290)", () => {
     fail = false;
     fireEvent.click(screen.getByText("Retry"));
     expect(await screen.findByText("No craft tools are available.")).toBeTruthy();
+  });
+
+  it("seeds Expand's target from the selection and warns before it would condense (STO-1295)", async () => {
+    stubFetch(baseRoute(undefined, [EXPAND]));
+    const long = { from: 1, to: 2000, text: "word ".repeat(400).trim() };
+    const { rerender, props } = setup({ selection: long });
+    await screen.findByTestId("craft-tool-name");
+    const target = () => screen.getByLabelText("Target length (words)") as HTMLInputElement;
+    expect(target().value).toBe("600");
+    expect(screen.queryByTestId("craft-warning")).toBeNull();
+
+    rerender(React.createElement(CraftPanel, { ...props, selection }));
+    expect(target().value).toBe("300");
+
+    rerender(React.createElement(CraftPanel, { ...props, selection: long }));
+    fireEvent.change(target(), { target: { value: "350" } });
+    const warning = screen.getByTestId("craft-warning");
+    expect(warning.textContent).toContain("Expand would shorten this");
+    expect(target().getAttribute("aria-describedby")).toContain(warning.id);
+    expect(target().getAttribute("aria-invalid")).toBeNull();
+
+    rerender(React.createElement(CraftPanel, { ...props, selection }));
+    expect(target().value).toBe("350");
+    expect(screen.queryByTestId("craft-warning")).toBeNull();
   });
 });
