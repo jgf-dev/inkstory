@@ -1,7 +1,7 @@
 name: Prisma DB
 
-  # Manual only: defaults to read-only `verify`. Requires `DIRECT_URL` (Supabase
-  # session pooler on port 5432, DDL-safe) in the `Production` environment secrets.
+# Manual only: defaults to read-only `verify`. Requires `DIRECT_URL` (Supabase
+# session pooler on port 5432, DDL-safe) in the `Production` environment secrets.
 on:
   workflow_dispatch:
     inputs:
@@ -12,6 +12,7 @@ on:
         default: "verify"
         options:
           - verify
+          - dry-run
           - update
 
 concurrency:
@@ -37,16 +38,28 @@ jobs:
       - name: Emit Prisma contract
         run: ./node_modules/.bin/prisma contract emit
         env:
-          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+          DATABASE_URL: "postgresql://placeholder@localhost:5432/placeholder"
 
       - name: Verify database against contract
         if: inputs.action == 'verify'
-        run: ./node_modules/.bin/prisma db verify --db "$DIRECT_URL"
+        run: |
+          test -n "$DIRECT_URL" || { echo "::error::DIRECT_URL secret is not set"; exit 1; }
+          ./node_modules/.bin/prisma db verify --db "$DIRECT_URL"
+        env:
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+
+      - name: Dry-run contract update against database
+        if: inputs.action == 'dry-run'
+        run: |
+          test -n "$DIRECT_URL" || { echo "::error::DIRECT_URL secret is not set"; exit 1; }
+          ./node_modules/.bin/prisma db update --dry-run --db "$DIRECT_URL"
         env:
           DIRECT_URL: ${{ secrets.DIRECT_URL }}
 
       - name: Apply contract to database
         if: inputs.action == 'update'
-        run: ./node_modules/.bin/prisma db update -y --db "$DIRECT_URL"
+        run: |
+          test -n "$DIRECT_URL" || { echo "::error::DIRECT_URL secret is not set"; exit 1; }
+          ./node_modules/.bin/prisma db update -y --db "$DIRECT_URL"
         env:
           DIRECT_URL: ${{ secrets.DIRECT_URL }}

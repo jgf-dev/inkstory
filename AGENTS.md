@@ -12,13 +12,13 @@ Next.js/Vercel hosting or InsForge (`@insforge/sdk`); do not add `next`,
 | Layer                     | Actual code                                                                                                                                                                                |
 | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | App & Hosting             | `vinext` (`^1.4.4`), React 19, Cloudflare Workers (`cloudflare.config.ts`, `vite.config.ts`), `src/proxy.ts` session refresh                                                               |
-| Data                      | `prisma/contract.prisma` (source of truth; ignore legacy `prisma/schema.prisma`), `@prisma/orm-postgres`, `db.orm.public.*` in `src/lib/prisma.ts`, `temporal-polyfill`                    |
-| Auth & Anti-Abuse         | `@supabase/ssr` cookie session (`src/lib/supabase/*`), fail-closed Cloudflare Turnstile on `/api/auth/{login,signup}` (`src/lib/turnstile.ts`)                                             |
+| Data                      | `prisma/contract.prisma` (source of truth), `@prisma/orm-postgres`, `db.orm.public.*` in `src/lib/prisma.ts`, `temporal-polyfill`                                                          |
+| Auth & Anti-Abuse         | `@supabase/ssr` cookie session (`src/lib/supabase/*`), `/auth/callback` verification route, fail-closed Cloudflare Turnstile on `/api/auth/{login,signup}` (`src/lib/turnstile.ts`)        |
 | Writing & Library         | `src/lib/library/*`, `src/lib/writing/*` (TipTap 3 JSON + plain extract, `pg_advisory_xact_lock`, scene revisions)                                                                         |
 | Story Codex               | `src/lib/codex/{service,actions,types,errors,mention-detection,progression-engine,relation-engine,context-assembler,token-budgeter,prompt-formatter,budget-segments}.ts` + `interchange/*` |
 | AI, Prompts & Craft       | `src/lib/ai/{generate,execute}.ts`, `src/lib/ai/{providers,credentials,capabilities}/*`, `src/lib/prompts/*`, `src/lib/craft/*`                                                            |
 | Import / Export & Billing | `src/lib/import/*`, `src/lib/export/*`, `src/lib/stripe.ts`, `src/lib/billing/{plans,entitlements,subscription-sync}.ts`                                                                   |
-| UI Routes                 | `/`, `/login`, `/signup`, `/dashboard`, `/dashboard/codex`, `/dashboard/novels/[id]`, `/dashboard/settings`                                                                                |
+| UI Routes                 | `/`, `/login`, `/signup`, `/auth/callback`, `/dashboard`, `/dashboard/codex`, `/dashboard/novels/[id]`, `/dashboard/settings`                                                              |
 | Tooling                   | Bun (`bun@1.4.4`, `bun.lock`), Vite+ (`vp build` / `vp dev` / `vp lint` / `vp fmt` / `vp test` / `vp check`), Playwright E2E                                                               |
 
 ## `vinext` & Cloudflare Workers runtime rules
@@ -103,8 +103,8 @@ Next.js/Vercel hosting or InsForge (`@insforge/sdk`); do not add `next`,
     duplicate to customize) and support versioned pure-data craft/portability
     contracts (`src/lib/prompts/contracts.ts`, `/api/prompts/components/*`).
   - Craft Studio (`src/lib/craft/*`, `/api/craft/tools`, `/api/craft/[tool]`)
-    currently registers `describe`, `expand`, and `rewrite`; results are never
-    auto-written to the manuscript.
+    registers `describe`, `expand`, `rewrite`, `show_dont_tell`, and
+    `transition`; results are never auto-written to the manuscript.
 - **Import / Export & Billing (STO-1163, STO-1180, STO-1210–1213)**:
   - Manuscript import (`POST /api/books/[id]/import`) enforces a 10 MB
     streaming cap on `.docx`/`.md`/`.html` with preview/confirm and optional

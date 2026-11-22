@@ -31,7 +31,7 @@
   },
   "dependencies": {
     "@cloudflare/workers-response-store": "^1.1.5",
-    "@prisma/orm-postgres": "^8.0.0-rc.24",
+    "@prisma/orm-postgres": "8.0.0-rc.24",
     "@supabase/ssr": "0.12.7",
     "@supabase/supabase-js": "^2.118.0",
     "@tailwindcss/postcss": "4.3.3",
@@ -58,7 +58,7 @@
   "devDependencies": {
     "@cloudflare/vite-plugin": "^2.0.0-rc.1",
     "@playwright/test": "^1.64.1",
-    "@prisma/cli": "^8.0.0-rc.34",
+    "@prisma/cli": "8.0.0-rc.34",
     "@prisma/cli-engine": "0.10.0",
     "@testing-library/react": "16.3.3",
     "@types/node": "^26.6.5",
@@ -73,7 +73,7 @@
     "dotenv-cli": "11.0.0",
     "happy-dom": "^21.0.4",
     "postcss": "^8.5.32",
-    "prisma": "^8.0.0-rc.34",
+    "prisma": "8.0.0-rc.34",
     "tailwindcss": "^4.3.5",
     "typescript": "7.0.2",
     "vite": "npm:@voidzero-dev/vite-plus-core@8.3.8000",

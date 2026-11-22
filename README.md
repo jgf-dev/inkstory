@@ -27,14 +27,14 @@ Linear project: [novel-writing-app](https://linear.app/jgfdev/project/novel-writ
   budgeting (`TokenBudgetBar`), and `<codex_context>` XML prompt formatting.
 - **Codex Interchange APIs (`/api/codex/interchange/*`)**: Preview, import, and export for SillyTavern Lorebooks and Character Card v2 (JSON/YAML/PNG), preserving third-party metadata under `CodexEntry.customFields._inkstoryInterchange`. _(Import/export UI dialog is not yet wired into `CodexManager`.)_
 - **AI Generation, BYOK, Prompts & Craft Studio (`/dashboard/settings`, `/api/ai/*`, `/api/prompts/*`, `/api/craft/*`)**: Scene continuation and beat expansion with zero-spend prompt-builder fallback when unconfigured; encrypted BYOK credentials (`UserProviderCredential`) for OpenRouter, OpenAI, Anthropic, Ollama, and LM Studio;
-  server-resolved model capabilities (`minP`, `avoidanceGuidance`, OpenRouter endpoint pinning); reusable prompt templates & portable versioned contracts; Craft Studio tools (`describe`, `expand`, `rewrite`).
+  server-resolved model capabilities (`minP`, `avoidanceGuidance`, OpenRouter endpoint pinning); reusable prompt templates & portable versioned contracts; Craft Studio tools (`describe`, `expand`, `rewrite`, `show_dont_tell`, `transition`) with an in-editor `CraftPanel`.
 - **Manuscript Import & Export (`/api/books/[id]/{import,export}`)**: 10 MB streaming `.docx`/`.md`/`.html` import with preview, structure override, and title adoption; Markdown and DOCX manuscript export.
 - **Stripe Billing (`/api/billing/*`)**: Free (1 novel, 30 codex entries, 4k context tokens), Author Pro ($15/mo or $144/yr, unlimited, 6k tokens), and Studio ($35/mo, unlimited, 6k tokens, series sharing) enforced with `402 QUOTA_EXCEEDED`.
 
 ### In progress / partial UI parity
 
 - **Stage Mode**: Enactment console currently runs typed static fixtures (`src/lib/stage/fixtures.ts`); multi-agent backend is not wired yet.
-- **Craft Studio**: `describe`, `expand`, and `rewrite` are registered; remaining v1 tools (`show_dont_tell`, `transition`, `brainstorm`) are pending.
+- **Craft Studio**: `describe`, `expand`, `rewrite`, `show_dont_tell`, and `transition` are registered and wired into `CraftPanel`; `brainstorm` is pending.
 - **Codex Interchange & Prompts UI**: Backend APIs are complete; `CodexManager` does not yet expose an interchange dialog, and `/dashboard/settings` currently only duplicates `SYSTEM_DEFAULT` prompts (no full prompt/component editor).
 
 ## Local setup
@@ -124,7 +124,6 @@ prisma.config.ts                  # Prisma 8 contract & DB connection config
 prisma/
 ├── contract.prisma               # Prisma 8 data contract (17 models, 11 enums — source of truth)
 ├── contract.json / contract.d.ts # Emitted contract artifacts
-├── schema.prisma                 # Legacy Prisma 7 schema (unused at runtime; ignore)
 └── seed.ts                       # Demo fixtures + SYSTEM_DEFAULT prompts
 scripts/
 └── test-db.ts                    # Disposable Postgres 17 + Prisma update + Vitest runner
@@ -132,30 +131,30 @@ src/
 ├── proxy.ts                      # Supabase session refresh boundary (not middleware.ts)
 ├── app/
 │   ├── page.tsx / layout.tsx / globals.css
-│   ├── login/ / signup/
+│   ├── login/ / signup/ / auth/callback/
 │   ├── dashboard/
 │   │   ├── page.tsx              # Library metrics, LibraryCreator, OnboardingWizard
 │   │   ├── codex/                # CodexManager, CodexEditor, relation/progression modals
-│   │   ├── novels/[id]/          # WritingWorkspace (Writer/Stage/Architect), TipTap SceneEditor, AI drawer
+│   │   ├── novels/[id]/          # WritingWorkspace (Writer/Stage/Architect), TipTap SceneEditor, CraftPanel, AI drawer
 │   │   └── settings/             # BYOK credentials & system prompt duplication
 │   └── api/                      # 46 route handlers (health, auth, codex, context, ai, craft, prompts, books, novels, scenes, billing)
 └── lib/
- ├── prisma.ts                 # Prisma 8 client singleton (`db.orm.public.*`)
- ├── database-env.ts           # Non-test `.env.local`/`.env` loader
- ├── test-database-guard.ts    # Blocks tests from touching hosted Supabase DBs
- ├── turnstile.ts              # Server-side Cloudflare Turnstile verification
- ├── stripe.ts                 # Lazy Stripe SDK client
- ├── supabase/                 # Browser/server/middleware clients + syncAuthUser
- ├── library/                  # Novel/series creation + starter bible onboarding
- ├── writing/                  # Outline tree, TipTap helpers, scene revisions, advisory lock
- ├── codex/                    # Domain service, actions, errors, engines, context assembler, interchange/
- ├── ai/                       # Gateway generation, shared execution, providers/, credentials/, capabilities/
- ├── prompts/                  # Prompt templates, variable interpolation, portable contracts
- ├── craft/                    # Craft Studio registry (`describe`, `expand`, `rewrite`)
- ├── import/ / export/         # Manuscript `.docx`/`.md`/`.html` import and MD/DOCX export
- ├── billing/                  # Plan limits, quota guards, Stripe subscription sync
- ├── stage/                    # Stage mode fixture rehearsal beats
- └── ui/                       # Theme/font/mode preferences & shared UI helpers
+    ├── prisma.ts                 # Prisma 8 client singleton (`db.orm.public.*`)
+    ├── database-env.ts           # Non-test `.env.local`/`.env` loader
+    ├── test-database-guard.ts    # Blocks tests from touching hosted Supabase DBs
+    ├── turnstile.ts              # Server-side Cloudflare Turnstile verification
+    ├── stripe.ts                 # Lazy Stripe SDK client
+    ├── supabase/                 # Browser/server/middleware clients + syncAuthUser
+    ├── library/                  # Novel/series creation + starter bible onboarding
+    ├── writing/                  # Outline tree, TipTap helpers, scene revisions, advisory lock
+    ├── codex/                    # Domain service, actions, errors, engines, context assembler, interchange/
+    ├── ai/                       # Gateway generation, shared execution, providers/, credentials/, capabilities/
+    ├── prompts/                  # Prompt templates, variable interpolation, portable contracts
+    ├── craft/                    # Craft Studio registry (`describe`, `expand`, `rewrite`, `show_dont_tell`, `transition`)
+    ├── import/ / export/         # Manuscript `.docx`/`.md`/`.html` import and MD/DOCX export
+    ├── billing/                  # Plan limits, quota guards, Stripe subscription sync
+    ├── stage/                    # Stage mode fixture rehearsal beats
+    └── ui/                       # Theme/font/mode preferences & shared UI helpers
 tests/                            # Vitest unit/integration suites + tests/e2e/ Playwright specs
 ```
 
@@ -182,11 +181,12 @@ All routes except `/api/health`, `/api/auth/*`, and `/api/billing/webhook` requi
 
 ### Health & Auth
 
-| Method | Path               | Role                                                           |
-| ------ | ------------------ | -------------------------------------------------------------- |
-| `GET`  | `/api/health`      | Liveness `{ status, service, version, time }` (no DB required) |
-| `POST` | `/api/auth/login`  | Turnstile-verified email/password sign-in                      |
-| `POST` | `/api/auth/signup` | Turnstile-verified email/password sign-up                      |
+| Method | Path               | Role                                                                      |
+| ------ | ------------------ | ------------------------------------------------------------------------- |
+| `GET`  | `/api/health`      | Liveness `{ status, service, version, time }` (no DB required)            |
+| `POST` | `/api/auth/login`  | Turnstile-verified email/password sign-in                                 |
+| `POST` | `/api/auth/signup` | Turnstile-verified email/password sign-up                                 |
+| `GET`  | `/auth/callback`   | Supabase email OTP / PKCE verification callback with safe-redirect checks |
 
 ### Writing, Scenes & Manuscript Import/Export
 
@@ -217,17 +217,17 @@ All routes except `/api/health`, `/api/auth/*`, and `/api/billing/webhook` requi
 
 ### AI, BYOK, Craft Studio, Prompts & Billing
 
-| Method                                         | Path                                                                               | Role                                                                                   |
-| ---------------------------------------------- | ---------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| `POST`                                         | `/api/ai/generate`                                                                 | Generate continuation or beat expansion (platform gateway or explicit BYOK)            |
-| `POST`                                         | `/api/ai/preview`                                                                  | Render exact `messages[]` without calling a provider                                   |
-| `GET`                                          | `/api/ai/capabilities`                                                             | Server-resolved advanced control capabilities for platform or BYOK route               |
-| `GET`/`PUT` / `GET`/`PATCH`/`DELETE`           | `/api/ai/credentials`, `/api/ai/credentials/[id]`                                  | Manage encrypted BYOK provider credentials (key hints only; never exposes secrets)     |
-| `GET` / `POST`                                 | `/api/craft/tools`, `/api/craft/[tool]`                                            | List Craft Studio tools and run `describe`, `expand`, or `rewrite` (supports `dryRun`) |
-| `GET`/`POST` / `GET`/`PATCH`/`DELETE` / `POST` | `/api/prompts`, `/api/prompts/[id]`, `/api/prompts/[id]/duplicate`                 | Manage prompt templates and duplicate read-only `SYSTEM_DEFAULT` rows                  |
-| `GET`/`POST` / `PATCH`/`DELETE`                | `/api/prompts/components`, `/api/prompts/components/[id]`                          | Manage reusable prompt components and contracts                                        |
-| `GET` / `POST`                                 | `/api/prompts/components/[id]/export`, `/api/prompts/components/import{,/preview}` | Export, preview, and import portable prompt component JSON                             |
-| `POST`                                         | `/api/billing/{checkout,portal,webhook}`                                           | Stripe Checkout session, Billing Portal session, and signed webhook handler            |
+| Method                                         | Path                                                                               | Role                                                                                                               |
+| ---------------------------------------------- | ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `POST`                                         | `/api/ai/generate`                                                                 | Generate continuation or beat expansion (platform gateway or explicit BYOK)                                        |
+| `POST`                                         | `/api/ai/preview`                                                                  | Render exact `messages[]` without calling a provider                                                               |
+| `GET`                                          | `/api/ai/capabilities`                                                             | Server-resolved advanced control capabilities for platform or BYOK route                                           |
+| `GET`/`PUT` / `GET`/`PATCH`/`DELETE`           | `/api/ai/credentials`, `/api/ai/credentials/[id]`                                  | Manage encrypted BYOK provider credentials (key hints only; never exposes secrets)                                 |
+| `GET` / `POST`                                 | `/api/craft/tools`, `/api/craft/[tool]`                                            | List Craft Studio tools and run `describe`, `expand`, `rewrite`, `show_dont_tell`, or `transition` (with `dryRun`) |
+| `GET`/`POST` / `GET`/`PATCH`/`DELETE` / `POST` | `/api/prompts`, `/api/prompts/[id]`, `/api/prompts/[id]/duplicate`                 | Manage prompt templates and duplicate read-only `SYSTEM_DEFAULT` rows                                              |
+| `GET`/`POST` / `PATCH`/`DELETE`                | `/api/prompts/components`, `/api/prompts/components/[id]`                          | Manage reusable prompt components and contracts                                                                    |
+| `GET` / `POST`                                 | `/api/prompts/components/[id]/export`, `/api/prompts/components/import{,/preview}` | Export, preview, and import portable prompt component JSON                                                         |
+| `POST`                                         | `/api/billing/{checkout,portal,webhook}`                                           | Stripe Checkout session, Billing Portal session, and signed webhook handler                                        |
 
 Standard error payload: `{ error, code }`. Codex/domain error codes include `NOT_FOUND`, `FORBIDDEN`, `VALIDATION_FAILED`, `SCOPING_ERROR`, `CONFLICT`, `QUOTA_EXCEEDED` (402), `CONTEXT_ASSEMBLY_FAILED` (422), and `INVALID_JSON` (400).
 

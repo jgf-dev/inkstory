@@ -2,63 +2,69 @@
 
 All notable changes to InkStory are tracked here. This file follows [Keep a Changelog](https://keepachangelog.com/) and the project adheres to [Semantic Versioning](https://semver.org/).
 
-## [Unreleased] - 2026-11-21
+## [PR-208](https://github.com/jgf-dev/inkstory/pull/208) - 2026-11-22
 
 ### Summary
 
-Migrated InkStory from Next.js/Vercel to `vinext` on Cloudflare Workers and added Turnstile-gated authentication, Stripe billing and entitlements, encrypted BYOK credentials with server-resolved capabilities, Craft Studio, portable prompt contracts, SillyTavern Codex interchange, TipTap rich-text editing with scene revisions,
-manuscript import, and Obsidian Desk theming with workspace operating modes.
+Upgraded Prisma 8 RC packages (`TimestampTemporal(3)` contract migration), hardened GitHub Actions workflows for Bun 1.4.4 and Prisma 8 DB verification/dry-run/update, retired legacy `prisma/schema.prisma` and `prisma-deploy.yml`, added subsystem READMEs, and reconciled repository documentation (including backfilling unlogged releases since 2026-10-19).
 
 ### Added
 
-- **Cloudflare Workers & `vinext` runtime**:
-  - `cloudflare.config.ts`: configured the primary `inkstory` Worker (`vinext/server/fetch-handler`) and auxiliary `inkstory-response-store` cache Worker (`@cloudflare/workers-response-store`, `@vinext/cloudflare`, `nodejs_compat`, `global_fetch_strictly_public`).
-  - `package.json`: added `preview`, `deploy`, `deploy:response-store`, `cf-typegen`, `test:no-db`, and `prepare` scripts.
-- **Cloudflare Turnstile auth protection**:
-  - `src/lib/turnstile.ts`, `src/app/_components/TurnstileWidget.tsx`, `src/app/api/auth/login/route.ts`, `src/app/api/auth/signup/route.ts`: added fail-closed server-side Turnstile verification on login and signup gated by `TURNSTILE_SECRET`, `TURNSTILE_HOSTNAMES`, and `NEXT_PUBLIC_TURNSTILE_SITE_KEY` / `NEXT_PUBLIC_TURNSTILE_KEY`.
-- **Stripe billing & plan entitlements ([STO-1180](https://linear.app/jgfdev/issue/STO-1180), [STO-1210](https://linear.app/jgfdev/issue/STO-1210))**:
+- **Subsystem documentation & generated-file hygiene**:
+  - `src/lib/{ai,billing,codex,craft,export,import,prompts,writing}/README.md`: added module maps, public invariants, API route inventories, and test commands for core domain packages.
+  - `.gitattributes`: marked emitted Prisma 8 contract and migration artifacts (`prisma/contract.json`, `prisma/contract.d.ts`, `prisma/ops.json`, `prisma/migration.json`, `migrations/snapshots/**`) as `linguist-generated`.
+- **Cloudflare Workers & `vinext` runtime** _(backfilled)_:
+  - `cloudflare.config.ts`: configured the primary `inkstory` Worker (`vinext/server/fetch-handler`) and auxiliary `inkstory-response-store` cache Worker (`@cloudflare/workers-response-store`, `@vinext/cloudflare`, `nodejs_compat`, `global_fetch_strictly_public`), added `pre.syncodex.xyz` to `TURNSTILE_HOSTNAMES`, and enabled observability log/trace persistence.
+  - `package.json`: added `preview`, `deploy`, `deploy:response-store`, `cf-typegen`, `test:no-db`, and `prepare` scripts, plus explicit `@prisma/cli-engine` devDependency for `prisma.config.ts`.
+- **Cloudflare Turnstile auth protection** _(backfilled)_:
+  - `src/lib/turnstile.ts`, `src/app/_components/TurnstileWidget.tsx`, `src/app/api/auth/login/route.ts`, `src/app/api/auth/signup/route.ts`, `src/app/auth/callback/route.ts`: added fail-closed server-side Turnstile verification on login and signup gated by `TURNSTILE_SECRET`, `TURNSTILE_HOSTNAMES`, and `NEXT_PUBLIC_TURNSTILE_SITE_KEY` / `NEXT_PUBLIC_TURNSTILE_KEY`.
+- **Stripe billing & plan entitlements ([STO-1180](https://linear.app/jgfdev/issue/STO-1180), [STO-1210](https://linear.app/jgfdev/issue/STO-1210))** _(backfilled)_:
   - `prisma/contract.prisma`: added `PlanTier` (`FREE`, `PRO`, `STUDIO`), `User` billing columns (`stripeCustomerId`, `stripeSubscriptionId`, `planTier`, `subscriptionStatus`, `currentPeriodEnd`), and `StripeWebhookEvent`.
   - `src/lib/stripe.ts`, `src/lib/billing/{plans,entitlements,subscription-sync}.ts`, `src/app/api/billing/{checkout,portal,webhook}/route.ts`, `src/app/_components/PricingTable.tsx`: added tier quotas (`402 QUOTA_EXCEEDED`), Checkout and Billing Portal routes, and idempotent webhook claim/release sync (`STRIPE_SECRET_KEY`,
     `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_PRO_MONTHLY`, `STRIPE_PRICE_PRO_ANNUAL`, `STRIPE_PRICE_STUDIO_MONTHLY`).
-- **BYOK encrypted credentials & capability resolution ([STO-1178](https://linear.app/jgfdev/issue/STO-1178), [STO-1265](https://linear.app/jgfdev/issue/STO-1265))**:
+- **BYOK encrypted credentials & capability resolution ([STO-1178](https://linear.app/jgfdev/issue/STO-1178), [STO-1265](https://linear.app/jgfdev/issue/STO-1265))** _(backfilled)_:
   - `prisma/contract.prisma`: added `UserProviderCredential` and `AiProvider` (`OPENROUTER`, `OPENAI`, `ANTHROPIC`, `OLLAMA`, `LMSTUDIO`).
   - `src/lib/ai/credentials/{crypto,host-resolver,service,auth,index}.ts`, `src/app/api/ai/credentials/route.ts`, `src/app/api/ai/credentials/[id]/route.ts`, `src/app/dashboard/settings/_components/ByokCredentialsPanel.tsx`: added AES-256-GCM key storage (`BYOK_ENCRYPTION_KEY`), hint-only DTOs, and Workers-compatible DoH SSRF
     validation (`dns.resolve4`/`dns.resolve6`).
   - `src/lib/ai/execute.ts`, `src/lib/ai/capabilities/*`, `src/app/api/ai/capabilities/route.ts`, `src/app/api/ai/preview/route.ts`: added shared platform/BYOK chat execution (never falling back to platform spend on explicit BYOK failure), prompt preview, and server-resolved advanced controls (`minP`, `avoidanceGuidance`, OpenRouter
     `endpoint`).
-- **Prompt templates, portable contracts & Craft Studio ([STO-1158](https://linear.app/jgfdev/issue/STO-1158), [STO-1266](https://linear.app/jgfdev/issue/STO-1266)–[STO-1269](https://linear.app/jgfdev/issue/STO-1269), [STO-1275](https://linear.app/jgfdev/issue/STO-1275))**:
+- **Prompt templates, portable contracts & Craft Studio ([STO-1158](https://linear.app/jgfdev/issue/STO-1158), [STO-1266](https://linear.app/jgfdev/issue/STO-1266)–[STO-1269](https://linear.app/jgfdev/issue/STO-1269), [STO-1275](https://linear.app/jgfdev/issue/STO-1275))** _(backfilled)_:
   - `prisma/contract.prisma`: added `Prompt`, `PromptComponent`, `PromptComponentLink`, `PromptRole`, and `PromptScope`.
   - `src/lib/prompts/{service,contracts,portable,render,catalog,defaults,errors,types}.ts`, `src/app/api/prompts/**`, `src/app/dashboard/settings/_components/SystemPromptsPanel.tsx`: added layered prompt resolution (`novel active → user default → SYSTEM_DEFAULT`), closed-catalog variable interpolation, versioned pure-data component
     contracts, and portable JSON preview/import/export.
-  - `src/lib/craft/{tools,prompt,service,index}.ts`, `src/app/api/craft/tools/route.ts`, `src/app/api/craft/[tool]/route.ts`: added Craft Studio tools (`describe`, `expand`, `rewrite`) with `dryRun` prompt preview and non-destructive results.
-- **Codex interchange ([STO-1261](https://linear.app/jgfdev/issue/STO-1261)–[STO-1263](https://linear.app/jgfdev/issue/STO-1263))**:
+  - `src/lib/craft/{tools,prompt,service,output,client,index}.ts`, `src/app/api/craft/tools/route.ts`, `src/app/api/craft/[tool]/route.ts`, `src/app/dashboard/novels/[id]/_components/CraftPanel.tsx`: added Craft Studio tools (`describe`, `expand`, `rewrite`, `show_dont_tell`, `transition`) with `dryRun` prompt preview and non-destructive results.
+- **Codex interchange ([STO-1261](https://linear.app/jgfdev/issue/STO-1261)–[STO-1263](https://linear.app/jgfdev/issue/STO-1263))** _(backfilled)_:
   - `src/lib/codex/interchange/{types,service,card-service,matrix,png,validate,http}.ts`, `src/app/api/codex/interchange/{matrix,lorebook/*,card/*}/route.ts`: added SillyTavern Lorebook and Character Card v2 (JSON/YAML/PNG) preview, import, and export, preserving third-party metadata under
     `CodexEntry.customFields._inkstoryInterchange`.
-- **Context assembly & inspection ([STO-1170](https://linear.app/jgfdev/issue/STO-1170), [STO-1171](https://linear.app/jgfdev/issue/STO-1171))**:
+- **Context assembly & inspection ([STO-1170](https://linear.app/jgfdev/issue/STO-1170), [STO-1171](https://linear.app/jgfdev/issue/STO-1171))** _(backfilled)_:
   - `src/lib/codex/{context-assembler,context-inspection,context-request,budget-segments}.ts`, `src/app/api/context/assemble/route.ts`: added deterministic context assembly (manual attachments → `ALWAYS` → detected mentions → relation expansion → scene progressions) with post-budget token telemetry.
-- **TipTap rich-text editing, scene revisions & workspace modes ([STO-1156](https://linear.app/jgfdev/issue/STO-1156), [STO-1214](https://linear.app/jgfdev/issue/STO-1214), [JGF-128](https://linear.app/jgfdev/issue/JGF-128))**:
+- **TipTap rich-text editing, scene revisions & workspace modes ([STO-1156](https://linear.app/jgfdev/issue/STO-1156), [STO-1214](https://linear.app/jgfdev/issue/STO-1214), [JGF-128](https://linear.app/jgfdev/issue/JGF-128))** _(backfilled)_:
   - `prisma/contract.prisma`: added `Scene.contentDoc`, `Scene.contentFormat` (`ContentFormat`), `Scene.label`, `Scene.subtitle`, `Scene.excludeFromAi`, and `SceneRevision` (`SceneRevisionReason`).
   - `src/lib/writing/{service,tiptap,novel-lock,sibling-reorder,outline-tree,reading-order,draft,meta,word-count}.ts`, `src/app/api/novels/[id]/outline/route.ts`, `src/app/api/scenes/[id]/route.ts`, `src/app/api/scenes/[id]/revisions/**`: added TipTap 3 JSON + plain-text editing, `pg_advisory_xact_lock` structure locking
     (`lockNovelStructure`), autosave/draft recovery, and scene revision snapshots/restore.
   - `src/app/globals.css`, `src/lib/ui/preferences.ts`, `src/app/_components/ThemeToggle.tsx`, `src/app/dashboard/novels/[id]/_components/{WritingWorkspace,RichTextEditor,ModeSwitcher,ProseFontToggle,StatusPill,StageConsolePanel,ArchitectRail,ProgressionTimelineDrawer}.tsx`: added OKLCH "Obsidian Desk" dark theme, prose font toggle,
     and progressive-disclosure Writer / Stage (fixture preview) / Architect operating modes (`NEXT_PUBLIC_INKSTORY_OPERATING_MODES`).
-- **Manuscript import & library onboarding ([STO-1211](https://linear.app/jgfdev/issue/STO-1211), [STO-1213](https://linear.app/jgfdev/issue/STO-1213))**:
+- **Manuscript import & library onboarding ([STO-1211](https://linear.app/jgfdev/issue/STO-1211), [STO-1213](https://linear.app/jgfdev/issue/STO-1213))** _(backfilled)_:
   - `src/lib/import/*`, `src/app/api/books/[id]/import/route.ts`, `src/app/dashboard/novels/[id]/_components/ImportManuscriptDialog.tsx`: added streaming 10 MB-capped `.docx`/`.md`/`.html` import with preview, manual structure overrides, and optional title adoption.
   - `src/lib/library/{service,actions}.ts`, `src/app/dashboard/_components/{LibraryCreator,OnboardingWizard}.tsx`: added quota-enforced novel/series creation and starter bible onboarding.
-- **Disposable test database runner & safety guard**:
+- **Disposable test database runner & safety guard** _(backfilled)_:
   - `scripts/test-db.ts`, `docker-compose.test.yml`, `.env.test`, `tests/setup-env.ts`, `src/lib/{database-env,test-database-guard,test-database-port}.ts`: added local Postgres 17 test bootstrap and `INKSTORY_UNSAFE_TEST_DATABASE` guard blocking hosted Supabase refs (`INKSTORY_TEST_POSTGRES_PORT`, `INKSTORY_TEST_POSTGRES_IMAGE`,
     `INKSTORY_NO_DB`).
 
 ### Changed
 
-- `vite.config.ts`, `tsconfig.json`, `next-env.d.ts`: configured `vinext` and `@cloudflare/vite-plugin` for build/dev while aliasing `next/*` imports to `vinext/shims/*` under Vitest.
-- `src/app/api/ai/generate/route.ts`: integrated prompt template resolution, BYOK credential execution, server-resolved capability checks, and plan-tier context token limits.
-- `src/app/page.tsx`, `src/app/dashboard/page.tsx`, `src/app/dashboard/settings/page.tsx`: updated landing page with pricing, FAQ, and theme toggle; added novel creation/onboarding to `/dashboard` and BYOK/prompt panels to `/dashboard/settings`.
-- `playwright.config.ts`: added fallback to Playwright's bundled Chromium when `/usr/bin/google-chrome` is absent.
+- **Prisma 8 RC upgrade & contract regeneration**: bumped `@prisma/orm-postgres` to `8.0.0-rc.24` and `@prisma/cli` / `prisma` to `8.0.0-rc.34`; updated `prisma/contract.prisma` header to `// use prisma-8` and migrated timestamp fields from `Timestamp(3)` to `TimestampTemporal(3)` to preserve the `pg/timestamp-temporal@1` codec; re-emitted `prisma/contract.json` and `prisma/contract.d.ts`.
+- **GitHub Actions & tooling**: updated `.github/workflows/{ci,prisma,sonarqube}.yml` to Bun `1.4.4`; added `concurrency`, `permissions: contents: read`, non-mutating `./node_modules/.bin/vp lint`, and `bun run test:no-db` to `ci.yml`; rewrote `.github/workflows/prisma.yml` for manual `verify` / `dry-run` / `update` against `DIRECT_URL` with secret-presence guards; updated `playwright.config.ts` webServer command to `bun run dev`.
+- **Documentation & onboarding**: reconciled `README.md`, `AGENTS.md`, `.env.example`, `prisma/seed.ts`, `src/app/api/health/route.ts`, and `src/proxy.ts` with the `vinext` + Cloudflare Workers + Prisma 8 stack and fail-closed Turnstile configuration.
+- `vite.config.ts`, `tsconfig.json`, `next-env.d.ts`: configured `vinext` and `@cloudflare/vite-plugin` for build/dev while aliasing `next/*` imports to `vinext/shims/*` under Vitest _(backfilled)_.
+- `src/app/api/ai/generate/route.ts`: integrated prompt template resolution, BYOK credential execution, server-resolved capability checks, and plan-tier context token limits _(backfilled)_.
+- `src/app/page.tsx`, `src/app/dashboard/page.tsx`, `src/app/dashboard/settings/page.tsx`: updated landing page with pricing, FAQ, and theme toggle; added novel creation/onboarding to `/dashboard` and BYOK/prompt panels to `/dashboard/settings` _(backfilled)_.
+- `playwright.config.ts`: added fallback to Playwright's bundled Chromium when `/usr/bin/google-chrome` is absent _(backfilled)_.
 
 ### Removed
 
-- Removed `next`, `next.config.ts`, and `vercel.json` following the migration from Next.js/Vercel to `vinext` on Cloudflare Workers.
+- Removed legacy `prisma/schema.prisma`, unused `.github/workflows/prisma-deploy.yml`, and stale Prisma 7 `allowScripts` entries in `package.json`.
+- Removed `next`, `next.config.ts`, and `vercel.json` following the migration from Next.js/Vercel to `vinext` on Cloudflare Workers _(backfilled)_.
 
 ## [PR-124](https://github.com/jgf-dev/inkstory/pull/124) - 2026-10-19
 
