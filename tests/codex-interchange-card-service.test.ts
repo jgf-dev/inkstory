@@ -57,9 +57,9 @@ const card = JSON.stringify({
 
 describe("Character card interchange service (STO-1263)", { timeout: 30_000 }, () => {
   const runId = crypto.randomUUID();
-  const userId = `card-user-${runId}`;
-  const freeUserId = `card-free-${runId}`;
-  const otherUserId = `card-other-${runId}`;
+  const userId = crypto.randomUUID();
+  const freeUserId = crypto.randomUUID();
+  const otherUserId = crypto.randomUUID();
   const seriesId = `card-series-${runId}`;
   const novelId = `card-novel-${runId}`;
   const freeNovelId = `card-free-novel-${runId}`;

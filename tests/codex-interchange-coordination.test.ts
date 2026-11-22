@@ -52,7 +52,7 @@ const card = JSON.stringify({
 
 describe("Codex interchange coordination (STO-1261)", { timeout: 30_000 }, () => {
   const runId = crypto.randomUUID();
-  const userId = `coord-user-${runId}`;
+  const userId = crypto.randomUUID();
   const novelId = `coord-novel-${runId}`;
 
   beforeAll(async () => {
