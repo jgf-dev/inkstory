@@ -144,13 +144,13 @@ function quoted(label: string, placeholder: string): string[] {
   return ["", label, '"""', placeholder, '"""'];
 }
 
-/** Shared optional length-target input; bounds differ per tool. */
-function targetWordsInput(min: number, max: number) {
+/** Shared optional length-target input; bounds and label differ per tool. */
+function targetWordsInput(min: number, max: number, label = "Target length (words)") {
   return {
     key: "craft.target_words",
     type: "integer",
     required: false,
-    label: "Target length (words)",
+    label,
     min,
     max,
   } as const;
@@ -165,6 +165,18 @@ function instructionsInput(label = "Extra guidance") {
     label,
     maxLength: 1000,
   } as const;
+}
+
+/** Build the standard `[system, user]` prompt parts for a craft tool. */
+function craftParts(
+  slug: string,
+  userBody: string,
+  systemBody: string = CRAFT_SYSTEM_BODY,
+): PromptPart[] {
+  return [
+    { role: "system", body: systemBody, name: `craft-${slug}-system` },
+    { role: "user", body: userBody, name: `craft-${slug}-user` },
+  ];
 }
 
 const SELECTION_INPUT = {
@@ -239,20 +251,11 @@ const BRAINSTORM_USER_BODY = [
   "Make every option genuinely different from the others in approach, not a rewording. Stay consistent with the story bible and the scene summary.",
   "Each option is only a suggestion: nothing you propose becomes part of the story unless the author picks it.",
   "Keep each option to roughly {{craft.target_words}} words or fewer.",
-  "",
-  'Author brief:\n"""\n{{craft.instructions}}\n"""',
+  ...quoted("Author brief:", "{{craft.instructions}}"),
   "",
   "Answer with exactly {{craft.brainstorm_count}} options as a numbered list (1., 2., 3., ...), one option per number, and nothing else: no introduction, no closing remarks, no headings.",
-  "",
-  "Scene summary:",
-  '"""',
-  "{{scene.summary}}",
-  '"""',
-  "",
-  "Selected passage the options should fit (may be empty):",
-  '"""',
-  "{{craft.selection}}",
-  '"""',
+  ...quoted("Scene summary:", "{{scene.summary}}"),
+  ...quoted("Selected passage the options should fit (may be empty):", "{{craft.selection}}"),
 ].join("\n");
 
 function defineTool(
@@ -292,10 +295,7 @@ const DESCRIBE = defineTool({
     output: { mode: "prose", suggestedAction: "replace_selection" },
     attribution: null,
   },
-  parts: [
-    { role: "system", body: CRAFT_SYSTEM_BODY, name: "craft-describe-system" },
-    { role: "user", body: DESCRIBE_USER_BODY, name: "craft-describe-user" },
-  ],
+  parts: craftParts("describe", DESCRIBE_USER_BODY),
   allowedContextSlices: [
     "selection",
     "scene.content",
@@ -326,10 +326,7 @@ const EXPAND = defineTool({
     output: { mode: "prose", suggestedAction: "replace_selection" },
     attribution: null,
   },
-  parts: [
-    { role: "system", body: CRAFT_SYSTEM_BODY, name: "craft-expand-system" },
-    { role: "user", body: EXPAND_USER_BODY, name: "craft-expand-user" },
-  ],
+  parts: craftParts("expand", EXPAND_USER_BODY),
   allowedContextSlices: DESCRIBE.allowedContextSlices,
   defaults: {
     "craft.target_words": EXPAND_DEFAULT_TARGET_WORDS,
@@ -360,10 +357,7 @@ const REWRITE = defineTool({
     output: { mode: "prose", suggestedAction: "replace_selection" },
     attribution: null,
   },
-  parts: [
-    { role: "system", body: CRAFT_SYSTEM_BODY, name: "craft-rewrite-system" },
-    { role: "user", body: REWRITE_USER_BODY, name: "craft-rewrite-user" },
-  ],
+  parts: craftParts("rewrite", REWRITE_USER_BODY),
   allowedContextSlices: DESCRIBE.allowedContextSlices,
   defaults: {
     "craft.rewrite_preset": REWRITE_DEFAULT_PRESET,
@@ -410,10 +404,7 @@ const SHOW_DONT_TELL = defineTool({
     output: { mode: "diagnosis_and_prose", suggestedAction: "replace_selection" },
     attribution: null,
   },
-  parts: [
-    { role: "system", body: CRAFT_SECTIONED_SYSTEM_BODY, name: "craft-show-dont-tell-system" },
-    { role: "user", body: SHOW_DONT_TELL_USER_BODY, name: "craft-show-dont-tell-user" },
-  ],
+  parts: craftParts("show-dont-tell", SHOW_DONT_TELL_USER_BODY, CRAFT_SECTIONED_SYSTEM_BODY),
   allowedContextSlices: [
     "selection",
     "scene.content",
@@ -461,10 +452,7 @@ const TRANSITION = defineTool({
     output: { mode: "prose", suggestedAction: "insert_between" },
     attribution: null,
   },
-  parts: [
-    { role: "system", body: CRAFT_SYSTEM_BODY, name: "craft-transition-system" },
-    { role: "user", body: TRANSITION_USER_BODY, name: "craft-transition-user" },
-  ],
+  parts: craftParts("transition", TRANSITION_USER_BODY),
   allowedContextSlices: DESCRIBE.allowedContextSlices,
   defaults: {
     "craft.target_words": TRANSITION_DEFAULT_TARGET_WORDS,
@@ -495,34 +483,15 @@ const BRAINSTORM = defineTool({
         min: 2,
         max: 10,
       },
-      { key: "craft.instructions", type: "text", required: false, label: "Brief", maxLength: 1000 },
-      { key: "craft.selection", type: "text", required: false, label: "Selected prose (optional)" },
-      {
-        key: "craft.target_words",
-        type: "integer",
-        required: false,
-        label: "Words per option",
-        min: 1,
-        max: 200,
-      },
+      instructionsInput("Brief"),
+      { ...SELECTION_INPUT, required: false, label: "Selected prose (optional)" },
+      targetWordsInput(1, 200, "Words per option"),
     ],
-    contextSlices: [
-      "selection",
-      "scene.summary",
-      "scene.title",
-      "scene.pov",
-      "scene.tense",
-      "chapter.title",
-      "novel.title",
-      "codex.context",
-    ],
+    contextSlices: DESCRIBE.allowedContextSlices.filter((slice) => slice !== "scene.content"),
     output: { mode: "options", suggestedAction: "copy_only" },
     attribution: null,
   },
-  parts: [
-    { role: "system", body: CRAFT_SECTIONED_SYSTEM_BODY, name: "craft-brainstorm-system" },
-    { role: "user", body: BRAINSTORM_USER_BODY, name: "craft-brainstorm-user" },
-  ],
+  parts: craftParts("brainstorm", BRAINSTORM_USER_BODY, CRAFT_SECTIONED_SYSTEM_BODY),
   allowedContextSlices: DESCRIBE.allowedContextSlices,
   defaults: {
     "craft.brainstorm_kind": BRAINSTORM_DEFAULT_KIND,

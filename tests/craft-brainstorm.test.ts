@@ -20,6 +20,7 @@ import {
   shapeCraftResult,
   toCraftToolDto,
 } from "../src/lib/craft";
+import { CRAFT_PROSE_FORMAT_RULE, CRAFT_SECTIONED_FORMAT_RULE } from "../src/lib/craft/tools";
 import { validatePromptContract } from "../src/lib/prompts/contracts";
 import { buildSceneBindings } from "../src/lib/prompts/render";
 import { primeCraftRoute, resetCraftRoute } from "./helpers/craft-route";
@@ -72,6 +73,9 @@ describe("Brainstorm tool (STO-1272)", () => {
     expect(tool.allowedContextSlices).toEqual(describeTool.allowedContextSlices);
     // Options output defers to the format its user message specifies (STO-1297), like show_dont_tell.
     expect(tool.parts[0].body).toBe(getCraftTool("show_dont_tell").parts[0].body);
+    expect(tool.parts[0].body).toContain(CRAFT_SECTIONED_FORMAT_RULE);
+    expect(tool.parts[0].body).not.toContain(CRAFT_PROSE_FORMAT_RULE);
+    expect(tool.parts[1].body.toLowerCase()).not.toContain("prose-only");
     expect(tool.contract.output).toEqual({ mode: "options", suggestedAction: "copy_only" });
     expect(tool.contract.inputs.every((input) => !input.required)).toBe(true);
     expect(contractReadsSlice(tool.contract, "scene.summary")).toBe(true);
