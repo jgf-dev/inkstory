@@ -4,12 +4,16 @@ import { getClientIp, verifyTurnstileToken } from "../src/lib/turnstile";
 
 const mockSignInWithPassword = vi.fn();
 const mockSignUp = vi.fn();
+const mockExchangeCodeForSession = vi.fn();
+const mockVerifyOtp = vi.fn();
 
 vi.mock("../src/lib/supabase/server", () => ({
   createSupabaseServerClient: vi.fn(async () => ({
     auth: {
       signInWithPassword: (...args: unknown[]) => mockSignInWithPassword(...args),
       signUp: (...args: unknown[]) => mockSignUp(...args),
+      exchangeCodeForSession: (...args: unknown[]) => mockExchangeCodeForSession(...args),
+      verifyOtp: (...args: unknown[]) => mockVerifyOtp(...args),
     },
   })),
 }));
@@ -275,9 +279,83 @@ describe("Turnstile verification and auth route handlers", () => {
         email: "new@syncodex.xyz",
         password: "password123",
         options: {
-          emailRedirectTo: "https://inkstory.jgeof.workers.dev/dashboard",
+          emailRedirectTo: "https://inkstory.jgeof.workers.dev/auth/callback?next=/dashboard",
         },
       });
+    });
+  });
+
+  describe("GET /auth/callback", () => {
+    it("exchanges PKCE code for session and redirects to safe next path", async () => {
+      mockExchangeCodeForSession.mockResolvedValue({ data: { session: {} }, error: null });
+
+      const { GET } = await import("../src/app/auth/callback/route");
+      const request = new NextRequest(
+        "https://syncodex.xyz/auth/callback?code=auth-code-123&next=%2Fdashboard%2Fcodex",
+      );
+
+      const response = await GET(request);
+      expect(mockExchangeCodeForSession).toHaveBeenCalledWith("auth-code-123");
+      expect(response.status).toBe(307);
+      expect(response.headers.get("location")).toBe("https://syncodex.xyz/dashboard/codex");
+    });
+
+    it("verifies token_hash + type OTP links and sanitizes unsafe next redirects", async () => {
+      mockVerifyOtp.mockResolvedValue({ data: { session: {} }, error: null });
+
+      const { GET } = await import("../src/app/auth/callback/route");
+      const request = new NextRequest(
+        "https://syncodex.xyz/auth/callback?token_hash=hash-abc&type=signup&next=%2F%2Fevil.com",
+      );
+
+      const response = await GET(request);
+      expect(mockVerifyOtp).toHaveBeenCalledWith({
+        token_hash: "hash-abc",
+        type: "signup",
+      });
+      expect(response.status).toBe(307);
+      expect(response.headers.get("location")).toBe("https://syncodex.xyz/dashboard");
+    });
+
+    it("redirects to /login?error=confirmation_failed when verification fails or params are missing", async () => {
+      mockExchangeCodeForSession.mockResolvedValue({
+        data: { session: null },
+        error: new Error("invalid code"),
+      });
+
+      const { GET } = await import("../src/app/auth/callback/route");
+      const failedCodeRes = await GET(
+        new NextRequest("https://syncodex.xyz/auth/callback?code=bad-code"),
+      );
+      expect(failedCodeRes.status).toBe(307);
+      expect(failedCodeRes.headers.get("location")).toBe(
+        "https://syncodex.xyz/login?error=confirmation_failed",
+      );
+
+      const missingParamsRes = await GET(new NextRequest("https://syncodex.xyz/auth/callback"));
+      expect(missingParamsRes.status).toBe(307);
+      expect(missingParamsRes.headers.get("location")).toBe(
+        "https://syncodex.xyz/login?error=confirmation_failed",
+      );
+    });
+
+    it.each([
+      ["tab-injected protocol-relative URL", "/\t/evil.com"],
+      ["newline-injected protocol-relative URL", "/\n/evil.com"],
+      ["backslash-prefixed URL", "/\\evil.com"],
+      ["triple-slash host URL", "///evil.com"],
+      ["absolute external URL", "https://evil.com/dashboard"],
+    ])("blocks open-redirect bypass (%s) and falls back to /dashboard", async (_label, next) => {
+      mockExchangeCodeForSession.mockResolvedValue({ data: { session: {} }, error: null });
+
+      const { GET } = await import("../src/app/auth/callback/route");
+      const url = new URL("https://syncodex.xyz/auth/callback");
+      url.searchParams.set("code", "auth-code-123");
+      url.searchParams.set("next", next);
+
+      const response = await GET(new NextRequest(url));
+      expect(response.status).toBe(307);
+      expect(response.headers.get("location")).toBe("https://syncodex.xyz/dashboard");
     });
   });
 });

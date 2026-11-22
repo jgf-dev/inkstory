@@ -69,6 +69,88 @@ export function initialFormValues(tool: CraftToolDto): CraftFormValues {
   return values;
 }
 
+/** The target-length input shared by the length-aware Craft tools. */
+export const TARGET_WORDS_KEY = "craft.target_words" satisfies CraftInputKey;
+
+/** Tools whose output should come out longer than the selection (STO-1295). */
+const LENGTHENING_TOOL_IDS: ReadonlySet<string> = new Set(["expand"]);
+
+/** Expand's adaptive target: this many times the selection, at least the tool default. */
+export const EXPAND_TARGET_GROWTH = 1.5;
+
+function lengtheningTarget(tool: CraftToolDto): ContractInput | null {
+  if (!LENGTHENING_TOOL_IDS.has(tool.id)) return null;
+  return (
+    formInputs(tool).find((input) => input.key === TARGET_WORDS_KEY && input.type === "integer") ??
+    null
+  );
+}
+
+/**
+ * Selection-aware target for lengthening tools (Expand): grow the selection by
+ * {@link EXPAND_TARGET_GROWTH}, never below the tool default and never above the
+ * contract ceiling. `null` when the tool isn't lengthening or nothing is selected,
+ * so the static default (`EXPAND_DEFAULT_TARGET_WORDS`) stays the API fallback.
+ */
+export function suggestedTargetWords(tool: CraftToolDto, selectionWords: number): number | null {
+  const input = lengtheningTarget(tool);
+  if (!input || selectionWords <= 0) return null;
+  const { min, max } = integerBounds(input);
+  const fallback = Number(tool.defaults[TARGET_WORDS_KEY]);
+  const floor = Number.isFinite(fallback) ? fallback : min;
+  return Math.min(max, Math.max(floor, Math.ceil(selectionWords * EXPAND_TARGET_GROWTH)));
+}
+
+/**
+ * Form values with the target length following the selection until the author
+ * edits it (`touched`). Without a selection the untouched target reverts to the
+ * tool default. Tools without a lengthening target are returned unchanged.
+ */
+export function withAdaptiveTarget(
+  tool: CraftToolDto,
+  values: CraftFormValues,
+  selectionWords: number,
+  touched: boolean,
+): CraftFormValues {
+  if (touched || !lengtheningTarget(tool)) return values;
+  const suggestion = suggestedTargetWords(tool, selectionWords);
+  const target =
+    suggestion === null ? initialFormValues(tool)[TARGET_WORDS_KEY] : String(suggestion);
+  return values[TARGET_WORDS_KEY] === target ? values : { ...values, [TARGET_WORDS_KEY]: target };
+}
+
+/**
+ * Inline warning when a lengthening tool's target would not lengthen the
+ * selection: the target is at or below the selection's word count, or the
+ * selection already meets the contract ceiling. Invalid targets are left to
+ * {@link validateCraftForm}.
+ */
+export function targetWordsWarning(
+  tool: CraftToolDto,
+  values: CraftFormValues,
+  selectionWords: number,
+): string | null {
+  const input = lengtheningTarget(tool);
+  if (!input || selectionWords <= 0) return null;
+  const { min, max } = integerBounds(input);
+  const raw = values[TARGET_WORDS_KEY];
+  const target =
+    typeof raw === "string" && raw.trim()
+      ? Number(raw.trim())
+      : Number(tool.defaults[TARGET_WORDS_KEY]);
+  if (!Number.isInteger(target) || target < min || target > max) return null;
+  const words = selectionWords.toLocaleString("en-US");
+  if (selectionWords >= max) {
+    return `The selection is ${words} words, at or above the ${max.toLocaleString("en-US")}-word maximum, so ${tool.name} can't lengthen it. Select a shorter passage.`;
+  }
+  if (target <= selectionWords) {
+    const suggestion = suggestedTargetWords(tool, selectionWords) ?? max;
+    const hint = suggestion >= max ? "" : " or more";
+    return `${tool.name} would shorten this: the target is at or below the selection's ${words} words. Try ${suggestion.toLocaleString("en-US")}${hint}.`;
+  }
+  return null;
+}
+
 /** Effective bounds for an integer input: the contract's, inside the registry ceiling. */
 export function integerBounds(input: ContractInput): { min: number; max: number } {
   const spec = CRAFT_INPUT_REGISTRY[input.key] as { min?: number; max?: number };
