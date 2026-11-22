@@ -3,7 +3,7 @@
 
 namespace public {
   model User {
-    id           String             @id(map: "users_pkey")
+    id           Uuid               @id(map: "users_pkey")
     email        String
     name         String?
     avatarUrl    String?            @map("avatar_url")
@@ -51,7 +51,7 @@ namespace public {
     createdAt    TimestampTemporal(3)       @default(now()) @map("created_at")
     updatedAt    TimestampTemporal(3)       @map("updated_at")
     deletedAt    TimestampTemporal(3)?      @map("deleted_at")
-    ownerId      String             @map("owner_id")
+    ownerId      Uuid               @map("owner_id")
 
     owner        User               @relation(fields: [ownerId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "series_owner_id_fkey", index: false)
     novels       Novel[]
@@ -71,7 +71,7 @@ namespace public {
     createdAt    TimestampTemporal(3)       @default(now()) @map("created_at")
     updatedAt    TimestampTemporal(3)       @map("updated_at")
     deletedAt    TimestampTemporal(3)?      @map("deleted_at")
-    ownerId      String             @map("owner_id")
+    ownerId      Uuid               @map("owner_id")
     seriesId     String?            @map("series_id")
 
     owner        User               @relation(fields: [ownerId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "novels_owner_id_fkey", index: false)
@@ -184,7 +184,7 @@ namespace public {
     createdAt                    TimestampTemporal(3)               @default(now()) @map("created_at")
     updatedAt                    TimestampTemporal(3)               @map("updated_at")
     deletedAt                    TimestampTemporal(3)?              @map("deleted_at")
-    ownerId                      String                     @map("owner_id")
+    ownerId                      Uuid                       @map("owner_id")
     novelId                      String?                    @map("novel_id")
     seriesId                     String?                    @map("series_id")
 
@@ -282,7 +282,7 @@ namespace public {
   // with BYOK_ENCRYPTION_KEY; APIs never return ciphertext/iv/authTag/plaintext.
   model UserProviderCredential {
     id           String           @id(map: "user_provider_credentials_pkey")
-    ownerId      String           @map("owner_id")
+    ownerId      Uuid             @map("owner_id")
     provider     pg.enum(AiProvider)
     label        String           @default("default")
 
@@ -328,7 +328,7 @@ namespace public {
     role        pg.enum(PromptRole) @default("SYSTEM")
     position    Int                 @default(0)
     isActive    Boolean             @default(true) @map("is_active")
-    ownerId     String?             @map("owner_id")
+    ownerId     Uuid?               @map("owner_id")
     novelId     String?             @map("novel_id")
     createdAt   TimestampTemporal(3)        @default(now()) @map("created_at")
     updatedAt   TimestampTemporal(3)        @map("updated_at")
@@ -352,7 +352,7 @@ namespace public {
     role        pg.enum(PromptRole) @default("SYSTEM")
     // Versioned craft/portability contract (STO-1275). Null = legacy STO-1158 behavior.
     contract    Jsonb?              @map("contract")
-    ownerId     String?             @map("owner_id")
+    ownerId     Uuid?               @map("owner_id")
     createdAt   TimestampTemporal(3)        @default(now()) @map("created_at")
     updatedAt   TimestampTemporal(3)        @map("updated_at")
     deletedAt   TimestampTemporal(3)?       @map("deleted_at")

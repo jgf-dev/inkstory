@@ -15,8 +15,8 @@ import {
 
 describe("prompt service resolution + read-only (STO-1158)", { timeout: 30_000 }, () => {
   const runId = crypto.randomUUID();
-  const userId = `test-prompt-user-${runId}`;
-  const otherUserId = `test-prompt-other-${runId}`;
+  const userId = crypto.randomUUID();
+  const otherUserId = crypto.randomUUID();
   let novelId = "";
 
   beforeAll(async () => {
@@ -189,7 +189,7 @@ describe("prompt service resolution + read-only (STO-1158)", { timeout: 30_000 }
 
 describe("prompt component CRUD (STO-1158)", { timeout: 30_000 }, () => {
   const runId = crypto.randomUUID();
-  const userId = `test-comp-user-${runId}`;
+  const userId = crypto.randomUUID();
 
   beforeAll(async () => {
     const now = Temporal.Now.plainDateTimeISO();
@@ -335,7 +335,7 @@ describe("prompt component CRUD (STO-1158)", { timeout: 30_000 }, () => {
 
 describe("renderResolvedScenePrompt (STO-1158)", { timeout: 20_000 }, () => {
   const runId = crypto.randomUUID();
-  const userId = `test-render-user-${runId}`;
+  const userId = crypto.randomUUID();
 
   beforeAll(async () => {
     const now = Temporal.Now.plainDateTimeISO();

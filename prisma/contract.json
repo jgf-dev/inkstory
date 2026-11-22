@@ -492,7 +492,7 @@
               "ownerId": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/text@1",
+                  "codecId": "pg/uuid@1",
                   "kind": "scalar"
                 }
               },
@@ -1183,7 +1183,7 @@
               "ownerId": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/text@1",
+                  "codecId": "pg/uuid@1",
                   "kind": "scalar"
                 }
               },
@@ -1416,7 +1416,7 @@
               "ownerId": {
                 "nullable": true,
                 "type": {
-                  "codecId": "pg/text@1",
+                  "codecId": "pg/uuid@1",
                   "kind": "scalar"
                 }
               },
@@ -1616,7 +1616,7 @@
               "ownerId": {
                 "nullable": true,
                 "type": {
-                  "codecId": "pg/text@1",
+                  "codecId": "pg/uuid@1",
                   "kind": "scalar"
                 }
               },
@@ -2292,7 +2292,7 @@
               "ownerId": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/text@1",
+                  "codecId": "pg/uuid@1",
                   "kind": "scalar"
                 }
               },
@@ -2513,7 +2513,7 @@
               "id": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/text@1",
+                  "codecId": "pg/uuid@1",
                   "kind": "scalar"
                 }
               },
@@ -2796,7 +2796,7 @@
               "ownerId": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/text@1",
+                  "codecId": "pg/uuid@1",
                   "kind": "scalar"
                 }
               },
@@ -3364,8 +3364,8 @@
                   "nullable": true
                 },
                 "owner_id": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
+                  "codecId": "pg/uuid@1",
+                  "dataType": "pg/uuid",
                   "nullable": false
                 },
                 "position": {
@@ -3969,8 +3969,8 @@
                   "nullable": false
                 },
                 "owner_id": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
+                  "codecId": "pg/uuid@1",
+                  "dataType": "pg/uuid",
                   "nullable": false
                 },
                 "position": {
@@ -4259,8 +4259,8 @@
                   "nullable": false
                 },
                 "owner_id": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
+                  "codecId": "pg/uuid@1",
+                  "dataType": "pg/uuid",
                   "nullable": true
                 },
                 "role": {
@@ -4395,8 +4395,8 @@
                   "nullable": true
                 },
                 "owner_id": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
+                  "codecId": "pg/uuid@1",
+                  "dataType": "pg/uuid",
                   "nullable": true
                 },
                 "position": {
@@ -4917,8 +4917,8 @@
                   "nullable": false
                 },
                 "owner_id": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
+                  "codecId": "pg/uuid@1",
+                  "dataType": "pg/uuid",
                   "nullable": false
                 },
                 "position": {
@@ -5123,8 +5123,8 @@
                   "nullable": false
                 },
                 "owner_id": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
+                  "codecId": "pg/uuid@1",
+                  "dataType": "pg/uuid",
                   "nullable": false
                 },
                 "provider": {
@@ -5239,8 +5239,8 @@
                   "nullable": false
                 },
                 "id": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
+                  "codecId": "pg/uuid@1",
+                  "dataType": "pg/uuid",
                   "nullable": false
                 },
                 "name": {
@@ -5427,7 +5427,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "ee75d478a0aa06a08bca418d7025c919d13af0b6021f8fda6c99a78d352e33d0"
+    "storageHash": "6ea2ca8e927576b2fa51f16e61f185bf050fbf7140fec0cec2fed67e6a9afb82"
   },
   "capabilities": {
     "postgres": {
