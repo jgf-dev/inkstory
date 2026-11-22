@@ -55,8 +55,8 @@ const sceneInput: ScenePromptBindingInput = {
 
 describe("prompt component contracts — service (STO-1275)", { timeout: 30_000 }, () => {
   const runId = crypto.randomUUID();
-  const userId = `test-contract-user-${runId}`;
-  const otherUserId = `test-contract-other-${runId}`;
+  const userId = crypto.randomUUID();
+  const otherUserId = crypto.randomUUID();
   const systemComponentId = `test-contract-system-${runId}`;
 
   beforeAll(async () => {

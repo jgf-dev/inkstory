@@ -492,7 +492,7 @@
               "ownerId": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/text@1",
+                  "codecId": "pg/uuid@1",
                   "kind": "scalar"
                 }
               },
@@ -1183,7 +1183,7 @@
               "ownerId": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/text@1",
+                  "codecId": "pg/uuid@1",
                   "kind": "scalar"
                 }
               },
@@ -1416,7 +1416,7 @@
               "ownerId": {
                 "nullable": true,
                 "type": {
-                  "codecId": "pg/text@1",
+                  "codecId": "pg/uuid@1",
                   "kind": "scalar"
                 }
               },
@@ -1616,7 +1616,7 @@
               "ownerId": {
                 "nullable": true,
                 "type": {
-                  "codecId": "pg/text@1",
+                  "codecId": "pg/uuid@1",
                   "kind": "scalar"
                 }
               },
@@ -2292,7 +2292,7 @@
               "ownerId": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/text@1",
+                  "codecId": "pg/uuid@1",
                   "kind": "scalar"
                 }
               },
@@ -2513,7 +2513,7 @@
               "id": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/text@1",
+                  "codecId": "pg/uuid@1",
                   "kind": "scalar"
                 }
               },
@@ -2796,7 +2796,7 @@
               "ownerId": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/text@1",
+                  "codecId": "pg/uuid@1",
                   "kind": "scalar"
                 }
               },
@@ -3003,6 +3003,93 @@
                 "FUTURE"
               ],
               "typeName": "Tense"
+            }
+          },
+          "rls": {
+            "acts": {
+              "kind": "rls",
+              "namespaceId": "public",
+              "tableName": "acts"
+            },
+            "chapters": {
+              "kind": "rls",
+              "namespaceId": "public",
+              "tableName": "chapters"
+            },
+            "codex_aliases": {
+              "kind": "rls",
+              "namespaceId": "public",
+              "tableName": "codex_aliases"
+            },
+            "codex_entries": {
+              "kind": "rls",
+              "namespaceId": "public",
+              "tableName": "codex_entries"
+            },
+            "codex_progressions": {
+              "kind": "rls",
+              "namespaceId": "public",
+              "tableName": "codex_progressions"
+            },
+            "codex_relations": {
+              "kind": "rls",
+              "namespaceId": "public",
+              "tableName": "codex_relations"
+            },
+            "codex_tags": {
+              "kind": "rls",
+              "namespaceId": "public",
+              "tableName": "codex_tags"
+            },
+            "novels": {
+              "kind": "rls",
+              "namespaceId": "public",
+              "tableName": "novels"
+            },
+            "prompt_component_links": {
+              "kind": "rls",
+              "namespaceId": "public",
+              "tableName": "prompt_component_links"
+            },
+            "prompt_components": {
+              "kind": "rls",
+              "namespaceId": "public",
+              "tableName": "prompt_components"
+            },
+            "prompts": {
+              "kind": "rls",
+              "namespaceId": "public",
+              "tableName": "prompts"
+            },
+            "scene_revisions": {
+              "kind": "rls",
+              "namespaceId": "public",
+              "tableName": "scene_revisions"
+            },
+            "scenes": {
+              "kind": "rls",
+              "namespaceId": "public",
+              "tableName": "scenes"
+            },
+            "series": {
+              "kind": "rls",
+              "namespaceId": "public",
+              "tableName": "series"
+            },
+            "stripe_webhook_events": {
+              "kind": "rls",
+              "namespaceId": "public",
+              "tableName": "stripe_webhook_events"
+            },
+            "user_provider_credentials": {
+              "kind": "rls",
+              "namespaceId": "public",
+              "tableName": "user_provider_credentials"
+            },
+            "users": {
+              "kind": "rls",
+              "namespaceId": "public",
+              "tableName": "users"
             }
           },
           "table": {
@@ -3364,8 +3451,8 @@
                   "nullable": true
                 },
                 "owner_id": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
+                  "codecId": "pg/uuid@1",
+                  "dataType": "pg/uuid",
                   "nullable": false
                 },
                 "position": {
@@ -3969,8 +4056,8 @@
                   "nullable": false
                 },
                 "owner_id": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
+                  "codecId": "pg/uuid@1",
+                  "dataType": "pg/uuid",
                   "nullable": false
                 },
                 "position": {
@@ -4259,8 +4346,8 @@
                   "nullable": false
                 },
                 "owner_id": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
+                  "codecId": "pg/uuid@1",
+                  "dataType": "pg/uuid",
                   "nullable": true
                 },
                 "role": {
@@ -4395,8 +4482,8 @@
                   "nullable": true
                 },
                 "owner_id": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
+                  "codecId": "pg/uuid@1",
+                  "dataType": "pg/uuid",
                   "nullable": true
                 },
                 "position": {
@@ -4917,8 +5004,8 @@
                   "nullable": false
                 },
                 "owner_id": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
+                  "codecId": "pg/uuid@1",
+                  "dataType": "pg/uuid",
                   "nullable": false
                 },
                 "position": {
@@ -5123,8 +5210,8 @@
                   "nullable": false
                 },
                 "owner_id": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
+                  "codecId": "pg/uuid@1",
+                  "dataType": "pg/uuid",
                   "nullable": false
                 },
                 "provider": {
@@ -5239,8 +5326,8 @@
                   "nullable": false
                 },
                 "id": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
+                  "codecId": "pg/uuid@1",
+                  "dataType": "pg/uuid",
                   "nullable": false
                 },
                 "name": {
@@ -5427,7 +5514,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "ee75d478a0aa06a08bca418d7025c919d13af0b6021f8fda6c99a78d352e33d0"
+    "storageHash": "eb4a89620bacaa381a3aa8df0bc65b8ce6b77bf05012129e3e83bb68e6ae8cd0"
   },
   "capabilities": {
     "postgres": {
