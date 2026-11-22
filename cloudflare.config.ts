@@ -37,14 +37,15 @@ export default defineConfig({
         "sb_publishable_DDo1gXilrcXEYIE4aA_2EQ_aMIIUc1X",
       ),
       NEXT_PUBLIC_SUPABASE_URL: bindings.text("https://wntgnjrrzfndunqaiobo.supabase.co"),
-      TURNSTILE_HOSTNAMES: bindings.text("syncodex.xyz,inkstory.jgeof.workers.dev"),
+      TURNSTILE_HOSTNAMES: bindings.text(
+        "syncodex.xyz,inkstory.jgeof.workers.dev,pre.syncodex.xyz",
+      ),
       NEXT_PUBLIC_TURNSTILE_SITE_KEY: bindings.text("0x4AAAAAAGGPGpjMBFjy08CL"),
       TURNSTILE_SITE_KEY: bindings.text("0x4AAAAAAGGPGpjMBFjy08CL"),
     },
-
     observability: {
-      logs: { destinations: ["newr"], enabled: true },
-      traces: { enabled: true },
+      logs: { destinations: ["newr"], enabled: true, persist: true },
+      traces: { enabled: true, persist: true },
       issues: { enabled: true },
     },
   }),
