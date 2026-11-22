@@ -1,5 +1,5 @@
 /**
- * Next.js middleware — refreshes the Supabase session cookie on every request.
+ * Request proxy (`vinext`) — refreshes the Supabase session cookie on every request.
  *
  * Without this, server components will see a stale session and read auth as
  * anonymous. Must use the same @supabase/ssr helpers as the server client.
