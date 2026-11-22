@@ -64,6 +64,70 @@ describe("Supabase Middleware & Proxy", () => {
       ]);
       expect(mockSet).toHaveBeenCalledWith("refreshed-token", "new-token");
     });
+
+    it("redirects bare domain /?code=... to /auth/callback?code=...&next=/dashboard", async () => {
+      const mockRequest = {
+        cookies: {
+          getAll: vi.fn().mockReturnValue([]),
+          set: vi.fn(),
+        },
+        headers: new Headers(),
+        nextUrl: new URL("https://syncodex.xyz/?code=d3036e10-f48e-4c55-937b-dfbef4c049bd"),
+      } as unknown as NextRequest;
+
+      const { updateSession } = await import("../src/lib/supabase/middleware");
+      const response = await updateSession(mockRequest);
+
+      expect(response.status).toBe(307);
+      expect(response.headers.get("location")).toBe(
+        "https://syncodex.xyz/auth/callback?code=d3036e10-f48e-4c55-937b-dfbef4c049bd&next=%2Fdashboard",
+      );
+      expect(mockGetUser).not.toHaveBeenCalled();
+    });
+
+    it("redirects /dashboard?token_hash=...&type=signup to /auth/callback preserving params", async () => {
+      const mockRequest = {
+        cookies: {
+          getAll: vi.fn().mockReturnValue([]),
+          set: vi.fn(),
+        },
+        headers: new Headers(),
+        nextUrl: new URL(
+          "https://syncodex.xyz/dashboard?token_hash=pkce_hash&type=signup&next=%2Fdashboard%2Fcodex",
+        ),
+      } as unknown as NextRequest;
+
+      const { updateSession } = await import("../src/lib/supabase/middleware");
+      const response = await updateSession(mockRequest);
+
+      expect(response.status).toBe(307);
+      expect(response.headers.get("location")).toBe(
+        "https://syncodex.xyz/auth/callback?token_hash=pkce_hash&type=signup&next=%2Fdashboard%2Fcodex",
+      );
+      expect(mockGetUser).not.toHaveBeenCalled();
+    });
+
+    it("does not redirect /auth/callback requests to avoid redirect loops", async () => {
+      mockGetUser.mockResolvedValue({ data: { user: null }, error: null });
+      mockCreateServerClient.mockImplementation(() => ({
+        auth: { getUser: mockGetUser },
+      }));
+
+      const mockRequest = {
+        cookies: {
+          getAll: vi.fn().mockReturnValue([]),
+          set: vi.fn(),
+        },
+        headers: new Headers(),
+        nextUrl: new URL("https://syncodex.xyz/auth/callback?code=abc"),
+      } as unknown as NextRequest;
+
+      const { updateSession } = await import("../src/lib/supabase/middleware");
+      const response = await updateSession(mockRequest);
+
+      expect(response.status).toBe(200);
+      expect(mockGetUser).toHaveBeenCalled();
+    });
   });
 
   describe("proxy", () => {
