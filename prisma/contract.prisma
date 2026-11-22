@@ -30,6 +30,7 @@ namespace public {
     @@index([deletedAt], map: "users_deleted_at_idx")
     @@index([email], map: "users_email_key", unique: true)
     @@map("users")
+    @@rls
   }
 
   model StripeWebhookEvent {
@@ -41,6 +42,8 @@ namespace public {
     createdAt TimestampTemporal(3) @default(now()) @map("created_at")
 
     @@map("stripe_webhook_events")
+
+    @@rls
   }
 
   model Series {
@@ -60,6 +63,7 @@ namespace public {
     @@index([ownerId, deletedAt], map: "series_owner_id_deleted_at_idx")
     @@index([ownerId, position], map: "series_owner_id_position_idx")
     @@map("series")
+    @@rls
   }
 
   model Novel {
@@ -84,6 +88,7 @@ namespace public {
     @@index([ownerId, position], map: "novels_owner_id_position_idx")
     @@index([seriesId], map: "novels_series_id_idx")
     @@map("novels")
+    @@rls
   }
 
   model Act {
@@ -101,6 +106,7 @@ namespace public {
     @@index([novelId, deletedAt], map: "acts_novel_id_deleted_at_idx")
     @@index([novelId, position], map: "acts_novel_id_position_idx")
     @@map("acts")
+    @@rls
   }
 
   model Chapter {
@@ -118,6 +124,7 @@ namespace public {
     @@index([actId, deletedAt], map: "chapters_act_id_deleted_at_idx")
     @@index([actId, position], map: "chapters_act_id_position_idx")
     @@map("chapters")
+    @@rls
   }
 
   model Scene {
@@ -146,6 +153,7 @@ namespace public {
     @@index([chapterId, deletedAt], map: "scenes_chapter_id_deleted_at_idx")
     @@index([chapterId, position], map: "scenes_chapter_id_position_idx")
     @@map("scenes")
+    @@rls
   }
 
   // Scene revision snapshots (STO-1156). Authz via scene → novel owner chain.
@@ -167,6 +175,7 @@ namespace public {
 
     @@index([sceneId, createdAt], map: "scene_revisions_scene_id_created_at_idx")
     @@map("scene_revisions")
+    @@rls
   }
 
   model CodexEntry {
@@ -203,6 +212,7 @@ namespace public {
     @@index([trackingMode], map: "codex_entries_tracking_mode_idx")
     @@index([type], map: "codex_entries_type_idx")
     @@map("codex_entries")
+    @@rls
   }
 
   model CodexAlias {
@@ -218,6 +228,7 @@ namespace public {
     @@index([entryId, deletedAt], map: "codex_aliases_entry_id_deleted_at_idx")
     @@index([name], map: "codex_aliases_name_idx")
     @@map("codex_aliases")
+    @@rls
   }
 
   model CodexTag {
@@ -234,6 +245,7 @@ namespace public {
     @@index([entryId, deletedAt], map: "codex_tags_entry_id_deleted_at_idx")
     @@index([name], map: "codex_tags_name_idx")
     @@map("codex_tags")
+    @@rls
   }
 
   model CodexRelation {
@@ -254,6 +266,7 @@ namespace public {
     @@index([sourceEntryId, deletedAt], map: "codex_relations_source_entry_id_deleted_at_idx")
     @@index([targetEntryId, deletedAt], map: "codex_relations_target_entry_id_deleted_at_idx")
     @@map("codex_relations")
+    @@rls
   }
 
   model CodexProgression {
@@ -275,6 +288,7 @@ namespace public {
     @@index([sceneId, deletedAt], map: "codex_progressions_scene_id_deleted_at_idx")
     @@index([sceneId, position], map: "codex_progressions_scene_id_position_idx")
     @@map("codex_progressions")
+    @@rls
   }
 
 
@@ -305,6 +319,7 @@ namespace public {
     @@index([ownerId, deletedAt], map: "user_provider_credentials_owner_id_deleted_at_idx")
     @@index([ownerId, provider, deletedAt], map: "user_provider_credentials_owner_provider_deleted_at_idx")
     @@map("user_provider_credentials")
+    @@rls
   }
 
 
@@ -342,6 +357,7 @@ namespace public {
     @@index([novelId, deletedAt], map: "prompts_novel_id_deleted_at_idx")
     @@index([mode, isActive, deletedAt], map: "prompts_mode_is_active_deleted_at_idx")
     @@map("prompts")
+    @@rls
   }
 
   model PromptComponent {
@@ -362,6 +378,7 @@ namespace public {
 
     @@index([ownerId, deletedAt], map: "prompt_components_owner_id_deleted_at_idx")
     @@map("prompt_components")
+    @@rls
   }
 
   model PromptComponentLink {
@@ -380,6 +397,7 @@ namespace public {
     @@index([promptId, position], map: "prompt_component_links_prompt_id_position_idx")
     @@index([componentId], map: "prompt_component_links_component_id_idx")
     @@map("prompt_component_links")
+    @@rls
   }
 
 

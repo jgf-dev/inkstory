@@ -3005,6 +3005,93 @@
               "typeName": "Tense"
             }
           },
+          "rls": {
+            "acts": {
+              "kind": "rls",
+              "namespaceId": "public",
+              "tableName": "acts"
+            },
+            "chapters": {
+              "kind": "rls",
+              "namespaceId": "public",
+              "tableName": "chapters"
+            },
+            "codex_aliases": {
+              "kind": "rls",
+              "namespaceId": "public",
+              "tableName": "codex_aliases"
+            },
+            "codex_entries": {
+              "kind": "rls",
+              "namespaceId": "public",
+              "tableName": "codex_entries"
+            },
+            "codex_progressions": {
+              "kind": "rls",
+              "namespaceId": "public",
+              "tableName": "codex_progressions"
+            },
+            "codex_relations": {
+              "kind": "rls",
+              "namespaceId": "public",
+              "tableName": "codex_relations"
+            },
+            "codex_tags": {
+              "kind": "rls",
+              "namespaceId": "public",
+              "tableName": "codex_tags"
+            },
+            "novels": {
+              "kind": "rls",
+              "namespaceId": "public",
+              "tableName": "novels"
+            },
+            "prompt_component_links": {
+              "kind": "rls",
+              "namespaceId": "public",
+              "tableName": "prompt_component_links"
+            },
+            "prompt_components": {
+              "kind": "rls",
+              "namespaceId": "public",
+              "tableName": "prompt_components"
+            },
+            "prompts": {
+              "kind": "rls",
+              "namespaceId": "public",
+              "tableName": "prompts"
+            },
+            "scene_revisions": {
+              "kind": "rls",
+              "namespaceId": "public",
+              "tableName": "scene_revisions"
+            },
+            "scenes": {
+              "kind": "rls",
+              "namespaceId": "public",
+              "tableName": "scenes"
+            },
+            "series": {
+              "kind": "rls",
+              "namespaceId": "public",
+              "tableName": "series"
+            },
+            "stripe_webhook_events": {
+              "kind": "rls",
+              "namespaceId": "public",
+              "tableName": "stripe_webhook_events"
+            },
+            "user_provider_credentials": {
+              "kind": "rls",
+              "namespaceId": "public",
+              "tableName": "user_provider_credentials"
+            },
+            "users": {
+              "kind": "rls",
+              "namespaceId": "public",
+              "tableName": "users"
+            }
+          },
           "table": {
             "acts": {
               "columns": {
@@ -5427,7 +5514,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "6ea2ca8e927576b2fa51f16e61f185bf050fbf7140fec0cec2fed67e6a9afb82"
+    "storageHash": "eb4a89620bacaa381a3aa8df0bc65b8ce6b77bf05012129e3e83bb68e6ae8cd0"
   },
   "capabilities": {
     "postgres": {
