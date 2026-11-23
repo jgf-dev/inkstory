@@ -12,6 +12,7 @@ import type { GenerationMode } from "@/lib/ai/generate";
 import { GENERATION_MODES } from "@/lib/ai/generate";
 import { normalizePromptContract, readStoredContract } from "./contracts";
 import { SYSTEM_DEFAULT_SEED } from "./defaults";
+import { insertSeedRow } from "./seed-insert";
 import { PromptError } from "./errors";
 import {
   parsePortableEnvelope,
@@ -187,20 +188,24 @@ export async function ensureSystemDefaultPrompts(): Promise<void> {
       id: seed.id,
     }).first()) as PromptRow | null;
     if (!existingPrompt) {
-      await db.orm.public.Prompt.create({
-        id: seed.id,
-        name: seed.name,
-        description: seed.description,
-        mode: seed.mode,
-        scope: "SYSTEM_DEFAULT",
-        body: "",
-        role: "SYSTEM",
-        position: 0,
-        isActive: true,
-        ownerId: null,
-        novelId: null,
-        updatedAt: now,
-      });
+      await insertSeedRow(
+        () =>
+          db.orm.public.Prompt.create({
+            id: seed.id,
+            name: seed.name,
+            description: seed.description,
+            mode: seed.mode,
+            scope: "SYSTEM_DEFAULT",
+            body: "",
+            role: "SYSTEM",
+            position: 0,
+            isActive: true,
+            ownerId: null,
+            novelId: null,
+            updatedAt: now,
+          }),
+        async () => Boolean(await db.orm.public.Prompt.where({ id: seed.id }).first()),
+      );
     } else if (existingPrompt.deletedAt) {
       await db.orm.public.Prompt.where({ id: seed.id }).update({
         deletedAt: null,
@@ -216,15 +221,20 @@ export async function ensureSystemDefaultPrompts(): Promise<void> {
       id: systemComponentId,
     }).first()) as ComponentRow | null;
     if (!existingSys) {
-      await db.orm.public.PromptComponent.create({
-        id: systemComponentId,
-        name: `${seed.name} — system`,
-        description: null,
-        body: seed.systemBody,
-        role: "SYSTEM",
-        ownerId: null,
-        updatedAt: now,
-      });
+      await insertSeedRow(
+        () =>
+          db.orm.public.PromptComponent.create({
+            id: systemComponentId,
+            name: `${seed.name} — system`,
+            description: null,
+            body: seed.systemBody,
+            role: "SYSTEM",
+            ownerId: null,
+            updatedAt: now,
+          }),
+        async () =>
+          Boolean(await db.orm.public.PromptComponent.where({ id: systemComponentId }).first()),
+      );
     } else if (existingSys.deletedAt) {
       await db.orm.public.PromptComponent.where({ id: systemComponentId }).update({
         deletedAt: null,
@@ -236,15 +246,20 @@ export async function ensureSystemDefaultPrompts(): Promise<void> {
       id: userComponentId,
     }).first()) as ComponentRow | null;
     if (!existingUser) {
-      await db.orm.public.PromptComponent.create({
-        id: userComponentId,
-        name: `${seed.name} — user`,
-        description: null,
-        body: seed.userBody,
-        role: "USER",
-        ownerId: null,
-        updatedAt: now,
-      });
+      await insertSeedRow(
+        () =>
+          db.orm.public.PromptComponent.create({
+            id: userComponentId,
+            name: `${seed.name} — user`,
+            description: null,
+            body: seed.userBody,
+            role: "USER",
+            ownerId: null,
+            updatedAt: now,
+          }),
+        async () =>
+          Boolean(await db.orm.public.PromptComponent.where({ id: userComponentId }).first()),
+      );
     } else if (existingUser.deletedAt) {
       await db.orm.public.PromptComponent.where({ id: userComponentId }).update({
         deletedAt: null,
@@ -257,14 +272,18 @@ export async function ensureSystemDefaultPrompts(): Promise<void> {
       id: link0Id,
     }).first()) as LinkRow | null;
     if (!link0) {
-      await db.orm.public.PromptComponentLink.create({
-        id: link0Id,
-        promptId: seed.id,
-        componentId: systemComponentId,
-        position: 0,
-        enabled: true,
-        updatedAt: now,
-      });
+      await insertSeedRow(
+        () =>
+          db.orm.public.PromptComponentLink.create({
+            id: link0Id,
+            promptId: seed.id,
+            componentId: systemComponentId,
+            position: 0,
+            enabled: true,
+            updatedAt: now,
+          }),
+        async () => Boolean(await db.orm.public.PromptComponentLink.where({ id: link0Id }).first()),
+      );
     } else if (link0.deletedAt || !link0.enabled || link0.position !== 0) {
       await db.orm.public.PromptComponentLink.where({ id: link0Id }).update({
         deletedAt: null,
@@ -279,14 +298,18 @@ export async function ensureSystemDefaultPrompts(): Promise<void> {
       id: link1Id,
     }).first()) as LinkRow | null;
     if (!link1) {
-      await db.orm.public.PromptComponentLink.create({
-        id: link1Id,
-        promptId: seed.id,
-        componentId: userComponentId,
-        position: 1,
-        enabled: true,
-        updatedAt: now,
-      });
+      await insertSeedRow(
+        () =>
+          db.orm.public.PromptComponentLink.create({
+            id: link1Id,
+            promptId: seed.id,
+            componentId: userComponentId,
+            position: 1,
+            enabled: true,
+            updatedAt: now,
+          }),
+        async () => Boolean(await db.orm.public.PromptComponentLink.where({ id: link1Id }).first()),
+      );
     } else if (link1.deletedAt || !link1.enabled || link1.position !== 1) {
       await db.orm.public.PromptComponentLink.where({ id: link1Id }).update({
         deletedAt: null,
