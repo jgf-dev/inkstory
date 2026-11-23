@@ -44,8 +44,14 @@ export default defineConfig({
       TURNSTILE_SITE_KEY: bindings.text("0x4AAAAAAGGPGpjMBFjy08CL"),
     },
     observability: {
-      logs: { destinations: ["newr"], enabled: true, persist: true },
-      traces: { enabled: true, persist: true },
+      enabled: true,
+      logs: {
+        destinations: ["newr", "sentry"],
+        enabled: true,
+        persist: true,
+        invocationLogs: true,
+      },
+      traces: { enabled: true, persist: true, destinations: ["sentry-traces"] },
       issues: { enabled: true },
     },
   }),
