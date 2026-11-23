@@ -128,6 +128,30 @@ describe("Supabase Middleware & Proxy", () => {
       expect(response.status).toBe(200);
       expect(mockGetUser).toHaveBeenCalled();
     });
+    it.each(["/waitlist", "/waitlist?source=x", "/api/waitlist"])(
+      "lets anonymous visitors through to the public %s route without redirecting",
+      async (path) => {
+        mockGetUser.mockResolvedValue({ data: { user: null }, error: null });
+        mockCreateServerClient.mockImplementation(() => ({
+          auth: { getUser: mockGetUser },
+        }));
+
+        const mockRequest = {
+          cookies: {
+            getAll: vi.fn().mockReturnValue([]),
+            set: vi.fn(),
+          },
+          headers: new Headers(),
+          nextUrl: new URL(`https://syncodex.xyz${path}`),
+        } as unknown as NextRequest;
+
+        const { updateSession } = await import("../src/lib/supabase/middleware");
+        const response = await updateSession(mockRequest);
+
+        expect(response.status).toBe(200);
+        expect(response.headers.get("location")).toBeNull();
+      },
+    );
   });
 
   describe("proxy", () => {

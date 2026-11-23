@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'eb4a89620bacaa381a3aa8df0bc65b8ce6b77bf05012129e3e83bb68e6ae8cd0'>;
+  StorageHashBase<'b06538ade4c4d3b9b60745e786b9a07cb735cac3c49dde355dc77cf61fdda034'>;
 export type ExecutionHash = ExecutionHashBase<string>;
 export type ProfileHash =
   ProfileHashBase<'3916f444a8a17ad749191acf9e08dad97d1a327b88c2f1d45d12f240296aa8b2'>;
@@ -738,6 +738,14 @@ export namespace Models {
     owner: public_User;
     readonly [RelationKeys]?: 'owner';
   };
+  export type public_WaitlistSignup = {
+    createdAt: FieldOutputTypes['public']['WaitlistSignup']['createdAt'];
+    email: FieldOutputTypes['public']['WaitlistSignup']['email'];
+    id: FieldOutputTypes['public']['WaitlistSignup']['id'];
+    referrer: FieldOutputTypes['public']['WaitlistSignup']['referrer'];
+    source: FieldOutputTypes['public']['WaitlistSignup']['source'];
+    readonly [RelationKeys]?: never;
+  };
 }
 
 export declare const models: {
@@ -759,6 +767,7 @@ export declare const models: {
     StripeWebhookEvent: Models.public_StripeWebhookEvent;
     User: Models.public_User;
     UserProviderCredential: Models.public_UserProviderCredential;
+    WaitlistSignup: Models.public_WaitlistSignup;
   };
 };
 
@@ -2696,6 +2705,53 @@ type ContractBase = Omit<
               ];
               foreignKeys: readonly [];
             };
+            readonly waitlist_signups: {
+              columns: {
+                readonly created_at: {
+                  readonly dataType: 'pg/timestamp';
+                  readonly codecId: 'pg/timestamp-temporal@1';
+                  readonly nullable: false;
+                  readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
+                readonly email: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly id: {
+                  readonly dataType: 'pg/uuid';
+                  readonly codecId: 'pg/uuid@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'function';
+                    readonly expression: 'gen_random_uuid()';
+                  };
+                  readonly many: false;
+                };
+                readonly referrer: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly source: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+              };
+              primaryKey: {
+                readonly columns: readonly ['id'];
+                readonly name: 'waitlist_signups_pkey';
+              };
+              uniques: readonly [{ readonly columns: readonly ['email'] }];
+              indexes: readonly [];
+              foreignKeys: readonly [];
+            };
           };
           readonly valueSet: {
             readonly AiProvider: {
@@ -2805,6 +2861,10 @@ type ContractBase = Omit<
       readonly model: 'UserProviderCredential';
     };
     readonly users: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
+    readonly waitlist_signups: {
+      readonly namespace: 'public' & NamespaceId;
+      readonly model: 'WaitlistSignup';
+    };
   };
   readonly domain: {
     readonly namespaces: {
@@ -4614,6 +4674,46 @@ type ContractBase = Omit<
                 readonly ownerId: { readonly column: 'owner_id' };
                 readonly provider: { readonly column: 'provider' };
                 readonly updatedAt: { readonly column: 'updated_at' };
+              };
+            };
+          };
+          readonly WaitlistSignup: {
+            readonly fields: {
+              readonly createdAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamp-temporal@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+              readonly email: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly id: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/uuid@1' };
+              };
+              readonly referrer: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly source: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+            };
+            readonly relations: Record<string, never>;
+            readonly storage: {
+              readonly table: 'waitlist_signups';
+              readonly namespaceId: 'public';
+              readonly fields: {
+                readonly createdAt: { readonly column: 'created_at' };
+                readonly email: { readonly column: 'email' };
+                readonly id: { readonly column: 'id' };
+                readonly referrer: { readonly column: 'referrer' };
+                readonly source: { readonly column: 'source' };
               };
             };
           };
