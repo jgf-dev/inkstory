@@ -2,6 +2,27 @@
 
 All notable changes to InkStory are tracked here. This file follows [Keep a Changelog](https://keepachangelog.com/) and the project adheres to [Semantic Versioning](https://semver.org/).
 
+## [PR-230](https://github.com/jgf-dev/inkstory/pull/230) - 2026-11-23
+
+### Summary
+
+Scoped the Prisma 8 Postgres client per request on Cloudflare Workers to prevent warm-isolate `/dashboard` hangs caused by cross-request `pg` socket reuse, while preserving a lazy module singleton outside Workers.
+
+### Added
+
+- `tests/prisma-request-scope.test.ts`: added unit tests (no DB required) covering Workers runtime detection, non-Workers singleton/HMR behavior, per-request client isolation and reuse, `db` proxy forwarding and method binding, post-response `client.close()` scheduling, and missing-scope fallback warnings.
+
+### Fixed
+
+- `src/lib/prisma.ts`: resolved per-request clients on Cloudflare Workers (`isWorkersRuntime()`) via `cacheForRequest` (`vinext/cache`) and scheduled `client.close()` on response completion via `after()` (`vinext/shims/server`); kept a lazily initialized module singleton elsewhere and exposed `db` (and `prisma`) as a typed `Proxy` over `getDbClient()` so existing callers remain unchanged.
+
+### Notes
+
+- **Unified request scope requirement**: `db` should only be accessed inside App Router request scopes (`runWithRequestContext`), not middleware/ExecutionContext-only scopes such as `src/proxy.ts`, where `vinext`'s `after()` runs on the next microtask instead of waiting for response close.
+- **Concurrent `after()` callbacks**: `vinext` runs queued `after()` callbacks concurrently once the response body closes, so future routes scheduling `after()` work that queries `db` must coordinate with per-request `client.close()`.
+- **Proxy introspection**: `db` forwards `get`, `set`, and `has` traps (`db.orm.public.*` spies continue to work), whereas direct `vi.spyOn(db, ...)` or own-key introspection (`Object.keys(db)`, `{ ...db }`) would require descriptor/key traps.
+- **Connection concurrency**: routes fanning out parallel queries (such as `src/app/dashboard/page.tsx` issuing 5 queries in `Promise.all` against a per-request `pg.Pool` when `DIRECT_URL` is preferred over `DATABASE_URL`) approach Workers' 6-outgoing-connection limit; monitor Supabase pool saturation and consider Hyperdrive or concurrency capping as a follow-up.
+
 ## [PR-208](https://github.com/jgf-dev/inkstory/pull/208) - 2026-11-22
 
 ### Summary
