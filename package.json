@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "vp build",
-    "dev": "vp dev --port 3000",
+    "dev": "vp dev --port ${APP_PORT:-3000}",
     "start": "vp preview",
     "lint": "vp lint --fix",
     "format": "vp fmt",
@@ -32,6 +32,7 @@
   "dependencies": {
     "@cloudflare/workers-response-store": "^1.1.5",
     "@prisma/orm-postgres": "8.0.0-rc.24",
+    "@sentry/nextjs": "^11",
     "@supabase/ssr": "0.12.7",
     "@supabase/supabase-js": "^2.118.0",
     "@tailwindcss/postcss": "4.3.3",

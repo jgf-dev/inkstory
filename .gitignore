@@ -53,3 +53,6 @@ worker-startup.cpuprofile
 .vitest/
 *.pyi
 .stubs/pyspark34
+
+# Sentry Config File
+.env.sentry-build-plugin
