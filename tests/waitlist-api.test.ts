@@ -109,6 +109,37 @@ describe("waitlist signups", { timeout: 20_000 }, () => {
     expect(await res.json()).toMatchObject({ code: "PAYLOAD_TOO_LARGE" });
   });
 
+  it("rejects a declared Content-Length over the cap before reading the body", async () => {
+    const res = await post(JSON.stringify({ email: emailFor("declared") }), {
+      "content-length": String(WAITLIST_BODY_MAX_LENGTH + 1),
+    });
+    expect(res.status).toBe(413);
+    expect(await res.json()).toMatchObject({ code: "PAYLOAD_TOO_LARGE" });
+    expect(await rowsFor(emailFor("declared"))).toHaveLength(0);
+  });
+
+  it("stops reading a streamed body without Content-Length once it passes the cap", async () => {
+    const chunk = new TextEncoder().encode("a".repeat(1024));
+    let pulls = 0;
+    const stream = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        pulls += 1;
+        controller.enqueue(chunk);
+      },
+    });
+    const res = await POST(
+      new NextRequest("http://localhost:3000/api/waitlist", {
+        method: "POST",
+        body: stream,
+        headers: { "content-type": "application/json" },
+        duplex: "half",
+      } as ConstructorParameters<typeof NextRequest>[1]),
+    );
+    expect(res.status).toBe(413);
+    expect(await res.json()).toMatchObject({ code: "PAYLOAD_TOO_LARGE" });
+    expect(pulls).toBeLessThan(20);
+  });
+
   it("returns a generic 500 when storage fails", async () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     vi.spyOn(waitlistService, "addWaitlistSignup").mockRejectedValue(new Error("db down"));
