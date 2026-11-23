@@ -1,9 +1,10 @@
-import { defineConfig } from "vite-plus";
-import vinext from "vinext";
-import path from "path";
 import { cloudflare } from "@cloudflare/vite-plugin";
+import { sentryCloudflareVitePlugin } from "@sentry/cloudflare/vite";
 import { responseStoreAdapter } from "@vinext/cloudflare/cache/response-store-adapter";
 import { imagesOptimizer } from "@vinext/cloudflare/images/images-optimizer";
+import path from "path";
+import vinext from "vinext";
+import { defineConfig } from "vite-plus";
 import { responseStoreServiceBinding } from "./cloudflare.config";
 
 const DB_TEST_FILES = [
@@ -36,6 +37,7 @@ export default defineConfig({
           cache: responseStoreAdapter(),
           images: { optimizer: imagesOptimizer() },
         }),
+        sentryCloudflareVitePlugin(),
         cloudflare({
           auxiliaryWorkers: [{ config: responseStoreServiceBinding }],
           viteEnvironment: {
