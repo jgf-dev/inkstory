@@ -13,6 +13,7 @@ const DB_TEST_FILES = [
   "tests/billing-entitlements.test.ts",
   "tests/codex-interchange-card-service.test.ts",
   "tests/codex-interchange-coordination.test.ts",
+  "tests/codex-interchange-group-query.test.ts",
   "tests/codex-interchange-service.test.ts",
   "tests/codex-service.test.ts",
   "tests/codex-ui.test.ts",
