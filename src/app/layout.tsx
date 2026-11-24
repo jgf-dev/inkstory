@@ -29,7 +29,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/* Applies stored theme/prose-font before first paint (no flash). */}
         <script dangerouslySetInnerHTML={{ __html: PREFERENCES_BOOTSTRAP_SCRIPT }} />
         {/* Better Stack analytics; loads its SDK async, so it doesn't block paint. */}
-        <script id="betterstack-init" dangerouslySetInnerHTML={{ __html: BETTERSTACK_INIT_SCRIPT }} />
+        <script
+          id="betterstack-init"
+          dangerouslySetInnerHTML={{ __html: BETTERSTACK_INIT_SCRIPT }}
+        />
       </head>
       <body className="min-h-screen antialiased">{children}</body>
     </html>
