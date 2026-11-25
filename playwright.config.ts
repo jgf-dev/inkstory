@@ -1,9 +1,15 @@
-import { existsSync } from "node:fs";
 import { defineConfig, devices } from "@playwright/test";
+import { assertSafeTestDatabaseEnv } from "./src/lib/test-database-guard";
 
-/** Use the system Chrome when present (CI), else Playwright's bundled chromium. */
-const systemChrome = "/usr/bin/google-chrome";
-const hasSystemChrome = existsSync(systemChrome);
+if (process.env.INKSTORY_E2E_DATABASE_READY !== "1") {
+  throw new Error(
+    "Playwright must be started with `bun run test:e2e` so the isolated local test database is prepared.",
+  );
+}
+assertSafeTestDatabaseEnv(process.env);
+
+const port = 3100;
+const baseURL = `http://localhost:${port}`;
 
 export default defineConfig({
   testDir: "./tests/e2e",
@@ -14,7 +20,7 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   reporter: [["list"], ["html", { open: "never" }]],
   use: {
-    baseURL: "http://localhost:3000",
+    baseURL,
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
   },
@@ -23,7 +29,6 @@ export default defineConfig({
       name: "chromium",
       use: {
         ...devices["Desktop Chrome"],
-        ...(hasSystemChrome ? { channel: "chrome", executablePath: systemChrome } : {}),
         launchOptions: {
           args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"],
         },
@@ -31,13 +36,20 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: "bun run dev",
-    url: "http://localhost:3000/api/health",
-    reuseExistingServer: !process.env.CI,
+    command: `./node_modules/.bin/vp dev --port ${port} --strictPort`,
+    url: `${baseURL}/api/health`,
+    // Never attach authenticated tests to a developer's normal server or database.
+    reuseExistingServer: false,
     timeout: 120000,
     env: {
+      DATABASE_URL: process.env.DATABASE_URL!,
+      DIRECT_URL: process.env.DIRECT_URL!,
+      INKSTORY_TEST_ENV: "1",
+      INKSTORY_E2E: "1",
       NEXT_PUBLIC_E2E: "true",
-      PORT: "3000",
+      PORT: String(port),
+      // The isolated E2E server must not claim or depend on the normal dev lock.
+      VINEXT_NO_DEV_LOCK: "1",
     },
   },
 });

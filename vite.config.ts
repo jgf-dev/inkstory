@@ -36,13 +36,19 @@ export default defineConfig({
           cache: responseStoreAdapter(),
           images: { optimizer: imagesOptimizer() },
         }),
-        cloudflare({
-          auxiliaryWorkers: [{ config: responseStoreServiceBinding }],
-          viteEnvironment: {
-            name: "rsc",
-            childEnvironments: ["ssr"],
-          },
-        }),
+        // Browser E2E uses vinext's Node dev runtime so Prisma can use its
+        // long-lived local singleton instead of per-request Workers I/O.
+        ...(process.env.INKSTORY_E2E === "1"
+          ? []
+          : [
+              cloudflare({
+                auxiliaryWorkers: [{ config: responseStoreServiceBinding }],
+                viteEnvironment: {
+                  name: "rsc",
+                  childEnvironments: ["ssr"],
+                },
+              }),
+            ]),
       ],
   resolve: {
     noExternal: ["tailwindcss"],

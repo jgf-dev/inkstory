@@ -40,3 +40,52 @@ jobs:
       - run: bun run format:check
       - run: bun run test:no-db
       - run: bun run build
+
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: inkstory_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d inkstory_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: "1.4.4"
+
+      - run: bun install --ignore-scripts --frozen-lockfile
+
+      - name: Emit Prisma contract
+        run: ./node_modules/.bin/prisma contract emit
+        env:
+          DATABASE_URL: "postgresql://placeholder@localhost:5432/placeholder"
+
+      - name: Install Chromium
+        run: bunx playwright install --with-deps chromium
+
+      - name: Run live browser tests
+        run: bun run test:e2e
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7

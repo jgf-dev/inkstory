@@ -93,7 +93,7 @@ export function CodexManager({ initialEntries, novels, series }: CodexManagerPro
       {/* Main Layout: Left Sidebar + Right Editor */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
         {/* Left Column: Filter & List */}
-        <div className="space-y-4 lg:col-span-4">
+        <div className="space-y-4 lg:col-span-4" data-testid="codex-entry-list">
           {/* Search bar */}
           <div>
             <input
