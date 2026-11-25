@@ -47,6 +47,9 @@ export default defineConfig({
       INKSTORY_TEST_ENV: "1",
       INKSTORY_E2E: "1",
       NEXT_PUBLIC_E2E: "true",
+      NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL ?? "http://127.0.0.1:54321",
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:
+        process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? "e2e-anon-key",
       PORT: String(port),
       // The isolated E2E server must not claim or depend on the normal dev lock.
       VINEXT_NO_DEV_LOCK: "1",

@@ -1,6 +1,6 @@
 import { defineConfig } from "vite-plus";
 import vinext from "vinext";
-import path from "path";
+import path from "node:path";
 import { cloudflare } from "@cloudflare/vite-plugin";
 import { responseStoreAdapter } from "@vinext/cloudflare/cache/response-store-adapter";
 import { imagesOptimizer } from "@vinext/cloudflare/images/images-optimizer";

@@ -75,7 +75,7 @@ jobs:
           DATABASE_URL: "postgresql://placeholder@localhost:5432/placeholder"
 
       - name: Install Chromium
-        run: bunx playwright install --with-deps chromium
+        run: ./node_modules/.bin/playwright install --with-deps chromium
 
       - name: Run live browser tests
         run: bun run test:e2e
