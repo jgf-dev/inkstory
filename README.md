@@ -4,6 +4,8 @@ A novel-writing and world-building platform with an AI-aware Story Codex (story 
 
 Linear project: [novel-writing-app](https://linear.app/jgfdev/project/novel-writing-app-3c3f658f0d44).
 
+Architecture and internal data flows: [ARCHITECTURE.md](./ARCHITECTURE.md).
+
 ## Stack
 
 | Layer               | Choice                                                 | Details                                                                                                                                    |
