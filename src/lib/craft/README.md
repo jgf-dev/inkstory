@@ -6,14 +6,14 @@ Code-owned fiction craft tool definitions and request preparation built atop `sr
 
 ## Modules
 
-| Module       | Role                                                                                                                                              |
-| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `index.ts`   | Public barrel exports                                                                                                                             |
-| `tools.ts`   | Code-owned `CraftToolDefinition` registry (`describe`, `expand`, `rewrite`, `show_dont_tell`, `transition`), input defaults, and rewrite guidance |
-| `prompt.ts`  | Input validation/defaults, context-slice filtering, target-word output token calculation, and prompt rendering                                    |
-| `service.ts` | `prepareCraftPrompt` — ownership-checked scene loading, Codex context assembly, and contract-scoped prompt rendering                              |
-| `output.ts`  | Output shaping (`shapeCraftResult`), `DIAGNOSIS` / `REWRITE` marker parsing (`parseDiagnosisAndProse`), and length caps                           |
-| `client.ts`  | Client-side contract form validation, adaptive Expand target-word calculation (`suggestedTargetWords`, `withAdaptiveTarget`), and request helpers |
+| Module       | Role                                                                                                                                                                                                                                         |
+| ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `index.ts`   | Public barrel exports                                                                                                                                                                                                                        |
+| `tools.ts`   | Code-owned `CraftToolDefinition` registry (`describe`, `expand`, `rewrite`, `show_dont_tell`, `transition`), input defaults, and rewrite guidance                                                                                            |
+| `prompt.ts`  | Input validation/defaults, context-slice filtering, target-word output token calculation, and prompt rendering                                                                                                                               |
+| `service.ts` | `prepareCraftPrompt` — ownership-checked scene loading, Codex context assembly, and contract-scoped prompt rendering                                                                                                                         |
+| `output.ts`  | Output shaping (`shapeCraftResult`), `DIAGNOSIS` / `REWRITE` marker parsing (`parseDiagnosisAndProse`), and length caps                                                                                                                      |
+| `client.ts`  | Client-side contract form validation, adaptive target-word calculation for Expand, Show Don't Tell and Rewrite (preset-aware: `more_concise` aims at 0.6× the selection) (`suggestedTargetWords`, `withAdaptiveTarget`), and request helpers |
 
 ## Public Contracts & Invariants
 
@@ -29,4 +29,4 @@ Code-owned fiction craft tool definitions and request preparation built atop `sr
 
 ## Verification
 
-- **Unit (`bun run test:no-db`)**: `tests/craft-tools.test.ts`, `tests/craft-expand.test.ts`, `tests/craft-expand-target.test.ts`, `tests/craft-rewrite.test.ts`, `tests/craft-show-dont-tell.test.ts`, `tests/craft-transition.test.ts`, `tests/craft-client.test.ts`, `tests/craft-api.test.ts`, `tests/craft-panel-dom.test.tsx`, `tests/scene-editor-craft-dom.test.tsx`, `tests/rich-text-editor-selection-dom.test.tsx`, `tests/use-craft-run.test.tsx`.
+- **Unit (`bun run test:no-db`)**: `tests/craft-tools.test.ts`, `tests/craft-expand.test.ts`, `tests/craft-expand-target.test.ts`, `tests/craft-rewrite.test.ts`, `tests/craft-rewrite-target.test.ts`, `tests/craft-show-dont-tell.test.ts`, `tests/craft-show-dont-tell-target.test.ts`, `tests/craft-transition.test.ts`, `tests/craft-client.test.ts`, `tests/craft-api.test.ts`, `tests/craft-panel-dom.test.tsx`, `tests/scene-editor-craft-dom.test.tsx`, `tests/rich-text-editor-selection-dom.test.tsx`, `tests/use-craft-run.test.tsx`.
