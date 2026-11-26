@@ -72,19 +72,28 @@ export function initialFormValues(tool: CraftToolDto): CraftFormValues {
 /** The target-length input shared by the length-aware Craft tools. */
 export const TARGET_WORDS_KEY = "craft.target_words" satisfies CraftInputKey;
 
+/** The Rewrite preset input; its value changes how the target follows the selection. */
+export const REWRITE_PRESET_KEY = "craft.rewrite_preset" satisfies CraftInputKey;
+
 /**
- * How a length-aware tool's target follows the selection (STO-1295, STO-1299).
- * `lengthens` tools (Expand) must come out longer than the selection; the
- * others (Show Don't Tell) rewrite at about the selection's length and only
- * warn when the target would condense it below `condenseRatio`.
+ * How a length-aware tool's target follows the selection (STO-1295, STO-1299,
+ * STO-1294). `lengthens` tools (Expand) must come out longer than the
+ * selection; the others (Show Don't Tell, Rewrite) rewrite at about the
+ * selection's length and only warn when the target would condense it below
+ * `condenseRatio` of the suggestion's growth.
  */
 interface AdaptiveTargetRule {
   /** Suggested target = selection words × growth. */
   growth: number;
+  /**
+   * Growth overrides keyed by the value of an enum input (Rewrite's
+   * `more_concise` preset aims shorter). Values not listed use `growth`.
+   */
+  growthBy?: { key: CraftInputKey; values: ReadonlyMap<string, number> };
   /** Lowest suggestion: the tool default, or a fixed word count. */
   floor: "default" | number;
   lengthens: boolean;
-  /** Non-lengthening tools warn when the target is below selection × ratio. */
+  /** Non-lengthening tools warn when the target is below selection × growth × ratio. */
   condenseRatio: number;
 }
 
@@ -98,6 +107,15 @@ export const SHOW_DONT_TELL_MIN_TARGET_WORDS = 50;
 /** Show Don't Tell warns when the target is under this share of the selection. */
 export const SHOW_DONT_TELL_CONDENSE_RATIO = 0.5;
 
+/** Rewrite keeps about the selection's length for every preset but `more_concise` (STO-1294). */
+export const REWRITE_TARGET_GROWTH = 1;
+/** `more_concise` aims for this share of the selection instead of the fixed default. */
+export const REWRITE_CONCISE_TARGET_GROWTH = 0.6;
+/** Rewriting a fragment still needs a sentence or two, so short selections get at least this. */
+export const REWRITE_MIN_TARGET_WORDS = 20;
+/** Rewrite warns when the target is under this share of the preset's suggested length. */
+export const REWRITE_CONDENSE_RATIO = 0.5;
+
 const ADAPTIVE_TARGET_RULES: ReadonlyMap<string, AdaptiveTargetRule> = new Map([
   ["expand", { growth: EXPAND_TARGET_GROWTH, floor: "default", lengthens: true, condenseRatio: 1 }],
   [
@@ -109,7 +127,30 @@ const ADAPTIVE_TARGET_RULES: ReadonlyMap<string, AdaptiveTargetRule> = new Map([
       condenseRatio: SHOW_DONT_TELL_CONDENSE_RATIO,
     },
   ],
+  [
+    "rewrite",
+    {
+      growth: REWRITE_TARGET_GROWTH,
+      growthBy: {
+        key: REWRITE_PRESET_KEY,
+        values: new Map([["more_concise", REWRITE_CONCISE_TARGET_GROWTH]]),
+      },
+      floor: REWRITE_MIN_TARGET_WORDS,
+      lengthens: false,
+      condenseRatio: REWRITE_CONDENSE_RATIO,
+    },
+  ],
 ]);
+
+/** The rule's growth for the current form values (the input's value, else the tool default). */
+function growthFor(tool: CraftToolDto, rule: AdaptiveTargetRule, values?: CraftFormValues): number {
+  if (!rule.growthBy) return rule.growth;
+  const { key, values: byValue } = rule.growthBy;
+  const raw = values?.[key];
+  const trimmed = typeof raw === "string" ? raw.trim() : "";
+  const chosen = trimmed || tool.defaults[key];
+  return typeof chosen === "string" ? (byValue.get(chosen) ?? rule.growth) : rule.growth;
+}
 
 function adaptiveTarget(
   tool: CraftToolDto,
@@ -123,13 +164,18 @@ function adaptiveTarget(
 
 /**
  * Selection-aware target for length-aware tools: the selection times the
- * tool's growth (1.5× for Expand, 1× for Show Don't Tell), never below the
- * tool's floor and always inside the contract bounds. `null` when the tool has
- * no adaptive target or nothing is selected, so the static default
- * (`EXPAND_DEFAULT_TARGET_WORDS`, `SHOW_DONT_TELL_DEFAULT_TARGET_WORDS`) stays
- * the API fallback.
+ * tool's growth (1.5× for Expand, 1× for Show Don't Tell and Rewrite, 0.6× for
+ * Rewrite's `more_concise` preset), never below the tool's floor and always
+ * inside the contract bounds. `null` when the tool has no adaptive target or
+ * nothing is selected, so the static default (`EXPAND_DEFAULT_TARGET_WORDS`,
+ * `SHOW_DONT_TELL_DEFAULT_TARGET_WORDS`, `REWRITE_DEFAULT_TARGET_WORDS`) stays
+ * the API fallback. `values` picks a per-option growth (Rewrite preset).
  */
-export function suggestedTargetWords(tool: CraftToolDto, selectionWords: number): number | null {
+export function suggestedTargetWords(
+  tool: CraftToolDto,
+  selectionWords: number,
+  values?: CraftFormValues,
+): number | null {
   const adaptive = adaptiveTarget(tool);
   if (!adaptive || selectionWords <= 0) return null;
   const { rule, input } = adaptive;
@@ -137,7 +183,7 @@ export function suggestedTargetWords(tool: CraftToolDto, selectionWords: number)
   const fallback = Number(tool.defaults[TARGET_WORDS_KEY]);
   const floor =
     rule.floor === "default" ? (Number.isFinite(fallback) ? fallback : min) : rule.floor;
-  const grown = Math.ceil(selectionWords * rule.growth);
+  const grown = Math.ceil(selectionWords * growthFor(tool, rule, values));
   return Math.min(max, Math.max(min, floor, grown));
 }
 
@@ -153,7 +199,7 @@ export function withAdaptiveTarget(
   touched: boolean,
 ): CraftFormValues {
   if (touched || !adaptiveTarget(tool)) return values;
-  const suggestion = suggestedTargetWords(tool, selectionWords);
+  const suggestion = suggestedTargetWords(tool, selectionWords, values);
   const target =
     suggestion === null ? initialFormValues(tool)[TARGET_WORDS_KEY] : String(suggestion);
   return values[TARGET_WORDS_KEY] === target ? values : { ...values, [TARGET_WORDS_KEY]: target };
@@ -179,25 +225,32 @@ function lengtheningWarning(
 function condensingWarning(
   tool: CraftToolDto,
   rule: AdaptiveTargetRule,
+  values: CraftFormValues,
   target: number,
   selectionWords: number,
   max: number,
 ): string | null {
-  if (selectionWords > max) {
-    return `The selection is ${formatWords(selectionWords)} words, above the ${formatWords(max)}-word maximum, so ${tool.name} will condense it. Select a shorter passage.`;
+  const growth = growthFor(tool, rule, values);
+  if (Math.ceil(selectionWords * growth) > max) {
+    return growth < 1
+      ? `The selection is ${formatWords(selectionWords)} words, so even the suggested target exceeds the ${formatWords(max)}-word maximum and ${tool.name} will condense it further. Select a shorter passage.`
+      : `The selection is ${formatWords(selectionWords)} words, above the ${formatWords(max)}-word maximum, so ${tool.name} will condense it. Select a shorter passage.`;
   }
-  if (target >= selectionWords * rule.condenseRatio) return null;
-  const suggestion = suggestedTargetWords(tool, selectionWords) ?? max;
+  if (target >= selectionWords * growth * rule.condenseRatio) return null;
+  const suggestion = suggestedTargetWords(tool, selectionWords, values) ?? max;
+  if (growth < 1) {
+    return `${tool.name} would heavily condense this: the target is well below the suggested ${formatWords(suggestion)} words for a ${formatWords(selectionWords)}-word selection.`;
+  }
   return `${tool.name} would condense this: the target is well below the selection's ${formatWords(selectionWords)} words. Try about ${formatWords(suggestion)}.`;
 }
 
 /**
  * Inline warning when a length-aware tool's target is in tension with the
  * selection. Expand warns when it would not lengthen (target at or below the
- * selection, or the selection already at the ceiling); Show Don't Tell warns
- * when the rewrite would condense the selection (target under half of it, or
- * the selection above the ceiling). Invalid targets are left to
- * {@link validateCraftForm}.
+ * selection, or the selection already at the ceiling); Show Don't Tell and
+ * Rewrite warn when the result would condense the selection (target under half
+ * of the suggested length, or the suggested length above the ceiling). Invalid
+ * targets are left to {@link validateCraftForm}.
  */
 export function targetWordsWarning(
   tool: CraftToolDto,
@@ -216,7 +269,7 @@ export function targetWordsWarning(
   if (!Number.isInteger(target) || target < min || target > max) return null;
   return rule.lengthens
     ? lengtheningWarning(tool, target, selectionWords, max)
-    : condensingWarning(tool, rule, target, selectionWords, max);
+    : condensingWarning(tool, rule, values, target, selectionWords, max);
 }
 
 /** Effective bounds for an integer input: the contract's, inside the registry ceiling. */
