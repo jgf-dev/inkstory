@@ -19,6 +19,20 @@ Added the Better Stack browser analytics tag to the root layout with environment
 - `cloudflare.config.ts`, `.env.example`, and `playwright.config.ts`: bound `NEXT_PUBLIC_BETTERSTACK_TOKEN` in the Cloudflare Worker config, documented optional `NEXT_PUBLIC_BETTERSTACK_TOKEN` / `NEXT_PUBLIC_BETTERSTACK_ENV`, and explicitly blanked both in the isolated E2E web server.
 - `tests/pages.test.ts`: added `RootLayout` assertions verifying analytics omission in test/E2E runs and rendering in production.
 
+## [PR-234](https://github.com/jgf-dev/inkstory/pull/234) - 2026-11-26
+
+### Summary
+
+Made `ensureSystemDefaultPrompts()` safe under concurrent callers (parallel Vitest DB workers and simultaneous production requests) by switching seed inserts to atomic Postgres `ON CONFLICT DO NOTHING` via Prisma 8's `createAndCount(..., { onConflict: "skip", conflictOn: ["id"] })`.
+
+### Fixed
+
+- `src/lib/prompts/service.ts`: extracted `ensureSeedPrompt`, `ensureSeedComponent`, and `ensureSeedLink` helpers using `createAndCount([...], { onConflict: "skip", conflictOn: ["id"] })` so concurrent `ensureSystemDefaultPrompts()` calls against an unseeded database no longer fail with primary-key violations (`23505`), while preserving read-first lookups and self-healing of soft-deleted or disabled rows.
+
+### Added
+
+- `tests/prompts-seed-race.test.ts` and `vite.config.ts`: added a concurrency DB regression test (registered in `DB_TEST_FILES`) using a UUID-scoped fixture seed to verify simultaneous empty-table seeding and concurrent self-healing of soft-deleted/disabled rows.
+
 ## [PR-237](https://github.com/jgf-dev/inkstory/pull/237) - 2026-11-26
 
 ### Summary

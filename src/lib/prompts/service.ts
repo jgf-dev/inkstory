@@ -179,122 +179,134 @@ function assertCanWritePrompt(userId: string, row: PromptRow): void {
   }
 }
 
+type SystemDefaultSeed = (typeof SYSTEM_DEFAULT_SEED)[number];
+
+async function ensureSeedPrompt(
+  seed: SystemDefaultSeed,
+  now: Temporal.PlainDateTime,
+): Promise<void> {
+  const existing = (await db.orm.public.Prompt.where({
+    id: seed.id,
+  }).first()) as PromptRow | null;
+  if (!existing) {
+    await db.orm.public.Prompt.createAndCount(
+      [
+        {
+          id: seed.id,
+          name: seed.name,
+          description: seed.description,
+          mode: seed.mode,
+          scope: "SYSTEM_DEFAULT",
+          body: "",
+          role: "SYSTEM",
+          position: 0,
+          isActive: true,
+          ownerId: null,
+          novelId: null,
+          updatedAt: now,
+        },
+      ],
+      { onConflict: "skip", conflictOn: ["id"] },
+    );
+  } else if (existing.deletedAt) {
+    await db.orm.public.Prompt.where({ id: seed.id }).update({
+      deletedAt: null,
+      isActive: true,
+      updatedAt: now,
+    });
+  }
+}
+
+async function ensureSeedComponent(
+  input: { id: string; name: string; body: string; role: PromptRoleName },
+  now: Temporal.PlainDateTime,
+): Promise<void> {
+  const existing = (await db.orm.public.PromptComponent.where({
+    id: input.id,
+  }).first()) as ComponentRow | null;
+  if (!existing) {
+    await db.orm.public.PromptComponent.createAndCount(
+      [
+        {
+          id: input.id,
+          name: input.name,
+          description: null,
+          body: input.body,
+          role: input.role,
+          ownerId: null,
+          updatedAt: now,
+        },
+      ],
+      { onConflict: "skip", conflictOn: ["id"] },
+    );
+  } else if (existing.deletedAt) {
+    await db.orm.public.PromptComponent.where({ id: input.id }).update({
+      deletedAt: null,
+      updatedAt: now,
+    });
+  }
+}
+
+async function ensureSeedLink(
+  input: { id: string; promptId: string; componentId: string; position: number },
+  now: Temporal.PlainDateTime,
+): Promise<void> {
+  const existing = (await db.orm.public.PromptComponentLink.where({
+    id: input.id,
+  }).first()) as LinkRow | null;
+  if (!existing) {
+    await db.orm.public.PromptComponentLink.createAndCount(
+      [
+        {
+          id: input.id,
+          promptId: input.promptId,
+          componentId: input.componentId,
+          position: input.position,
+          enabled: true,
+          updatedAt: now,
+        },
+      ],
+      { onConflict: "skip", conflictOn: ["id"] },
+    );
+  } else if (existing.deletedAt || !existing.enabled || existing.position !== input.position) {
+    await db.orm.public.PromptComponentLink.where({ id: input.id }).update({
+      deletedAt: null,
+      enabled: true,
+      position: input.position,
+      updatedAt: now,
+    });
+  }
+}
+
 /** Idempotent seed of SYSTEM_DEFAULT prompts for continuation + beat_expansion (self-healing). */
 export async function ensureSystemDefaultPrompts(): Promise<void> {
   const now = Temporal.Now.plainDateTimeISO();
   for (const seed of SYSTEM_DEFAULT_SEED) {
-    const existingPrompt = (await db.orm.public.Prompt.where({
-      id: seed.id,
-    }).first()) as PromptRow | null;
-    if (!existingPrompt) {
-      await db.orm.public.Prompt.create({
-        id: seed.id,
-        name: seed.name,
-        description: seed.description,
-        mode: seed.mode,
-        scope: "SYSTEM_DEFAULT",
-        body: "",
-        role: "SYSTEM",
-        position: 0,
-        isActive: true,
-        ownerId: null,
-        novelId: null,
-        updatedAt: now,
-      });
-    } else if (existingPrompt.deletedAt) {
-      await db.orm.public.Prompt.where({ id: seed.id }).update({
-        deletedAt: null,
-        isActive: true,
-        updatedAt: now,
-      });
-    }
-
     const systemComponentId = `${seed.id}-system`;
     const userComponentId = `${seed.id}-user`;
 
-    const existingSys = (await db.orm.public.PromptComponent.where({
-      id: systemComponentId,
-    }).first()) as ComponentRow | null;
-    if (!existingSys) {
-      await db.orm.public.PromptComponent.create({
+    await ensureSeedPrompt(seed, now);
+    await ensureSeedComponent(
+      {
         id: systemComponentId,
         name: `${seed.name} — system`,
-        description: null,
         body: seed.systemBody,
         role: "SYSTEM",
-        ownerId: null,
-        updatedAt: now,
-      });
-    } else if (existingSys.deletedAt) {
-      await db.orm.public.PromptComponent.where({ id: systemComponentId }).update({
-        deletedAt: null,
-        updatedAt: now,
-      });
-    }
-
-    const existingUser = (await db.orm.public.PromptComponent.where({
-      id: userComponentId,
-    }).first()) as ComponentRow | null;
-    if (!existingUser) {
-      await db.orm.public.PromptComponent.create({
-        id: userComponentId,
-        name: `${seed.name} — user`,
-        description: null,
-        body: seed.userBody,
-        role: "USER",
-        ownerId: null,
-        updatedAt: now,
-      });
-    } else if (existingUser.deletedAt) {
-      await db.orm.public.PromptComponent.where({ id: userComponentId }).update({
-        deletedAt: null,
-        updatedAt: now,
-      });
-    }
-
-    const link0Id = `${seed.id}-link-0`;
-    const link0 = (await db.orm.public.PromptComponentLink.where({
-      id: link0Id,
-    }).first()) as LinkRow | null;
-    if (!link0) {
-      await db.orm.public.PromptComponentLink.create({
-        id: link0Id,
-        promptId: seed.id,
-        componentId: systemComponentId,
-        position: 0,
-        enabled: true,
-        updatedAt: now,
-      });
-    } else if (link0.deletedAt || !link0.enabled || link0.position !== 0) {
-      await db.orm.public.PromptComponentLink.where({ id: link0Id }).update({
-        deletedAt: null,
-        enabled: true,
-        position: 0,
-        updatedAt: now,
-      });
-    }
-
-    const link1Id = `${seed.id}-link-1`;
-    const link1 = (await db.orm.public.PromptComponentLink.where({
-      id: link1Id,
-    }).first()) as LinkRow | null;
-    if (!link1) {
-      await db.orm.public.PromptComponentLink.create({
-        id: link1Id,
-        promptId: seed.id,
-        componentId: userComponentId,
-        position: 1,
-        enabled: true,
-        updatedAt: now,
-      });
-    } else if (link1.deletedAt || !link1.enabled || link1.position !== 1) {
-      await db.orm.public.PromptComponentLink.where({ id: link1Id }).update({
-        deletedAt: null,
-        enabled: true,
-        position: 1,
-        updatedAt: now,
-      });
-    }
+      },
+      now,
+    );
+    await ensureSeedComponent(
+      { id: userComponentId, name: `${seed.name} — user`, body: seed.userBody, role: "USER" },
+      now,
+    );
+    await ensureSeedLink(
+      { id: `${seed.id}-link-0`, promptId: seed.id, componentId: systemComponentId, position: 0 },
+      now,
+    );
+    await ensureSeedLink(
+      { id: `${seed.id}-link-1`, promptId: seed.id, componentId: userComponentId, position: 1 },
+      now,
+    );
   }
 }
 
