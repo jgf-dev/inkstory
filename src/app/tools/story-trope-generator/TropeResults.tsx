@@ -62,7 +62,6 @@ export function TropeResults({ tropes, shareHref, moreHref }: TropeResultsProps)
                     href={trope.toggleHref}
                     className={COPY_BUTTON_CLASS}
                     aria-label={`${trope.locked ? "Unlock" : "Lock"} ${trope.name}`}
-                    aria-pressed={trope.locked}
                   >
                     {trope.locked ? "Unlock" : "Lock"}
                   </Link>
