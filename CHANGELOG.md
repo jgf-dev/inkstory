@@ -18,6 +18,18 @@ Made Craft Studio's Rewrite target length adapt to the selected passage and acti
 - `tests/craft-panel-dom.test.tsx`: added DOM coverage for Rewrite preset-aware target seeding, selection-clear reset, touched-lock persistence, and condensing warnings.
 - `src/lib/craft/README.md`: documented Rewrite's preset-aware adaptive target behavior and added the Rewrite and Show Don't Tell target test suites to the verification list.
 
+## [PR-232](https://github.com/jgf-dev/inkstory/pull/232) - 2026-11-26
+
+### Summary
+
+Expanded Cloudflare Workers observability to export production logs and traces to Sentry alongside New Relic, with query-string redaction, 20% trace sampling, Cloudflare persistence disabled in production, and preview/non-production mode overrides.
+
+### Added
+
+- `cloudflare.config.ts`: exported `resolveObservabilityConfig`, `PRODUCTION_LOG_DESTINATIONS`, and `PRODUCTION_TRACE_DESTINATIONS`, adding Sentry destinations (`sentry` for logs, `sentry-traces` for traces), `invocationLogs: true`, `redactQueryString: true`, `traces.headSamplingRate: 0.2`, and mode/preview isolation so only production exports to external destinations (`persist: false`) while previews and non-production modes persist locally in Cloudflare (`persist: true`, `destinations: []`).
+- `tests/cloudflare-config.test.ts`: added unit tests verifying production, preview, and non-production observability configuration resolution.
+- `README.md`: documented the Cloudflare Observability destination slugs (`newr`, `sentry`, `sentry-traces`), redaction, sampling, and environment mode override behavior.
+
 ## [PR-239](https://github.com/jgf-dev/inkstory/pull/239) - 2026-11-25
 
 ### Summary
