@@ -6,7 +6,11 @@ import {
   importLorebook,
   loadImportedGroupBookSources,
 } from "../src/lib/codex/interchange/service";
-import { CARD_FORMAT, INTERCHANGE_ENVELOPE_KEY } from "../src/lib/codex/interchange/types";
+import {
+  CARD_FORMAT,
+  INTERCHANGE_ENVELOPE_KEY,
+  LOREBOOK_FORMAT,
+} from "../src/lib/codex/interchange/types";
 
 const book = (name: string) =>
   JSON.stringify({
@@ -75,12 +79,19 @@ describe("Imported group lookup filters in the database (STO-1286)", { timeout: 
     const sibling = await importLorebook(userId, book("Sibling"), { novelId });
     const foreign = await importLorebook(otherUserId, book("Foreign"), { novelId: otherNovelId });
 
-    // A large unrelated library: native entries without any envelope.
-    await Promise.all(
-      Array.from({ length: 40 }, (_, i) =>
+    // A large unrelated library: native entries with default null and plain customFields.
+    await Promise.all([
+      createEntry(`group-native-null-${runId}`, userId, novelId, null),
+      createEntry(`group-native-corrupt-${runId}`, userId, novelId, {
+        [INTERCHANGE_ENVELOPE_KEY]: "not-an-object",
+      }),
+      createEntry(`group-native-null-env-${runId}`, userId, novelId, {
+        [INTERCHANGE_ENVELOPE_KEY]: null,
+      }),
+      ...Array.from({ length: 40 }, (_, i) =>
         createEntry(`group-native-${runId}-${i}`, userId, novelId, { mood: "calm" }),
       ),
-    );
+    ]);
     // Card-format envelope sharing the group id: excluded by the SQL format match.
     await createEntry(`group-card-${runId}`, userId, novelId, {
       [INTERCHANGE_ENVELOPE_KEY]: { format: CARD_FORMAT, groupId: target.groupId },
@@ -88,11 +99,11 @@ describe("Imported group lookup filters in the database (STO-1286)", { timeout: 
     // Hand-forged lorebook envelope: matched by SQL, rejected by JS validation.
     const forgedId = `group-forged-${runId}`;
     await createEntry(forgedId, userId, novelId, {
-      [INTERCHANGE_ENVELOPE_KEY]: { format: "sillytavern.lorebook", groupId: target.groupId },
+      [INTERCHANGE_ENVELOPE_KEY]: { format: LOREBOOK_FORMAT, groupId: target.groupId },
     });
     // Another user's entry forged with the same group id.
     await createEntry(`group-foreign-forged-${runId}`, otherUserId, otherNovelId, {
-      [INTERCHANGE_ENVELOPE_KEY]: { format: "sillytavern.lorebook", groupId: target.groupId },
+      [INTERCHANGE_ENVELOPE_KEY]: { format: LOREBOOK_FORMAT, groupId: target.groupId },
     });
 
     // Soft-delete one entry of the target group.

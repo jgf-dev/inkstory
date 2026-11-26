@@ -369,14 +369,16 @@ export function buildLorebookExportSources(
 
 /**
  * Ids of the owner's live entries whose lorebook envelope carries `groupId`
- * (STO-1286). The match runs on the `custom_fields` jsonb in Postgres, so an
- * export never reads the rest of the owner's Codex library.
+ * (STO-1286). The JSONB match runs in Postgres so unrelated Codex entries are
+ * never transferred over the wire or deserialized in the app runtime.
+ *
+ * @internal Exported for direct DB prefilter testing.
  */
 export async function findImportedGroupEntryIds(
   userId: string,
   groupId: string,
 ): Promise<string[]> {
-  const plan = db.raw.sql`SELECT id FROM codex_entries
+  const plan = db.raw.sql`SELECT id FROM public.codex_entries
     WHERE owner_id = CAST(${userId} AS uuid)
       AND deleted_at IS NULL
       AND custom_fields -> ${INTERCHANGE_ENVELOPE_KEY} ->> 'format' = ${LOREBOOK_FORMAT}
@@ -400,7 +402,15 @@ export async function loadImportedGroupBookSources(
   const candidateIds = await findImportedGroupEntryIds(userId, groupId);
   if (candidateIds.length === 0) return [];
 
-  const rows = await db.orm.public.CodexEntry.where((e) => e.id.in(candidateIds))
+  const rows = await db.orm.public.CodexEntry.select(
+    "id",
+    "name",
+    "description",
+    "trackingMode",
+    "position",
+    "customFields",
+  )
+    .where((e) => e.id.in(candidateIds))
     .where((e) => e.ownerId.eq(userId))
     .where((e) => e.deletedAt.isNull())
     .all();
