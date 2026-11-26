@@ -1,9 +1,9 @@
 import { expect, test } from "@playwright/test";
-import { authenticateAsSeedUser } from "./helpers";
+import { authenticateAndSeedSample } from "./helpers";
 
 test.describe("Story Codex Live UI QA", () => {
-  test.beforeEach(async ({ context }) => {
-    await authenticateAsSeedUser(context);
+  test.beforeEach(async ({ context, page }) => {
+    await authenticateAndSeedSample(context, page);
   });
 
   test("loads codex dashboard and renders seeded entities", async ({ page }) => {
@@ -13,36 +13,36 @@ test.describe("Story Codex Live UI QA", () => {
     await expect(page.locator("h1")).toContainText("Story Codex");
 
     // Sidebar list validation with seeded entries
-    const sidebar = page.locator(".lg\\:col-span-4");
+    const sidebar = page.getByTestId("codex-entry-list");
     await expect(sidebar).toBeVisible();
     await expect(sidebar).toContainText("Mara Vance");
-    await expect(sidebar).toContainText("Master Corvus");
+    await expect(sidebar).toContainText("Kaelen Ashwright");
   });
 
   test("filters entries using category pills and search input", async ({ page }) => {
     await page.goto("/dashboard/codex");
 
-    const sidebar = page.locator(".lg\\:col-span-4");
+    const sidebar = page.getByTestId("codex-entry-list");
 
     // 1. Filter by Characters
     await page.getByRole("button", { name: "Characters" }).click();
     await expect(sidebar).toContainText("Mara Vance");
-    await expect(sidebar).not.toContainText("Glass Weaver's Quill");
+    await expect(sidebar).not.toContainText("Glass Needles");
 
     // 2. Filter by Items
     await page.getByRole("button", { name: "Items" }).click();
-    await expect(sidebar).toContainText("Glass Weaver's Quill");
+    await expect(sidebar).toContainText("Glass Needles");
     await expect(sidebar).not.toContainText("Mara Vance");
 
     // 3. Reset to All
     await page.getByRole("button", { name: "All", exact: true }).click();
     await expect(sidebar).toContainText("Mara Vance");
-    await expect(sidebar).toContainText("Glass Weaver's Quill");
+    await expect(sidebar).toContainText("Glass Needles");
 
     // 4. Test real-time search input
     const searchInput = page.getByPlaceholder("Search entries...");
-    await searchInput.fill("Corvus");
-    await expect(sidebar).toContainText("Master Corvus");
+    await searchInput.fill("Kaelen");
+    await expect(sidebar).toContainText("Kaelen Ashwright");
     await expect(sidebar).not.toContainText("Mara Vance");
 
     // 5. Clear search
@@ -69,11 +69,11 @@ test.describe("Story Codex Live UI QA", () => {
     await page.getByRole("button", { name: "Create Entry" }).click();
 
     // Verify modal closes and entry is selected in editor
-    const sidebar = page.locator(".lg\\:col-span-4");
+    const sidebar = page.getByTestId("codex-entry-list");
     await expect(sidebar).toContainText(uniqueName);
 
     // Editor should load the newly created entry details
-    const editor = page.locator(".lg\\:col-span-8");
+    const editor = page.getByTestId("codex-editor");
     await expect(editor.locator('input[type="text"]').first()).toHaveValue(uniqueName);
   });
 
@@ -81,13 +81,13 @@ test.describe("Story Codex Live UI QA", () => {
     await page.goto("/dashboard/codex");
 
     // Select Mara Vance
-    await page.locator(".lg\\:col-span-4").getByText("Mara Vance").click();
+    await page.getByTestId("codex-entry-list").getByText("Mara Vance").click();
 
     // Verify editor displays details
-    const editor = page.locator(".lg\\:col-span-8");
+    const editor = page.getByTestId("codex-editor");
     await expect(editor).toContainText("Entry Name");
     await expect(editor).toContainText("Relations Graph");
-    await expect(editor).toContainText("Master Corvus");
+    await expect(editor).toContainText("Kaelen Ashwright");
     await expect(editor).toContainText("Temporal Progressions");
   });
 

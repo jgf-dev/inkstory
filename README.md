@@ -126,7 +126,9 @@ prisma/
 ├── contract.json / contract.d.ts # Emitted contract artifacts
 └── seed.ts                       # Demo fixtures + SYSTEM_DEFAULT prompts
 scripts/
-└── test-db.ts                    # Disposable Postgres 17 + Prisma update + Vitest runner
+├── prepare-test-database.ts      # Shared .env.test + loopback guard + disposable Postgres 17 bootstrap
+├── test-db.ts                    # Disposable Postgres 17 + Prisma update + Vitest runner
+└── test-e2e.ts                   # Isolated test DB + seed + Playwright live-browser runner
 src/
 ├── proxy.ts                      # Supabase session refresh boundary (not middleware.ts)
 ├── app/
@@ -245,7 +247,8 @@ Standard error payload: `{ error, code }`. Codex/domain error codes include `NOT
 | `bun run test` / `test:db`                    | Start or reuse disposable local Postgres 17, apply contract, run full Vitest suite     |
 | `bun run test:no-db`                          | Fast unit-only Vitest run (`INKSTORY_NO_DB=1 vp test`, skipping DB integration suites) |
 | `bun run test:cov`                            | Vitest with V8 coverage (requires a running local test Postgres)                       |
-| `bun run test:e2e` / `test:e2e:ui`            | Playwright E2E suite (`tests/e2e`, sets `NEXT_PUBLIC_E2E=true`)                        |
+| `bun run test:e2e` / `test:e2e:ui`            | Prepare isolated test data and run Playwright headlessly / in interactive UI mode      |
+| `bun run test:e2e:install`                    | Install Playwright's bundled Chromium browser (one-time local setup)                   |
 | `bun run contract:emit`                       | Emit `prisma/contract.json` and `prisma/contract.d.ts`                                 |
 | `bun run db:update` / `db:verify` / `db:sign` | Prisma 8 schema apply / verify / sign                                                  |
 | `bun run db:seed`                             | Seed demo fixtures and `SYSTEM_DEFAULT` prompts (`vpx prisma/seed.ts`)                 |
@@ -255,10 +258,16 @@ Standard error payload: `{ error, code }`. Codex/domain error codes include `NOT
 ```bash
 bun run test          # full suite: ensures local Postgres 17, runs `prisma db update`, runs Vitest
 bun run test:no-db    # unit tests only (no Postgres required)
-bun run test:e2e      # Playwright E2E; sets NEXT_PUBLIC_E2E=true
+
+bun run test:e2e:install  # one-time: install Playwright's bundled Chromium
+bun run test:e2e          # live browser suite, headless
+bun run test:e2e:ui       # live browser suite, interactive Playwright UI
+bun run test:e2e -- --grep "Story Codex"  # filter specs with any Playwright CLI option
 ```
 
-Playwright uses `/usr/bin/google-chrome` when present (CI) and falls back to Playwright's bundled Chromium locally.
+The E2E runner loads **only** `.env.test`, starts or reuses the disposable local Postgres, applies the Prisma contract, seeds fixtures, and starts a dedicated app server on `localhost:3100`. It never reuses the normal dev server on port 3000 or inherits local database credentials or external API secrets. Authenticated specs use fresh user identities through the non-production `e2e-user` auth shim (`NEXT_PUBLIC_E2E=true`). The suite runs in vinext's Node dev runtime so local Postgres uses its singleton client; production Cloudflare configuration is unchanged.
+
+Playwright always uses its version-matched bundled Chromium, avoiding broken system-Chrome installations. Failure screenshots, traces, and the HTML report are written to `test-results/` and `playwright-report/`. The CI `e2e` job runs the same command with Postgres 17 and uploads those artifacts on failure.
 
 ### Local test database
 
