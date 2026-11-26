@@ -115,6 +115,23 @@ bun run cf-typegen              # regenerate .cloudflare/types
 
 Store all secrets (`DATABASE_URL`, `DIRECT_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `BYOK_ENCRYPTION_KEY`, `AI_GATEWAY_API_KEY`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `TURNSTILE_SECRET`) as Cloudflare Worker secrets — never in plaintext `cloudflare.config.ts` bindings or `NEXT_PUBLIC_*` variables.
 
+### Observability targets & mode overrides
+
+`cloudflare.config.ts` configures Cloudflare Workers Observability with query-string redaction (`redactQueryString: true`, preventing Supabase auth `code`/`token_hash` and search queries from leaking into logs or traces), invocation logs (`invocationLogs: true`), Workers Issues (`issues.enabled: true`), and 20% trace head sampling (`traces.headSamplingRate: 0.2`).
+
+Telemetry routing switches automatically based on the Cloudflare build context (`isPreview` and `mode`):
+
+- **Production** (`!isPreview` with `mode` unset or `"production"`): disables Cloudflare-managed log/trace persistence (`persist: false`) and exports exclusively to the account-level Cloudflare Observability OTLP destinations below.
+- **Preview & non-production modes** (`isPreview: true` or `--mode` set to `preview`/`development`/etc.): clears external `destinations` (`[]`) and enables `persist: true` so preview telemetry stays inspectable in the Cloudflare dashboard without polluting production sinks.
+
+Required account-level Cloudflare Observability Destinations (provisioned under **Workers & Pages → Observability → Destinations** before deploying production):
+
+| Destination slug | Signal | Target    |
+| ---------------- | ------ | --------- |
+| `newr`           | Logs   | New Relic |
+| `sentry`         | Logs   | Sentry    |
+| `sentry-traces`  | Traces | Sentry    |
+
 ## Project layout
 
 ```text
