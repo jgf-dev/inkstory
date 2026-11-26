@@ -2,6 +2,30 @@
 
 All notable changes to InkStory are tracked here. This file follows [Keep a Changelog](https://keepachangelog.com/) and the project adheres to [Semantic Versioning](https://semver.org/).
 
+## [PR-239](https://github.com/jgf-dev/inkstory/pull/239) - 2026-11-25
+
+### Summary
+
+Added a reliable, isolated live-browser Playwright E2E workflow for both local development and GitHub Actions CI, sharing the loopback-guarded disposable Postgres 17 bootstrap with the Vitest database suite.
+
+### Added
+
+- `scripts/prepare-test-database.ts` and `scripts/test-e2e.ts`: extracted shared `.env.test` loading, loopback DB safety guard enforcement, Docker Compose Postgres 17 startup (via an absolute-path allowlist), and `prisma db update` setup; added the E2E entrypoint that seeds `SYSTEM_DEFAULT` prompts (`prisma/seed.ts`) and launches Playwright.
+- `.github/workflows/ci.yml`: added an `e2e` job backed by `ghcr.io/jgf-dev/postgres:17`, Playwright Chromium browser caching (`~/.cache/ms-playwright`), and failure artifact uploads for `playwright-report/` and `test-results/`.
+- `package.json`: added `test:e2e:install` (`playwright install chromium`) and routed `test:e2e` / `test:e2e:ui` through `scripts/test-e2e.ts`.
+
+### Changed
+
+- `playwright.config.ts` and `.env.test`: enforced `INKSTORY_E2E_DATABASE_READY=1` and `assertSafeTestDatabaseEnv`, switched to Playwright's bundled Chromium on dedicated port `3100` (`reuseExistingServer: false`, `VINEXT_NO_DEV_LOCK=1`), supplied placeholder `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, and explicitly blanked external/secret env vars so local `.env.local` credentials never leak into E2E runs.
+- `vite.config.ts`: omitted the Cloudflare Vite plugin only when `command === "serve" && process.env.INKSTORY_E2E === "1"` so local browser E2E uses `vinext`'s Node dev runtime without affecting production builds.
+- `scripts/test-db.ts`: refactored to reuse `scripts/prepare-test-database.ts`.
+- `prisma/seed.ts`: switched manual env loading to `loadAppDatabaseEnv()` so `.env.local` and `.env` are skipped under `INKSTORY_TEST_ENV=1`.
+- `README.md` and `AGENTS.md`: documented the local and CI live-browser E2E workflow, scripts layout, and one-time Chromium installation.
+
+### Fixed
+
+- `src/app/dashboard/_components/OnboardingWizard.tsx`, `src/app/dashboard/codex/_components/CodexManager.tsx`, `tests/e2e/helpers.ts`, `tests/e2e/codex-qa.spec.ts`, and `tests/e2e/launch.spec.ts`: exposed `data-hydrated` on `OnboardingWizard` to prevent lost pre-hydration clicks, added `data-testid="codex-entry-list"` on the Codex entries container, migrated E2E specs to fresh per-test UUID identities (`authenticateAndSeedSample`), and aligned assertions with current onboarding starter-bible fixtures (`Kaelen Ashwright`, `Glass Needles`).
+
 ## [PR-230](https://github.com/jgf-dev/inkstory/pull/230) - 2026-11-23
 
 ### Summary

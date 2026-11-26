@@ -25,6 +25,7 @@ export function OnboardingWizard({ hasNovels, series }: OnboardingWizardProps) {
   // Visible by default for novel-less authors; a persisted dismissal closes it
   // right after mount (checked in an effect so SSR markup is stable).
   const [open, setOpen] = useState(!hasNovels);
+  const [hydrated, setHydrated] = useState(false);
   const [step, setStep] = useState(1);
   const [title, setTitle] = useState("");
   const [selectedSeriesId, setSelectedSeriesId] = useState("");
@@ -33,6 +34,7 @@ export function OnboardingWizard({ hasNovels, series }: OnboardingWizardProps) {
   const [createdNovelId, setCreatedNovelId] = useState<string | null>(null);
 
   useEffect(() => {
+    setHydrated(true);
     if (hasNovels) {
       return;
     }
@@ -117,6 +119,7 @@ export function OnboardingWizard({ hasNovels, series }: OnboardingWizardProps) {
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs"
       data-testid="onboarding-wizard"
+      data-hydrated={hydrated}
     >
       <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-xl border border-ink-200 bg-ink-50 p-6 text-ink-900 shadow-xl">
         {/* Progress dots */}
