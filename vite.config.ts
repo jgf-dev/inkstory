@@ -1,6 +1,6 @@
 import { defineConfig } from "vite-plus";
 import vinext from "vinext";
-import path from "path";
+import path from "node:path";
 import { cloudflare } from "@cloudflare/vite-plugin";
 import { responseStoreAdapter } from "@vinext/cloudflare/cache/response-store-adapter";
 import { imagesOptimizer } from "@vinext/cloudflare/images/images-optimizer";
@@ -28,7 +28,7 @@ const DB_TEST_FILES = [
   "tests/writing-service.test.ts",
 ];
 
-export default defineConfig({
+export default defineConfig(({ command }) => ({
   // vinext/Cloudflare plugins rewrite modules for the Workers runtime and break Vitest's module runner.
   plugins: process.env.VITEST
     ? []
@@ -37,13 +37,19 @@ export default defineConfig({
           cache: responseStoreAdapter(),
           images: { optimizer: imagesOptimizer() },
         }),
-        cloudflare({
-          auxiliaryWorkers: [{ config: responseStoreServiceBinding }],
-          viteEnvironment: {
-            name: "rsc",
-            childEnvironments: ["ssr"],
-          },
-        }),
+        // Browser E2E uses vinext's Node dev runtime so Prisma can use its
+        // long-lived local singleton instead of per-request Workers I/O.
+        ...(command === "serve" && process.env.INKSTORY_E2E === "1"
+          ? []
+          : [
+              cloudflare({
+                auxiliaryWorkers: [{ config: responseStoreServiceBinding }],
+                viteEnvironment: {
+                  name: "rsc",
+                  childEnvironments: ["ssr"],
+                },
+              }),
+            ]),
       ],
   resolve: {
     noExternal: ["tailwindcss"],
@@ -97,4 +103,4 @@ export default defineConfig({
     options: { typeAware: true, typeCheck: true },
     ignorePatterns: ["dist/*", ".agents/*", "node_modules/*", "prisma/contract.d.ts"],
   },
-});
+}));

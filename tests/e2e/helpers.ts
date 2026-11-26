@@ -1,29 +1,9 @@
-import type { BrowserContext } from "@playwright/test";
+import { randomUUID } from "node:crypto";
+import { expect, type BrowserContext, type Page } from "@playwright/test";
 
-export const SEED_USER = {
-  id: "00000000-0000-0000-0000-000000000001",
-  email: "seed@inkstory.local",
-  name: "Seed User",
-  user_metadata: {
-    name: "Seed User",
-  },
-};
-
-/**
- * Injects an E2E authenticated user cookie recognized by createSupabaseServerClient
- * when NEXT_PUBLIC_E2E=true.
- */
-export async function authenticateAsSeedUser(context: BrowserContext) {
-  await context.addCookies([
-    {
-      name: "e2e-user",
-      value: encodeURIComponent(JSON.stringify(SEED_USER)),
-      domain: "localhost",
-      path: "/",
-      httpOnly: false,
-      sameSite: "Lax",
-    },
-  ]);
+/** Fresh identity for a run-scoped E2E user (id comes in as a UUID). */
+export function launchUser(id: string) {
+  return { id, email: `launch-qa-${id.slice(0, 8)}@inkstory.local` };
 }
 
 /**
@@ -44,7 +24,23 @@ export async function authenticateAsNewUser(context: BrowserContext, id: string,
   ]);
 }
 
-/** Fresh identity for a run-scoped E2E user (id comes in as a UUID). */
-export function launchUser(id: string) {
-  return { id, email: `launch-qa-${id.slice(0, 8)}@inkstory.local` };
+/** Advance only after client hydration so the first click cannot be lost. */
+export async function advanceOnboardingToBookStep(page: Page) {
+  const wizard = page.getByTestId("onboarding-wizard");
+  await expect(wizard).toContainText("Welcome to InkStory");
+  await expect(wizard).toHaveAttribute("data-hydrated", "true");
+  await wizard.getByRole("button", { name: "Next →" }).click();
+  await expect(wizard).toContainText("Start your first book");
+}
+
+/** Create an isolated user and its sample novel through the real onboarding UI. */
+export async function authenticateAndSeedSample(context: BrowserContext, page: Page) {
+  const user = launchUser(randomUUID());
+  await authenticateAsNewUser(context, user.id, user.email);
+  await page.goto("/dashboard");
+
+  await advanceOnboardingToBookStep(page);
+  const wizard = page.getByTestId("onboarding-wizard");
+  await wizard.getByRole("button", { name: /Seed a sample fantasy bible/ }).click();
+  await expect(wizard).toContainText("Meet your writing desk");
 }
