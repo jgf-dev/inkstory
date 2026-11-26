@@ -2,6 +2,22 @@
 
 All notable changes to InkStory are tracked here. This file follows [Keep a Changelog](https://keepachangelog.com/) and the project adheres to [Semantic Versioning](https://semver.org/).
 
+## [PR-233](https://github.com/jgf-dev/inkstory/pull/233) - 2026-11-26
+
+### Summary
+
+Made Craft Studio's Rewrite target length adapt to the selected passage and active preset (`1×` by default, `0.6×` for `more_concise`), with inline condensing warnings aligned to the preset's suggested length.
+
+### Added
+
+- `tests/craft-rewrite-target.test.ts`: added unit tests covering per-preset adaptive target seeding, floor/ceiling bounds, re-seeding and touched-lock behavior, prototype-key safety, blank-target defaults, and condensing/ceiling warning thresholds.
+
+### Changed
+
+- `src/lib/craft/client.ts`: extended `AdaptiveTargetRule` with `ReadonlyMap`-backed `growthBy` overrides and registered Rewrite (`REWRITE_TARGET_GROWTH = 1`, `REWRITE_CONCISE_TARGET_GROWTH = 0.6`, `REWRITE_MIN_TARGET_WORDS = 20`, `REWRITE_CONDENSE_RATIO = 0.5`); updated `condensingWarning` to compare the ceiling against the growth-adjusted length and clarify warning copy when a preset intentionally shortens prose.
+- `tests/craft-panel-dom.test.tsx`: added DOM coverage for Rewrite preset-aware target seeding, selection-clear reset, touched-lock persistence, and condensing warnings.
+- `src/lib/craft/README.md`: documented Rewrite's preset-aware adaptive target behavior and added the Rewrite and Show Don't Tell target test suites to the verification list.
+
 ## [PR-239](https://github.com/jgf-dev/inkstory/pull/239) - 2026-11-25
 
 ### Summary

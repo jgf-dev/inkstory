@@ -29,4 +29,4 @@ Code-owned fiction craft tool definitions and request preparation built atop `sr
 
 ## Verification
 
-- **Unit (`bun run test:no-db`)**: `tests/craft-tools.test.ts`, `tests/craft-expand.test.ts`, `tests/craft-expand-target.test.ts`, `tests/craft-rewrite.test.ts`, `tests/craft-show-dont-tell.test.ts`, `tests/craft-transition.test.ts`, `tests/craft-client.test.ts`, `tests/craft-api.test.ts`, `tests/craft-panel-dom.test.tsx`, `tests/scene-editor-craft-dom.test.tsx`, `tests/rich-text-editor-selection-dom.test.tsx`, `tests/use-craft-run.test.tsx`.
+- **Unit (`bun run test:no-db`)**: `tests/craft-tools.test.ts`, `tests/craft-expand.test.ts`, `tests/craft-expand-target.test.ts`, `tests/craft-rewrite.test.ts`, `tests/craft-rewrite-target.test.ts`, `tests/craft-show-dont-tell.test.ts`, `tests/craft-show-dont-tell-target.test.ts`, `tests/craft-transition.test.ts`, `tests/craft-client.test.ts`, `tests/craft-api.test.ts`, `tests/craft-panel-dom.test.tsx`, `tests/scene-editor-craft-dom.test.tsx`, `tests/rich-text-editor-selection-dom.test.tsx`, `tests/use-craft-run.test.tsx`.

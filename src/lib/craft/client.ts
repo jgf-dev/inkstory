@@ -89,7 +89,7 @@ interface AdaptiveTargetRule {
    * Growth overrides keyed by the value of an enum input (Rewrite's
    * `more_concise` preset aims shorter). Values not listed use `growth`.
    */
-  growthBy?: { key: CraftInputKey; values: Readonly<Record<string, number>> };
+  growthBy?: { key: CraftInputKey; values: ReadonlyMap<string, number> };
   /** Lowest suggestion: the tool default, or a fixed word count. */
   floor: "default" | number;
   lengthens: boolean;
@@ -133,7 +133,7 @@ const ADAPTIVE_TARGET_RULES: ReadonlyMap<string, AdaptiveTargetRule> = new Map([
       growth: REWRITE_TARGET_GROWTH,
       growthBy: {
         key: REWRITE_PRESET_KEY,
-        values: { more_concise: REWRITE_CONCISE_TARGET_GROWTH },
+        values: new Map([["more_concise", REWRITE_CONCISE_TARGET_GROWTH]]),
       },
       floor: REWRITE_MIN_TARGET_WORDS,
       lengthens: false,
@@ -147,8 +147,9 @@ function growthFor(tool: CraftToolDto, rule: AdaptiveTargetRule, values?: CraftF
   if (!rule.growthBy) return rule.growth;
   const { key, values: byValue } = rule.growthBy;
   const raw = values?.[key];
-  const chosen = typeof raw === "string" && raw.trim() ? raw.trim() : tool.defaults[key];
-  return typeof chosen === "string" ? (byValue[chosen] ?? rule.growth) : rule.growth;
+  const trimmed = typeof raw === "string" ? raw.trim() : "";
+  const chosen = trimmed || tool.defaults[key];
+  return typeof chosen === "string" ? (byValue.get(chosen) ?? rule.growth) : rule.growth;
 }
 
 function adaptiveTarget(
@@ -229,11 +230,17 @@ function condensingWarning(
   selectionWords: number,
   max: number,
 ): string | null {
-  if (selectionWords > max) {
-    return `The selection is ${formatWords(selectionWords)} words, above the ${formatWords(max)}-word maximum, so ${tool.name} will condense it. Select a shorter passage.`;
+  const growth = growthFor(tool, rule, values);
+  if (Math.ceil(selectionWords * growth) > max) {
+    return growth < 1
+      ? `The selection is ${formatWords(selectionWords)} words, so even the suggested target exceeds the ${formatWords(max)}-word maximum and ${tool.name} will condense it further. Select a shorter passage.`
+      : `The selection is ${formatWords(selectionWords)} words, above the ${formatWords(max)}-word maximum, so ${tool.name} will condense it. Select a shorter passage.`;
   }
-  if (target >= selectionWords * growthFor(tool, rule, values) * rule.condenseRatio) return null;
+  if (target >= selectionWords * growth * rule.condenseRatio) return null;
   const suggestion = suggestedTargetWords(tool, selectionWords, values) ?? max;
+  if (growth < 1) {
+    return `${tool.name} would heavily condense this: the target is well below the suggested ${formatWords(suggestion)} words for a ${formatWords(selectionWords)}-word selection.`;
+  }
   return `${tool.name} would condense this: the target is well below the selection's ${formatWords(selectionWords)} words. Try about ${formatWords(suggestion)}.`;
 }
 
@@ -242,8 +249,8 @@ function condensingWarning(
  * selection. Expand warns when it would not lengthen (target at or below the
  * selection, or the selection already at the ceiling); Show Don't Tell and
  * Rewrite warn when the result would condense the selection (target under half
- * of the suggested length, or the selection above the ceiling). Invalid targets are left to
- * {@link validateCraftForm}.
+ * of the suggested length, or the suggested length above the ceiling). Invalid
+ * targets are left to {@link validateCraftForm}.
  */
 export function targetWordsWarning(
   tool: CraftToolDto,

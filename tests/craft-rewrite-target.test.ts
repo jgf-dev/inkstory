@@ -11,12 +11,11 @@ import {
   targetWordsWarning,
   withAdaptiveTarget,
   type CraftFormValues,
-  type CraftToolDto,
 } from "../src/lib/craft/client";
 import { getCraftTool, toCraftToolDto } from "../src/lib/craft";
 import { REWRITE_DEFAULT_PRESET, REWRITE_DEFAULT_TARGET_WORDS } from "../src/lib/craft/tools";
 
-const rewrite = toCraftToolDto(getCraftTool("rewrite")) as CraftToolDto;
+const rewrite = toCraftToolDto(getCraftTool("rewrite"));
 
 /** Rewrite form values with a preset and (optionally) a typed target. */
 function form(preset: string, target?: string): CraftFormValues {
@@ -44,6 +43,9 @@ describe("Rewrite adaptive target (STO-1294)", () => {
     expect(suggestedTargetWords(rewrite, 500, form(" "))).toBe(500);
     // No preset and no default: the base growth applies.
     expect(suggestedTargetWords({ ...rewrite, defaults: {} }, 500)).toBe(500);
+    // Inherited Object.prototype property names fall back to base growth instead of NaN.
+    expect(suggestedTargetWords(rewrite, 500, form("toString"))).toBe(500);
+    expect(suggestedTargetWords(rewrite, 500, form("constructor"))).toBe(500);
   });
 
   it("re-seeds when the selection or preset changes, until the author edits it", () => {
@@ -70,13 +72,29 @@ describe("Rewrite adaptive target (STO-1294)", () => {
       "Rewrite would condense this: the target is well below the selection's 600 words. Try about 600.",
     );
     expect(targetWordsWarning(rewrite, form("more_vivid", "300"), 600)).toBeNull();
-    // more_concise expects condensing, so the threshold is half of 0.6×.
-    expect(targetWordsWarning(rewrite, form("more_concise", "200"), 600)).toBeNull();
-    expect(targetWordsWarning(rewrite, form("more_concise", "179"), 600)).toBe(
-      "Rewrite would condense this: the target is well below the selection's 600 words. Try about 360.",
+    // Blank target falls back to the 200-word server default.
+    expect(targetWordsWarning(rewrite, form("more_vivid", ""), 600)).toBe(
+      "Rewrite would condense this: the target is well below the selection's 600 words. Try about 600.",
     );
+    // more_concise expects condensing, so the threshold is half of 0.6× (180 on 600 words).
+    expect(targetWordsWarning(rewrite, form("more_concise", "200"), 600)).toBeNull();
+    expect(targetWordsWarning(rewrite, form("more_concise", ""), 600)).toBeNull();
+    expect(targetWordsWarning(rewrite, form("more_concise", "180"), 600)).toBeNull();
+    expect(targetWordsWarning(rewrite, form("more_concise", "179"), 600)).toBe(
+      "Rewrite would heavily condense this: the target is well below the suggested 360 words for a 600-word selection.",
+    );
+    // Long selections: 1× presets exceed the 2,000-word ceiling above 2,000 words.
     expect(targetWordsWarning(rewrite, form("simpler", "2000"), 2600)).toBe(
       "The selection is 2,600 words, above the 2,000-word maximum, so Rewrite will condense it. Select a shorter passage.",
+    );
+    // more_concise fits inside the 2,000-word ceiling up to 3,333 words (0.6× = 2,000).
+    expect(targetWordsWarning(rewrite, form("more_concise", "1500"), 2500)).toBeNull();
+    expect(targetWordsWarning(rewrite, form("more_concise", "2000"), 3333)).toBeNull();
+    expect(targetWordsWarning(rewrite, form("more_concise", "749"), 2500)).toBe(
+      "Rewrite would heavily condense this: the target is well below the suggested 1,500 words for a 2,500-word selection.",
+    );
+    expect(targetWordsWarning(rewrite, form("more_concise", "2000"), 3334)).toBe(
+      "The selection is 3,334 words, so even the suggested target exceeds the 2,000-word maximum and Rewrite will condense it further. Select a shorter passage.",
     );
     expect(targetWordsWarning(rewrite, form("simpler", "5"), 600)).toBeNull();
     expect(targetWordsWarning(rewrite, form("simpler", "200"), 0)).toBeNull();

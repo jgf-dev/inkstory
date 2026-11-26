@@ -520,17 +520,27 @@ describe("CraftPanel (STO-1290)", () => {
   it("seeds Rewrite's target from the selection and the preset (STO-1294)", async () => {
     stubFetch(baseRoute(undefined, [REWRITE]));
     const passage = { from: 1, to: 2500, text: "plain ".repeat(500).trim() };
-    setup({ selection: passage });
+    const { rerender, props } = setup({ selection: passage });
     await screen.findByTestId("craft-tool-name");
     const field = () => screen.getByLabelText("Target length (words)") as HTMLInputElement;
     expect(field().value).toBe("500");
     fireEvent.change(screen.getByLabelText("Preset"), { target: { value: "more_concise" } });
     expect(field().value).toBe("300");
+
+    // Clearing the selection reverts an untouched target to the 200-word default.
+    rerender(React.createElement(CraftPanel, { ...props, selection: null }));
+    expect(field().value).toBe("200");
+    rerender(React.createElement(CraftPanel, { ...props, selection: passage }));
+    expect(field().value).toBe("300");
+
     fireEvent.change(field(), { target: { value: "100" } });
     expect(screen.getByTestId("craft-warning").textContent).toContain(
-      "Rewrite would condense this",
+      "Rewrite would heavily condense this",
     );
     fireEvent.change(screen.getByLabelText("Preset"), { target: { value: "simpler" } });
     expect(field().value).toBe("100");
+    expect(screen.getByTestId("craft-warning").textContent).toContain(
+      "Rewrite would condense this",
+    );
   });
 });
