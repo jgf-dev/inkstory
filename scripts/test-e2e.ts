@@ -12,6 +12,8 @@ async function main(): Promise<void> {
   const { rest } = await prepareTestDatabase("bun run test:e2e");
   process.env.INKSTORY_E2E_DATABASE_READY = "1";
   process.env.NEXT_PUBLIC_E2E = "true";
+  // Seed SYSTEM_DEFAULT prompt templates and baseline fixtures in the fresh DB;
+  // authenticated specs still create fresh per-test users to avoid state collisions.
   run("./node_modules/.bin/vpx", ["prisma/seed.ts"]);
   run("./node_modules/.bin/playwright", ["test", ...rest]);
 }

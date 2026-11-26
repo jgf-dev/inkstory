@@ -126,7 +126,9 @@ prisma/
 ├── contract.json / contract.d.ts # Emitted contract artifacts
 └── seed.ts                       # Demo fixtures + SYSTEM_DEFAULT prompts
 scripts/
-└── test-db.ts                    # Disposable Postgres 17 + Prisma update + Vitest runner
+├── prepare-test-database.ts      # Shared .env.test + loopback guard + disposable Postgres 17 bootstrap
+├── test-db.ts                    # Disposable Postgres 17 + Prisma update + Vitest runner
+└── test-e2e.ts                   # Isolated test DB + seed + Playwright live-browser runner
 src/
 ├── proxy.ts                      # Supabase session refresh boundary (not middleware.ts)
 ├── app/
@@ -263,7 +265,7 @@ bun run test:e2e:ui       # live browser suite, interactive Playwright UI
 bun run test:e2e -- --grep "Story Codex"  # filter specs with any Playwright CLI option
 ```
 
-The E2E runner loads **only** `.env.test`, starts or reuses the disposable local Postgres, applies the Prisma contract, seeds fixtures, and starts a dedicated app server on `localhost:3100`. It never reuses the normal dev server on port 3000 or inherits its database credentials. Authenticated specs use fresh user identities through the non-production `e2e-user` auth shim (`NEXT_PUBLIC_E2E=true`). The suite runs in vinext's Node dev runtime so local Postgres uses its singleton client; production Cloudflare configuration is unchanged.
+The E2E runner loads **only** `.env.test`, starts or reuses the disposable local Postgres, applies the Prisma contract, seeds fixtures, and starts a dedicated app server on `localhost:3100`. It never reuses the normal dev server on port 3000 or inherits local database credentials or external API secrets. Authenticated specs use fresh user identities through the non-production `e2e-user` auth shim (`NEXT_PUBLIC_E2E=true`). The suite runs in vinext's Node dev runtime so local Postgres uses its singleton client; production Cloudflare configuration is unchanged.
 
 Playwright always uses its version-matched bundled Chromium, avoiding broken system-Chrome installations. Failure screenshots, traces, and the HTML report are written to `test-results/` and `playwright-report/`. The CI `e2e` job runs the same command with Postgres 17 and uploads those artifacts on failure.
 

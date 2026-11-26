@@ -93,7 +93,7 @@ export function CodexManager({ initialEntries, novels, series }: CodexManagerPro
       {/* Main Layout: Left Sidebar + Right Editor */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
         {/* Left Column: Filter & List */}
-        <div className="space-y-4 lg:col-span-4" data-testid="codex-entry-list">
+        <div className="space-y-4 lg:col-span-4">
           {/* Search bar */}
           <div>
             <input
@@ -124,7 +124,10 @@ export function CodexManager({ initialEntries, novels, series }: CodexManagerPro
           </div>
 
           {/* Entries list */}
-          <div className="max-h-[600px] space-y-2 overflow-y-auto rounded-lg border border-ink-200 bg-ink-50 p-2">
+          <div
+            className="max-h-[600px] space-y-2 overflow-y-auto rounded-lg border border-ink-200 bg-ink-50 p-2"
+            data-testid="codex-entry-list"
+          >
             {filteredEntries.map((entry) => {
               const isSelected = entry.id === selectedEntryId;
               return (

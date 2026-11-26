@@ -1,6 +1,11 @@
 import { randomUUID } from "node:crypto";
 import { expect, test } from "@playwright/test";
-import { advanceOnboardingToBookStep, authenticateAsNewUser, launchUser } from "./helpers";
+import {
+  advanceOnboardingToBookStep,
+  authenticateAndSeedSample,
+  authenticateAsNewUser,
+  launchUser,
+} from "./helpers";
 
 /**
  * Launch QA (audit phase 5): public landing page → authenticated onboarding →
@@ -94,15 +99,8 @@ test.describe("Launch flow", () => {
     context,
     page,
   }) => {
-    const user = launchUser(randomUUID());
-    await authenticateAsNewUser(context, user.id, user.email);
-
     // Book-scoped entries need a novel: seed the sample bible via onboarding.
-    await page.goto("/dashboard");
-    const wizard = page.getByTestId("onboarding-wizard");
-    await advanceOnboardingToBookStep(page);
-    await wizard.getByRole("button", { name: /Seed a sample fantasy bible/ }).click();
-    await expect(wizard).toContainText("Meet your writing desk");
+    await authenticateAndSeedSample(context, page);
 
     await page.goto("/dashboard/codex");
 

@@ -27,7 +27,7 @@ const DB_TEST_FILES = [
   "tests/writing-service.test.ts",
 ];
 
-export default defineConfig({
+export default defineConfig(({ command }) => ({
   // vinext/Cloudflare plugins rewrite modules for the Workers runtime and break Vitest's module runner.
   plugins: process.env.VITEST
     ? []
@@ -38,7 +38,7 @@ export default defineConfig({
         }),
         // Browser E2E uses vinext's Node dev runtime so Prisma can use its
         // long-lived local singleton instead of per-request Workers I/O.
-        ...(process.env.INKSTORY_E2E === "1"
+        ...(command === "serve" && process.env.INKSTORY_E2E === "1"
           ? []
           : [
               cloudflare({
@@ -102,4 +102,4 @@ export default defineConfig({
     options: { typeAware: true, typeCheck: true },
     ignorePatterns: ["dist/*", ".agents/*", "node_modules/*", "prisma/contract.d.ts"],
   },
-});
+}));

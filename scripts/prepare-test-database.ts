@@ -4,7 +4,7 @@
  * test Postgres if needed, and apply the Prisma contract.
  */
 import { spawnSync } from "node:child_process";
-import { existsSync } from "node:fs";
+import { accessSync, constants, existsSync } from "node:fs";
 import { config } from "dotenv";
 import pg from "pg";
 import { assertSafeTestDatabaseEnv } from "../src/lib/test-database-guard";
@@ -16,7 +16,14 @@ import {
 } from "../src/lib/test-database-port";
 
 /** Absolute docker binaries only — never search PATH (Sonar S4036). */
-const DOCKER_BINARIES = ["/usr/bin/docker", "/usr/local/bin/docker", "/opt/homebrew/bin/docker"];
+const DOCKER_BINARIES = [
+  "/usr/bin/docker",
+  "/usr/local/bin/docker",
+  "/opt/homebrew/bin/docker",
+  "/snap/bin/docker",
+  "/run/current-system/sw/bin/docker",
+  "/Applications/Docker.app/Contents/Resources/bin/docker",
+];
 
 export function fail(message: string, status = 1): never {
   console.error(message);
@@ -33,8 +40,17 @@ export function run(command: string, args: string[]): void {
   }
 }
 
+function isExecutable(bin: string): boolean {
+  try {
+    accessSync(bin, constants.X_OK);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function resolveDockerBin(): string | undefined {
-  return DOCKER_BINARIES.find((bin) => existsSync(bin));
+  return DOCKER_BINARIES.find((bin) => isExecutable(bin));
 }
 
 async function isTestDatabaseReachable(connectionString: string): Promise<boolean> {
@@ -62,26 +78,26 @@ async function ensureTestDatabase(
     return;
   }
 
+  const noDockerMessage =
+    "No reachable local test database, and docker is not available.\n" +
+    "Install Docker (or start the Docker daemon), then retry, or start Postgres 17 yourself " +
+    "with database inkstory_test and user/password postgres/postgres on " +
+    `localhost:${port}.\n` +
+    composeHelp;
+
   const docker = resolveDockerBin();
   if (!docker) {
-    fail(
-      "No reachable local test database, and docker is not available.\n" +
-        "Install Docker, then retry, or start Postgres 17 yourself " +
-        "with database inkstory_test and user/password postgres/postgres on " +
-        `localhost:${port}.\n` +
-        composeHelp,
-    );
+    fail(noDockerMessage);
   }
 
-  const version = spawnSync(docker, ["version"], { stdio: "pipe", env: process.env });
+  const version = spawnSync(docker, ["version"], {
+    stdio: "pipe",
+    encoding: "utf8",
+    env: process.env,
+  });
   if (version.status !== 0) {
-    fail(
-      "No reachable local test database, and docker is not available.\n" +
-        "Install Docker, then retry, or start Postgres 17 yourself " +
-        "with database inkstory_test and user/password postgres/postgres on " +
-        `localhost:${port}.\n` +
-        composeHelp,
-    );
+    const details = version.stderr?.trim();
+    fail(details ? `${noDockerMessage}\n\nDocker reported:\n${details}` : noDockerMessage);
   }
 
   const compose = spawnSync(
