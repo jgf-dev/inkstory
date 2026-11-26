@@ -368,6 +368,28 @@ export function buildLorebookExportSources(
 }
 
 /**
+ * Ids of the owner's live entries whose lorebook envelope carries `groupId`
+ * (STO-1286). The JSONB match runs in Postgres so unrelated Codex entries are
+ * never transferred over the wire or deserialized in the app runtime.
+ *
+ * @internal Exported for direct DB prefilter testing.
+ */
+export async function findImportedGroupEntryIds(
+  userId: string,
+  groupId: string,
+): Promise<string[]> {
+  const plan = db.raw.sql`SELECT id FROM public.codex_entries
+    WHERE owner_id = CAST(${userId} AS uuid)
+      AND deleted_at IS NULL
+      AND custom_fields -> ${INTERCHANGE_ENVELOPE_KEY} ->> 'format' = ${LOREBOOK_FORMAT}
+      AND custom_fields -> ${INTERCHANGE_ENVELOPE_KEY} ->> 'groupId' = ${groupId}`
+    .returnsRow({ id: "pg/text@1" })
+    .build();
+  const rows = await db.query(plan);
+  return rows.map((row) => row.id);
+}
+
+/**
  * Live lorebook entries that were imported with the same interchange group
  * (the card and its opted-in character_book, or one lorebook file). The group
  * id is unique per import, so entries are matched by owner and group only:
@@ -377,9 +399,23 @@ export async function loadImportedGroupBookSources(
   userId: string,
   groupId: string,
 ): Promise<LorebookExportSource[]> {
-  const rows = await db.orm.public.CodexEntry.where((e) => e.ownerId.eq(userId))
+  const candidateIds = await findImportedGroupEntryIds(userId, groupId);
+  if (candidateIds.length === 0) return [];
+
+  const rows = await db.orm.public.CodexEntry.select(
+    "id",
+    "name",
+    "description",
+    "trackingMode",
+    "position",
+    "customFields",
+  )
+    .where((e) => e.id.in(candidateIds))
+    .where((e) => e.ownerId.eq(userId))
     .where((e) => e.deletedAt.isNull())
     .all();
+  // The SQL prefilter only narrows the read; the envelope is still validated
+  // here so hand-edited or card-format envelopes stay excluded.
   const bookRows = rows.filter((row) => {
     const read = readInterchangeEnvelope(row.customFields);
     return read.status === "ok" && read.envelope.groupId === groupId;
