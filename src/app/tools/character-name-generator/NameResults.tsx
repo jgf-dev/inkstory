@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
+import { COPY_BUTTON_CLASS, ResultActions } from "@/app/_components/tools/ResultActions";
+import { useCopyFeedback } from "@/app/_components/tools/useCopyFeedback";
 
-export const COPIED_FEEDBACK_MS = 1500;
+export { COPIED_FEEDBACK_MS } from "@/app/_components/tools/useCopyFeedback";
 
 export interface NameResultsProps {
   names: readonly string[];
@@ -18,35 +18,7 @@ export interface NameResultsProps {
  * link are server-rendered, so they work without JavaScript; copying needs it.
  */
 export function NameResults({ names, shareHref, moreHref }: NameResultsProps) {
-  const [copied, setCopied] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(
-    () => () => {
-      if (timer.current) clearTimeout(timer.current);
-    },
-    [],
-  );
-
-  async function copy(key: string, text: string) {
-    try {
-      await navigator.clipboard.writeText(text);
-      setError(null);
-      setCopied(key);
-      if (timer.current) clearTimeout(timer.current);
-      timer.current = setTimeout(() => {
-        timer.current = null;
-        setCopied(null);
-      }, COPIED_FEEDBACK_MS);
-    } catch {
-      setCopied(null);
-      setError("Copy failed. Select the text and copy it manually.");
-    }
-  }
-
-  const buttonClass =
-    "rounded-md border border-ink-200 px-2 py-1 text-xs font-medium text-ink-700 hover:bg-ink-100";
+  const { copied, error, copy } = useCopyFeedback();
 
   return (
     <section aria-labelledby="generated-names-heading" className="mt-6">
@@ -65,7 +37,7 @@ export function NameResults({ names, shareHref, moreHref }: NameResultsProps) {
               <span className="font-medium">{name}</span>
               <button
                 type="button"
-                className={buttonClass}
+                className={COPY_BUTTON_CLASS}
                 aria-label={`Copy ${name}`}
                 onClick={() => void copy(name, name)}
               >
@@ -75,34 +47,15 @@ export function NameResults({ names, shareHref, moreHref }: NameResultsProps) {
           ))}
         </ul>
       )}
-      <div className="mt-4 flex flex-wrap items-center gap-3">
-        <Link
-          href={moreHref}
-          className="bg-ink-900 rounded-md px-4 py-2 text-sm font-medium text-white"
-          data-testid="generate-more"
-        >
-          Generate more
-        </Link>
-        {names.length > 0 ? (
-          <button
-            type="button"
-            className={buttonClass}
-            onClick={() => void copy("all", names.join("\n"))}
-          >
-            {copied === "all" ? "Copied all" : "Copy all"}
-          </button>
-        ) : null}
-        <button
-          type="button"
-          className={buttonClass}
-          onClick={() => void copy("link", new URL(shareHref, window.location.origin).toString())}
-        >
-          {copied === "link" ? "Link copied" : "Copy share link"}
-        </button>
-      </div>
-      <p role="status" aria-live="polite" className="text-ink-500 mt-2 min-h-5 text-sm">
-        {error ?? (copied ? "Copied to clipboard." : "")}
-      </p>
+      <ResultActions
+        allText={names.length > 0 ? names.join("\n") : null}
+        shareHref={shareHref}
+        moreHref={moreHref}
+        moreLabel="Generate more"
+        copied={copied}
+        error={error}
+        copy={copy}
+      />
     </section>
   );
 }

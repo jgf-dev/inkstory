@@ -1,0 +1,185 @@
+// @vitest-environment happy-dom
+import React from "react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
+import StoryTropeGeneratorPage, { metadata } from "../src/app/tools/story-trope-generator/page";
+import {
+  FAQS,
+  INTRO,
+  OG_TITLE,
+  PAGE_DESCRIPTION,
+  PAGE_HEADING,
+  PAGE_TITLE,
+} from "../src/app/tools/story-trope-generator/content";
+import {
+  TropeResults,
+  formatTrope,
+  type TropeResultItem,
+} from "../src/app/tools/story-trope-generator/TropeResults";
+import {
+  TROPE_GENERATOR_PATH,
+  buildTropeGeneratorHref,
+  generateTropes,
+  nextSeed,
+  parseTropeGeneratorParams,
+} from "../src/lib/tools/story-tropes";
+
+const KEYWORD = /free story tropes generator/i;
+
+async function renderPage(params?: Record<string, string>) {
+  return renderToStaticMarkup(
+    await StoryTropeGeneratorPage(params ? { searchParams: Promise.resolve(params) } : undefined),
+  );
+}
+
+function decode(html: string) {
+  return html.replace(/&amp;/g, "&").replace(/&#x27;/g, "'");
+}
+
+describe("story trope generator page", () => {
+  it("targets the keyword in title, description, OG tags and H1", () => {
+    expect(metadata.title).toBe(PAGE_TITLE);
+    expect(PAGE_TITLE).toMatch(KEYWORD);
+    expect(metadata.description).toBe(PAGE_DESCRIPTION);
+    expect(PAGE_DESCRIPTION).toMatch(KEYWORD);
+    expect(metadata.keywords).toContain("story trope generator");
+    expect(metadata.openGraph).toMatchObject({
+      title: OG_TITLE,
+      description: PAGE_DESCRIPTION,
+      siteName: "syncodex",
+      url: TROPE_GENERATOR_PATH,
+    });
+    expect(OG_TITLE).toMatch(KEYWORD);
+    expect(metadata.twitter).toMatchObject({ title: OG_TITLE });
+    expect(metadata.alternates).toEqual({ canonical: TROPE_GENERATOR_PATH });
+    expect(PAGE_HEADING).toMatch(KEYWORD);
+    expect(INTRO).toMatch(/story trope generator/i);
+  });
+
+  it("keeps all copy free of pricing, promises, dates and launch timelines", () => {
+    const copy = [
+      PAGE_TITLE,
+      PAGE_DESCRIPTION,
+      OG_TITLE,
+      PAGE_HEADING,
+      INTRO,
+      JSON.stringify(FAQS),
+      JSON.stringify(metadata),
+    ]
+      .join(" ")
+      .replace(/free story tropes generator/gi, "");
+    expect(copy).not.toMatch(
+      /\$|price|pricing|free|paid|subscription|launch|soon|coming|20\d\d|guarantee|promise|early access/i,
+    );
+  });
+
+  it("server-renders H1, intro, FAQ, links and the seeded combo from query params", async () => {
+    const params = { seed: "story", genre: "fantasy", category: "plot", count: "3", lock: "heist" };
+    const html = decode(await renderPage(params));
+    expect(html).toMatch(/<h1[^>]*>Free Story Tropes Generator<\/h1>/);
+    expect(html).toContain("Need a spark for your next book");
+    for (const faq of FAQS) expect(html).toContain(faq.q);
+    expect(html).toContain('"@type":"FAQPage"');
+    expect(html).toContain('href="/tools/character-name-generator"');
+    expect(html).toContain('href="/waitlist?source=story-trope-generator"');
+
+    const parsed = parseTropeGeneratorParams(params);
+    const combo = generateTropes({ ...parsed, seed: "story" });
+    expect(combo).toHaveLength(3);
+    for (const entry of combo) {
+      expect(html).toContain(entry.trope.name);
+      expect(html).toContain(entry.trope.description);
+    }
+    expect(combo[0]).toMatchObject({ locked: true, trope: { id: "heist" } });
+
+    const locked = ["heist"];
+    expect(html).toContain(`href="${buildTropeGeneratorHref(nextSeed("story"), parsed, locked)}"`);
+    expect(html).toContain(`href="${buildTropeGeneratorHref("story", parsed, [])}"`);
+    expect(html).toContain(
+      `href="${buildTropeGeneratorHref("story", parsed, ["heist", combo[1].trope.id])}"`,
+    );
+    expect(html).toContain(`name="seed" value="${nextSeed("story")}"`);
+    expect(html).toContain('name="lock" value="heist"');
+    expect(html).toMatch(/<option value="fantasy" selected="">/);
+    expect(html).toMatch(/<option value="plot" selected="">/);
+    expect(html).toMatch(/<option value="3" selected="">/);
+  });
+
+  it("renders the same combo for the same shareable URL", async () => {
+    const params = { seed: "repeat", genre: "horror", lock: "slow-dread" };
+    expect(await renderPage(params)).toBe(await renderPage(params));
+  });
+
+  it("creates a fresh seed and a default combo when no params are given", async () => {
+    const html = decode(await renderPage());
+    expect(/name="seed" value="([a-z0-9]+)"/.exec(html)?.[1]).toBeTruthy();
+    expect(html.match(/data-trope-id=/g)).toHaveLength(4);
+    expect(html).not.toContain('name="lock"');
+    expect(html).toMatch(/<option value="any" selected="">Any genre/);
+  });
+});
+
+describe("TropeResults", () => {
+  const writeText = vi.fn<(text: string) => Promise<void>>();
+  const shareHref = `${TROPE_GENERATOR_PATH}?seed=abc`;
+  const items: TropeResultItem[] = [
+    {
+      id: "heist",
+      name: "The heist",
+      description: "A crew plans a theft.",
+      category: "plot",
+      locked: true,
+      toggleHref: "/unlock-heist",
+    },
+    {
+      id: "slow-burn",
+      name: "Slow burn",
+      description: "Attraction builds slowly.",
+      category: "romance",
+      locked: false,
+      toggleHref: "/lock-slow-burn",
+    },
+  ];
+
+  beforeEach(() => {
+    writeText.mockReset().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
+  });
+
+  afterEach(() => cleanup());
+
+  it("renders lock links and copies a trope, the combo and the share link", async () => {
+    render(<TropeResults tropes={items} shareHref={shareHref} moreHref="/more" />);
+    expect(screen.getByRole("link", { name: "Unlock The heist" }).getAttribute("href")).toBe(
+      "/unlock-heist",
+    );
+    expect(screen.getByRole("link", { name: "Lock Slow burn" }).getAttribute("href")).toBe(
+      "/lock-slow-burn",
+    );
+    expect(screen.getByText("Locked")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Copy Slow burn" }));
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith(formatTrope(items[1])));
+    expect(await screen.findByText("Copied")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Copy all" }));
+    await waitFor(() =>
+      expect(writeText).toHaveBeenCalledWith(
+        "The heist: A crew plans a theft.\nSlow burn: Attraction builds slowly.",
+      ),
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Copy share link" }));
+    await waitFor(() =>
+      expect(writeText).toHaveBeenCalledWith(new URL(shareHref, window.location.origin).toString()),
+    );
+    expect(screen.getByTestId("generate-more").getAttribute("href")).toBe("/more");
+  });
+
+  it("renders an empty state without the copy-all control", () => {
+    render(<TropeResults tropes={[]} shareHref={shareHref} moreHref="/more" />);
+    expect(screen.getByText(/No tropes matched/)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Copy all" })).toBeNull();
+  });
+});
