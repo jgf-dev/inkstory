@@ -71,6 +71,10 @@
     "users": {
       "model": "User",
       "namespace": "public"
+    },
+    "waitlist_signups": {
+      "model": "WaitlistSignup",
+      "namespace": "public"
     }
   },
   "domain": {
@@ -2890,6 +2894,70 @@
               "namespaceId": "public",
               "table": "user_provider_credentials"
             }
+          },
+          "WaitlistSignup": {
+            "fields": {
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamp-temporal@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "email": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/uuid@1",
+                  "kind": "scalar"
+                }
+              },
+              "referrer": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "source": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {},
+            "storage": {
+              "fields": {
+                "createdAt": {
+                  "column": "created_at"
+                },
+                "email": {
+                  "column": "email"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "referrer": {
+                  "column": "referrer"
+                },
+                "source": {
+                  "column": "source"
+                }
+              },
+              "namespaceId": "public",
+              "table": "waitlist_signups"
+            }
           }
         }
       }
@@ -3090,6 +3158,11 @@
               "kind": "rls",
               "namespaceId": "public",
               "tableName": "users"
+            },
+            "waitlist_signups": {
+              "kind": "rls",
+              "namespaceId": "public",
+              "tableName": "waitlist_signups"
             }
           },
           "table": {
@@ -5412,6 +5485,61 @@
                   ]
                 }
               ]
+            },
+            "waitlist_signups": {
+              "columns": {
+                "created_at": {
+                  "codecId": "pg/timestamp-temporal@1",
+                  "dataType": "pg/timestamp",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "email": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "id": {
+                  "codecId": "pg/uuid@1",
+                  "dataType": "pg/uuid",
+                  "default": {
+                    "expression": "gen_random_uuid()",
+                    "kind": "function"
+                  },
+                  "nullable": false
+                },
+                "referrer": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                },
+                "source": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                }
+              },
+              "foreignKeys": [],
+              "indexes": [],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ],
+                "name": "waitlist_signups_pkey"
+              },
+              "uniques": [
+                {
+                  "columns": [
+                    "email"
+                  ]
+                }
+              ]
             }
           },
           "valueSet": {
@@ -5514,7 +5642,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "eb4a89620bacaa381a3aa8df0bc65b8ce6b77bf05012129e3e83bb68e6ae8cd0"
+    "storageHash": "b06538ade4c4d3b9b60745e786b9a07cb735cac3c49dde355dc77cf61fdda034"
   },
   "capabilities": {
     "postgres": {
