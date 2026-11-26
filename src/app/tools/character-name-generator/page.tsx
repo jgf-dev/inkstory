@@ -61,8 +61,44 @@ const FAQ_JSON_LD = JSON.stringify({
   })),
 }).replace(/</g, "\\u003c");
 
-const selectClass = "border-ink-200 bg-card w-full rounded-md border px-2 py-2 text-sm";
-const labelClass = "text-ink-700 mb-1 block text-sm font-medium";
+interface Option {
+  value: string;
+  label: string;
+}
+
+function renderOptions(options: readonly Option[]) {
+  return options.map((option) => (
+    <option key={option.value} value={option.value}>
+      {option.label}
+    </option>
+  ));
+}
+
+function SelectField(props: {
+  id: string;
+  name: string;
+  label: string;
+  value: string;
+  hint?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <label htmlFor={props.id} className="text-ink-700 mb-1 block text-sm font-medium">
+        {props.label}
+      </label>
+      <select
+        id={props.id}
+        name={props.name}
+        defaultValue={props.value}
+        className="border-ink-200 bg-card w-full rounded-md border px-2 py-2 text-sm"
+      >
+        {props.children}
+      </select>
+      {props.hint ? <p className="text-ink-500 mt-1 text-xs">{props.hint}</p> : null}
+    </div>
+  );
+}
 
 /** Public character name generator; no auth. Names are SSR-rendered from the query string. */
 export default async function CharacterNameGeneratorPage({
@@ -97,62 +133,33 @@ export default async function CharacterNameGeneratorPage({
       >
         {/* A new seed per submit keeps the resulting URL shareable. */}
         <input type="hidden" name="seed" value={freshSeed} />
-        <div>
-          <label htmlFor="ng-genre" className={labelClass}>
-            Genre
-          </label>
-          <select id="ng-genre" name="genre" defaultValue={params.genre} className={selectClass}>
-            {GENRE_DEFINITIONS.map((genre) => (
-              <option key={genre.id} value={genre.id}>
-                {genre.label}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label htmlFor="ng-gender" className={labelClass}>
-            Gender presentation
-          </label>
-          <select id="ng-gender" name="gender" defaultValue={params.gender} className={selectClass}>
-            {GENDER_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label htmlFor="ng-flavor" className={labelClass}>
-            Culture or era flavor
-          </label>
-          <select id="ng-flavor" name="flavor" defaultValue={params.flavor} className={selectClass}>
-            <option value={ANY_FLAVOR}>Any (mix the genre)</option>
-            {GENRE_DEFINITIONS.map((genre) => (
-              <optgroup key={genre.id} label={genre.label}>
-                {genre.flavors.map((flavor) => (
-                  <option key={flavor.id} value={flavor.id}>
-                    {flavor.label}
-                  </option>
-                ))}
-              </optgroup>
-            ))}
-          </select>
-          <p className="text-ink-500 mt-1 text-xs">
-            A flavor from another genre falls back to Any.
-          </p>
-        </div>
-        <div>
-          <label htmlFor="ng-type" className={labelClass}>
-            Name type
-          </label>
-          <select id="ng-type" name="type" defaultValue={params.type} className={selectClass}>
-            {TYPE_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </div>
+        <SelectField id="ng-genre" name="genre" label="Genre" value={params.genre}>
+          {renderOptions(
+            GENRE_DEFINITIONS.map((genre) => ({ value: genre.id, label: genre.label })),
+          )}
+        </SelectField>
+        <SelectField id="ng-gender" name="gender" label="Gender presentation" value={params.gender}>
+          {renderOptions(GENDER_OPTIONS)}
+        </SelectField>
+        <SelectField
+          id="ng-flavor"
+          name="flavor"
+          label="Culture or era flavor"
+          value={params.flavor}
+          hint="A flavor from another genre falls back to Any."
+        >
+          <option value={ANY_FLAVOR}>Any (mix the genre)</option>
+          {GENRE_DEFINITIONS.map((genre) => (
+            <optgroup key={genre.id} label={genre.label}>
+              {renderOptions(
+                genre.flavors.map((flavor) => ({ value: flavor.id, label: flavor.label })),
+              )}
+            </optgroup>
+          ))}
+        </SelectField>
+        <SelectField id="ng-type" name="type" label="Name type" value={params.type}>
+          {renderOptions(TYPE_OPTIONS)}
+        </SelectField>
         <div className="sm:col-span-2">
           <button
             type="submit"
