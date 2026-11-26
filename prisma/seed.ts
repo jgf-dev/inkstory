@@ -6,10 +6,10 @@
  * Sign up a real account via the app instead.
  */
 
-// Executed directly via `vpx prisma/seed.ts` (not via prisma.config.ts), so load env manually.
-import { config } from "dotenv";
-config({ path: ".env.local", override: false });
-config({ path: ".env", override: false });
+// Executed directly via `vpx prisma/seed.ts` (not via prisma.config.ts), so load env manually
+// outside test runs (never fall through to `.env.local` / `.env` when INKSTORY_TEST_ENV=1).
+import { loadAppDatabaseEnv } from "../src/lib/database-env";
+loadAppDatabaseEnv();
 
 import "temporal-polyfill/full/global";
 import { Temporal } from "temporal-polyfill";

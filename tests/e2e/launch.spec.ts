@@ -1,6 +1,11 @@
 import { randomUUID } from "node:crypto";
 import { expect, test } from "@playwright/test";
-import { authenticateAsNewUser, launchUser } from "./helpers";
+import {
+  advanceOnboardingToBookStep,
+  authenticateAndSeedSample,
+  authenticateAsNewUser,
+  launchUser,
+} from "./helpers";
 
 /**
  * Launch QA (audit phase 5): public landing page → authenticated onboarding →
@@ -50,8 +55,7 @@ test.describe("Launch flow", () => {
     await page.goto("/dashboard");
 
     const wizard = page.getByTestId("onboarding-wizard");
-    await expect(wizard).toContainText("Welcome to InkStory");
-    await wizard.getByRole("button", { name: "Next →" }).click();
+    await advanceOnboardingToBookStep(page);
 
     await wizard.getByRole("button", { name: /Seed a sample fantasy bible/ }).click();
     await expect(wizard).toContainText("Meet your writing desk");
@@ -64,7 +68,7 @@ test.describe("Launch flow", () => {
     await wizard.getByRole("link", { name: "Open the Story Codex →" }).click();
     await expect(page).toHaveURL(/.*\/dashboard\/codex/);
     await expect(page.locator("h1")).toContainText("Story Codex");
-    await expect(page.locator(".lg\\:col-span-4")).toContainText("Mara Vance");
+    await expect(page.getByTestId("codex-entry-list")).toContainText("Mara Vance");
   });
 
   test("authenticated: novel creation via dashboard modal refreshes the list", async ({
@@ -77,9 +81,7 @@ test.describe("Launch flow", () => {
 
     // The onboarding wizard opens first; advance to the novel step.
     const wizard = page.getByTestId("onboarding-wizard");
-    await expect(wizard).toContainText("Welcome to InkStory");
-    await wizard.getByRole("button", { name: "Next →" }).click();
-    await expect(wizard).toContainText("Start your first book");
+    await advanceOnboardingToBookStep(page);
 
     const uniqueTitle = `Launch QA Novel ${Date.now()}`;
     await wizard.getByPlaceholder("e.g. The Glass Weaver").fill(uniqueTitle);
@@ -97,16 +99,8 @@ test.describe("Launch flow", () => {
     context,
     page,
   }) => {
-    const user = launchUser(randomUUID());
-    await authenticateAsNewUser(context, user.id, user.email);
-
     // Book-scoped entries need a novel: seed the sample bible via onboarding.
-    await page.goto("/dashboard");
-    const wizard = page.getByTestId("onboarding-wizard");
-    await expect(wizard).toContainText("Welcome to InkStory");
-    await wizard.getByRole("button", { name: "Next →" }).click();
-    await wizard.getByRole("button", { name: /Seed a sample fantasy bible/ }).click();
-    await expect(wizard).toContainText("Meet your writing desk");
+    await authenticateAndSeedSample(context, page);
 
     await page.goto("/dashboard/codex");
 

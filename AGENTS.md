@@ -157,7 +157,7 @@ run `npm install` or `vp install`). If installing with `--ignore-scripts`, run
     skipping `DB_TEST_FILES` in `vite.config.ts`).
   - `bun run test:cov`: runs `vp test --coverage` (requires a running local
     test Postgres).
-  - `bun run test:e2e`: runs Playwright (`tests/e2e`, sets `NEXT_PUBLIC_E2E=true`).
+  - `bun run test:e2e`: loads only `.env.test`, prepares/seeds the isolated local DB, then runs Playwright against a dedicated vinext Node dev server on port 3100 (`NEXT_PUBLIC_E2E=true`). Run `bun run test:e2e:install` once locally to install Chromium; use `bun run test:e2e:ui` for interactive mode.
 - **Test DB safety guard**: `tests/setup-env.ts` loads `.env.test` only
   (never `.env` or `.env.local`) and `src/lib/test-database-guard.ts`
   aborts (`INKSTORY_UNSAFE_TEST_DATABASE`) on non-loopback hosts or Supabase
