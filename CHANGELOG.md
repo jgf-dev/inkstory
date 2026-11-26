@@ -19,6 +19,20 @@ Added the Better Stack browser analytics tag to the root layout with environment
 - `cloudflare.config.ts`, `.env.example`, and `playwright.config.ts`: bound `NEXT_PUBLIC_BETTERSTACK_TOKEN` in the Cloudflare Worker config, documented optional `NEXT_PUBLIC_BETTERSTACK_TOKEN` / `NEXT_PUBLIC_BETTERSTACK_ENV`, and explicitly blanked both in the isolated E2E web server.
 - `tests/pages.test.ts`: added `RootLayout` assertions verifying analytics omission in test/E2E runs and rendering in production.
 
+## [PR-237](https://github.com/jgf-dev/inkstory/pull/237) - 2026-11-26
+
+### Summary
+
+Scoped Codex interchange group lookup (`loadImportedGroupBookSources`) to filter imported lorebook entries by `groupId` in Postgres instead of transferring and scanning the user's entire Codex library in JavaScript (STO-1286).
+
+### Fixed
+
+- `src/lib/codex/interchange/service.ts`: added parameterized raw SQL prefilter `findImportedGroupEntryIds` against `public.codex_entries` (matching `owner_id`, `deleted_at IS NULL`, and the `custom_fields._inkstoryInterchange` lorebook `format` and `groupId`), narrowed the follow-up ORM read in `loadImportedGroupBookSources` to the required columns via `.select(...)`, and retained `readInterchangeEnvelope` validation as a safety check.
+
+### Added
+
+- `tests/codex-interchange-group-query.test.ts` and `vite.config.ts`: added DB integration tests verifying group/owner/soft-delete isolation, rejection of forged and card-format envelopes, and safe handling of `null` and malformed `customFields` payloads; registered the suite in `DB_TEST_FILES` so `bun run test:no-db` skips it cleanly.
+
 ## [PR-233](https://github.com/jgf-dev/inkstory/pull/233) - 2026-11-26
 
 ### Summary
