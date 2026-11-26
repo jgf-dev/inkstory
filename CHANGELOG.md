@@ -2,6 +2,20 @@
 
 All notable changes to InkStory are tracked here. This file follows [Keep a Changelog](https://keepachangelog.com/) and the project adheres to [Semantic Versioning](https://semver.org/).
 
+## [PR-237](https://github.com/jgf-dev/inkstory/pull/237) - 2026-11-26
+
+### Summary
+
+Scoped Codex interchange group lookup (`loadImportedGroupBookSources`) to filter imported lorebook entries by `groupId` in Postgres instead of transferring and scanning the user's entire Codex library in JavaScript (STO-1286).
+
+### Fixed
+
+- `src/lib/codex/interchange/service.ts`: added parameterized raw SQL prefilter `findImportedGroupEntryIds` against `public.codex_entries` (matching `owner_id`, `deleted_at IS NULL`, and the `custom_fields._inkstoryInterchange` lorebook `format` and `groupId`), narrowed the follow-up ORM read in `loadImportedGroupBookSources` to the required columns via `.select(...)`, and retained `readInterchangeEnvelope` validation as a safety check.
+
+### Added
+
+- `tests/codex-interchange-group-query.test.ts` and `vite.config.ts`: added DB integration tests verifying group/owner/soft-delete isolation, rejection of forged and card-format envelopes, and safe handling of `null` and malformed `customFields` payloads; registered the suite in `DB_TEST_FILES` so `bun run test:no-db` skips it cleanly.
+
 ## [PR-233](https://github.com/jgf-dev/inkstory/pull/233) - 2026-11-26
 
 ### Summary
