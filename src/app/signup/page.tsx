@@ -1,8 +1,15 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getTurnstileSiteKey } from "@/lib/turnstile";
 import { SignupForm } from "./SignupForm";
+
+export const metadata: Metadata = {
+  title: "Create Your Writing Workspace Account | Syncodex",
+  description:
+    "Create a Syncodex account to start planning your novel and organizing characters, locations, and lore in your story Codex.",
+};
 
 export default async function SignupPage() {
   const supabase = await createSupabaseServerClient();
