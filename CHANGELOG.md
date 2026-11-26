@@ -2,7 +2,6 @@
 
 All notable changes to InkStory are tracked here. This file follows [Keep a Changelog](https://keepachangelog.com/) and the project adheres to [Semantic Versioning](https://semver.org/).
 
-<<<<<<< HEAD
 ## [PR-234](https://github.com/jgf-dev/inkstory/pull/234) - 2026-11-26
 
 ### Summary
@@ -16,7 +15,7 @@ Made `ensureSystemDefaultPrompts()` safe under concurrent callers (parallel Vite
 ### Added
 
 - `tests/prompts-seed-race.test.ts` and `vite.config.ts`: added a concurrency DB regression test (registered in `DB_TEST_FILES`) using a UUID-scoped fixture seed to verify simultaneous empty-table seeding and concurrent self-healing of soft-deleted/disabled rows.
-=======
+
 ## [PR-233](https://github.com/jgf-dev/inkstory/pull/233) - 2026-11-26
 
 ### Summary
@@ -32,7 +31,6 @@ Made Craft Studio's Rewrite target length adapt to the selected passage and acti
 - `src/lib/craft/client.ts`: extended `AdaptiveTargetRule` with `ReadonlyMap`-backed `growthBy` overrides and registered Rewrite (`REWRITE_TARGET_GROWTH = 1`, `REWRITE_CONCISE_TARGET_GROWTH = 0.6`, `REWRITE_MIN_TARGET_WORDS = 20`, `REWRITE_CONDENSE_RATIO = 0.5`); updated `condensingWarning` to compare the ceiling against the growth-adjusted length and clarify warning copy when a preset intentionally shortens prose.
 - `tests/craft-panel-dom.test.tsx`: added DOM coverage for Rewrite preset-aware target seeding, selection-clear reset, touched-lock persistence, and condensing warnings.
 - `src/lib/craft/README.md`: documented Rewrite's preset-aware adaptive target behavior and added the Rewrite and Show Don't Tell target test suites to the verification list.
->>>>>>> origin/main
 
 ## [PR-232](https://github.com/jgf-dev/inkstory/pull/232) - 2026-11-26
 
