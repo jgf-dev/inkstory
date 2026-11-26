@@ -2,6 +2,7 @@
 
 All notable changes to InkStory are tracked here. This file follows [Keep a Changelog](https://keepachangelog.com/) and the project adheres to [Semantic Versioning](https://semver.org/).
 
+<<<<<<< HEAD
 ## [PR-234](https://github.com/jgf-dev/inkstory/pull/234) - 2026-11-26
 
 ### Summary
@@ -15,6 +16,19 @@ Made `ensureSystemDefaultPrompts()` safe under concurrent callers (parallel Vite
 ### Added
 
 - `tests/prompts-seed-race.test.ts` and `vite.config.ts`: added a concurrency DB regression test (registered in `DB_TEST_FILES`) using a UUID-scoped fixture seed to verify simultaneous empty-table seeding and concurrent self-healing of soft-deleted/disabled rows.
+=======
+## [PR-232](https://github.com/jgf-dev/inkstory/pull/232) - 2026-11-26
+
+### Summary
+
+Expanded Cloudflare Workers observability to export production logs and traces to Sentry alongside New Relic, with query-string redaction, 20% trace sampling, Cloudflare persistence disabled in production, and preview/non-production mode overrides.
+
+### Added
+
+- `cloudflare.config.ts`: exported `resolveObservabilityConfig`, `PRODUCTION_LOG_DESTINATIONS`, and `PRODUCTION_TRACE_DESTINATIONS`, adding Sentry destinations (`sentry` for logs, `sentry-traces` for traces), `invocationLogs: true`, `redactQueryString: true`, `traces.headSamplingRate: 0.2`, and mode/preview isolation so only production exports to external destinations (`persist: false`) while previews and non-production modes persist locally in Cloudflare (`persist: true`, `destinations: []`).
+- `tests/cloudflare-config.test.ts`: added unit tests verifying production, preview, and non-production observability configuration resolution.
+- `README.md`: documented the Cloudflare Observability destination slugs (`newr`, `sentry`, `sentry-traces`), redaction, sampling, and environment mode override behavior.
+>>>>>>> origin/main
 
 ## [PR-239](https://github.com/jgf-dev/inkstory/pull/239) - 2026-11-25
 
