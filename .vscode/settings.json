@@ -23,5 +23,6 @@
   "editor.formatOnSaveMode": "file",
   "editor.codeActionsOnSave": {
     "source.fixAll.oxc": "explicit"
-  }
+  },
+  "codeQL.createQuery.qlPackLocation": "/mnt/1tb-nvme/gitext/writing/inkstory/tests"
 }
