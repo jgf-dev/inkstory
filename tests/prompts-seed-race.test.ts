@@ -1,4 +1,5 @@
 import { afterAll, describe, expect, it, vi } from "vite-plus/test";
+import { Temporal } from "temporal-polyfill";
 import { db } from "../src/lib/prisma";
 import { ensureSystemDefaultPrompts } from "../src/lib/prompts/service";
 
@@ -45,6 +46,41 @@ describe("ensureSystemDefaultPrompts concurrency (STO-1289)", { timeout: 30_000 
     const links = await db.orm.public.PromptComponentLink.where((l) =>
       l.promptId.eq(raceSeed.id),
     ).all();
-    expect(links.map((l) => l.id).sort()).toEqual(linkIds);
+    expect(links.map((l) => l.id).toSorted((a, b) => a.localeCompare(b))).toEqual(linkIds);
+  });
+
+  it("heals soft-deleted or disabled seed rows under concurrent callers", async () => {
+    const now = Temporal.Now.plainDateTimeISO();
+    await db.orm.public.Prompt.where({ id: raceSeed.id }).update({
+      deletedAt: now,
+      isActive: false,
+      updatedAt: now,
+    });
+    await db.orm.public.PromptComponent.where({ id: componentIds[0] }).update({
+      deletedAt: now,
+      updatedAt: now,
+    });
+    await db.orm.public.PromptComponentLink.where({ id: linkIds[0] }).update({
+      deletedAt: now,
+      enabled: false,
+      position: 9,
+      updatedAt: now,
+    });
+
+    await expect(
+      Promise.all(Array.from({ length: 4 }, () => ensureSystemDefaultPrompts())),
+    ).resolves.toHaveLength(4);
+
+    const prompt = await db.orm.public.Prompt.where({ id: raceSeed.id }).first();
+    expect(prompt?.deletedAt).toBeNull();
+    expect(prompt?.isActive).toBe(true);
+
+    const component = await db.orm.public.PromptComponent.where({ id: componentIds[0] }).first();
+    expect(component?.deletedAt).toBeNull();
+
+    const link = await db.orm.public.PromptComponentLink.where({ id: linkIds[0] }).first();
+    expect(link?.deletedAt).toBeNull();
+    expect(link?.enabled).toBe(true);
+    expect(link?.position).toBe(0);
   });
 });

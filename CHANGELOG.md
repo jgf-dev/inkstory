@@ -2,6 +2,20 @@
 
 All notable changes to InkStory are tracked here. This file follows [Keep a Changelog](https://keepachangelog.com/) and the project adheres to [Semantic Versioning](https://semver.org/).
 
+## [PR-234](https://github.com/jgf-dev/inkstory/pull/234) - 2026-11-26
+
+### Summary
+
+Made `ensureSystemDefaultPrompts()` safe under concurrent callers (parallel Vitest DB workers and simultaneous production requests) by switching seed inserts to atomic Postgres `ON CONFLICT DO NOTHING` via Prisma 8's `createAndCount(..., { onConflict: "skip", conflictOn: ["id"] })`.
+
+### Fixed
+
+- `src/lib/prompts/service.ts`: extracted `ensureSeedPrompt`, `ensureSeedComponent`, and `ensureSeedLink` helpers using `createAndCount([...], { onConflict: "skip", conflictOn: ["id"] })` so concurrent `ensureSystemDefaultPrompts()` calls against an unseeded database no longer fail with primary-key violations (`23505`), while preserving read-first lookups and self-healing of soft-deleted or disabled rows.
+
+### Added
+
+- `tests/prompts-seed-race.test.ts` and `vite.config.ts`: added a concurrency DB regression test (registered in `DB_TEST_FILES`) using a UUID-scoped fixture seed to verify simultaneous empty-table seeding and concurrent self-healing of soft-deleted/disabled rows.
+
 ## [PR-239](https://github.com/jgf-dev/inkstory/pull/239) - 2026-11-25
 
 ### Summary
