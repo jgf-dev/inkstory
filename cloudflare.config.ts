@@ -1,5 +1,39 @@
 import { createWorkersResponseStoreServiceBindingConfig } from "@vinext/cloudflare/cache/config";
-import { bindings, defineConfig, defineWorker } from "cf/config";
+import { bindings, defineConfig, defineWorker, type ConfigContext } from "cf/config";
+
+/**
+ * Account-level Cloudflare Observability OTLP destination slugs used in production:
+ * - `newr`: New Relic logs destination
+ * - `sentry`: Sentry logs destination
+ * - `sentry-traces`: Sentry traces destination
+ */
+export const PRODUCTION_LOG_DESTINATIONS = ["newr", "sentry"] as const;
+export const PRODUCTION_TRACE_DESTINATIONS = ["sentry-traces"] as const;
+
+export function resolveObservabilityConfig({ isPreview, mode }: ConfigContext) {
+  const isProduction = !isPreview && (mode === undefined || mode === "production");
+
+  return {
+    enabled: true,
+    redactQueryString: true,
+    logs: {
+      // Production exports exclusively to external destinations (`persist: false`,
+      // since omitting `persist` defaults to `true` in Cloudflare Workers).
+      // Preview and non-production modes stay in Cloudflare Logs without polluting prod sinks.
+      destinations: isProduction ? [...PRODUCTION_LOG_DESTINATIONS] : [],
+      enabled: true,
+      persist: !isProduction,
+      invocationLogs: true,
+    },
+    traces: {
+      enabled: true,
+      headSamplingRate: 0.2,
+      persist: !isProduction,
+      destinations: isProduction ? [...PRODUCTION_TRACE_DESTINATIONS] : [],
+    },
+    issues: { enabled: true },
+  };
+}
 
 const responseStore = await createWorkersResponseStoreServiceBindingConfig({
   worker: {
@@ -13,7 +47,7 @@ const responseStore = await createWorkersResponseStoreServiceBindingConfig({
 export const responseStoreServiceBinding = responseStore.serviceBindingWorker;
 
 export default defineConfig({
-  worker: defineWorker({
+  worker: defineWorker((ctx) => ({
     ...responseStore.applicationWorker,
     name: "inkstory",
     entrypoint: "vinext/server/fetch-handler",
@@ -43,16 +77,6 @@ export default defineConfig({
       NEXT_PUBLIC_TURNSTILE_SITE_KEY: bindings.text("0x4AAAAAAGGPGpjMBFjy08CL"),
       TURNSTILE_SITE_KEY: bindings.text("0x4AAAAAAGGPGpjMBFjy08CL"),
     },
-    observability: {
-      enabled: true,
-      logs: {
-        destinations: ["newr", "sentry"],
-        enabled: true,
-        persist: true,
-        invocationLogs: true,
-      },
-      traces: { enabled: true, persist: true, destinations: ["sentry-traces"] },
-      issues: { enabled: true },
-    },
-  }),
+    observability: resolveObservabilityConfig(ctx),
+  })),
 });
