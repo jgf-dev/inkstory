@@ -124,7 +124,10 @@ export function CodexManager({ initialEntries, novels, series }: CodexManagerPro
           </div>
 
           {/* Entries list */}
-          <div className="max-h-[600px] space-y-2 overflow-y-auto rounded-lg border border-ink-200 bg-ink-50 p-2">
+          <div
+            className="max-h-[600px] space-y-2 overflow-y-auto rounded-lg border border-ink-200 bg-ink-50 p-2"
+            data-testid="codex-entry-list"
+          >
             {filteredEntries.map((entry) => {
               const isSelected = entry.id === selectedEntryId;
               return (
