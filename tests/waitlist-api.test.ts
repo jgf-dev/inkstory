@@ -33,7 +33,7 @@ describe("waitlist signups", { timeout: 20_000 }, () => {
   });
 
   afterAll(async () => {
-    for (const name of ["new", "dup", "race", "svc", "referrer"]) {
+    for (const name of ["new", "dup", "race", "svc", "selfref", "extref"]) {
       await db.orm.public.WaitlistSignup.where({ email: emailFor(name) }).deleteAll();
     }
   });
@@ -55,6 +55,24 @@ describe("waitlist signups", { timeout: 20_000 }, () => {
     });
     expect(rows[0].id).toMatch(/^[0-9a-f-]{36}$/);
     expect(rows[0].createdAt).toBeDefined();
+  });
+
+  it("drops same-origin /waitlist self-referrers and prefers client-provided external referrer", async () => {
+    const selfRes = await post(JSON.stringify({ email: emailFor("selfref") }), {
+      referer: "http://localhost:3000/waitlist?source=x",
+    });
+    expect(selfRes.status).toBe(200);
+    expect((await rowsFor(emailFor("selfref")))[0].referrer).toBeNull();
+
+    const extRes = await post(
+      JSON.stringify({
+        email: emailFor("extref"),
+        referrer: "https://news.ycombinator.com/",
+      }),
+      { referer: "http://localhost:3000/waitlist" },
+    );
+    expect(extRes.status).toBe(200);
+    expect((await rowsFor(emailFor("extref")))[0].referrer).toBe("https://news.ycombinator.com/");
   });
 
   it("answers a duplicate exactly like a new signup and keeps one row", async () => {
@@ -93,6 +111,12 @@ describe("waitlist signups", { timeout: 20_000 }, () => {
 
   it("rejects an invalid email with 400", async () => {
     const res = await post(JSON.stringify({ email: "not-an-email" }));
+    expect(res.status).toBe(400);
+    expect(await res.json()).toMatchObject({ code: "VALIDATION_FAILED" });
+  });
+
+  it("rejects emails containing NUL bytes with 400 instead of 500", async () => {
+    const res = await post(JSON.stringify({ email: "a\u0000b@example.com" }));
     expect(res.status).toBe(400);
     expect(await res.json()).toMatchObject({ code: "VALIDATION_FAILED" });
   });
@@ -138,6 +162,24 @@ describe("waitlist signups", { timeout: 20_000 }, () => {
     expect(res.status).toBe(413);
     expect(await res.json()).toMatchObject({ code: "PAYLOAD_TOO_LARGE" });
     expect(pulls).toBeLessThan(20);
+  });
+
+  it("returns 400 INVALID_REQUEST when the request body stream errors", async () => {
+    const stream = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        controller.error(new Error("client aborted"));
+      },
+    });
+    const res = await POST(
+      new NextRequest("http://localhost:3000/api/waitlist", {
+        method: "POST",
+        body: stream,
+        headers: { "content-type": "application/json" },
+        duplex: "half",
+      } as ConstructorParameters<typeof NextRequest>[1]),
+    );
+    expect(res.status).toBe(400);
+    expect(await res.json()).toMatchObject({ code: "INVALID_REQUEST" });
   });
 
   it("returns a generic 500 when storage fails", async () => {

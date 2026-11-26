@@ -5,14 +5,18 @@
  */
 import type { NextRequest } from "next/server";
 import { readBodyWithLimit } from "@/lib/import/body";
+import { ImportError } from "@/lib/import/types";
 import {
   addWaitlistSignup,
+  isWaitlistSelfReferrer,
   parseWaitlistSubmission,
   WAITLIST_BODY_MAX_LENGTH,
   WAITLIST_SUCCESS_MESSAGE,
 } from "@/lib/waitlist";
 
 export const dynamic = "force-dynamic";
+
+type ReadBodyResult = { ok: true; text: string } | { ok: false; kind: "too_large" | "read_error" };
 
 function errorResponse(error: string, code: string, status: number): Response {
   return Response.json({ error, code }, { status });
@@ -27,36 +31,52 @@ function tooLarge(): Response {
  * rejected before reading, and the stream is cancelled once it passes the cap
  * (chunked or mislabelled bodies), so an oversized body is never buffered.
  */
-async function readBoundedText(request: NextRequest): Promise<string | null> {
+async function readBoundedText(request: NextRequest): Promise<ReadBodyResult> {
   const declared = Number(request.headers.get("content-length") ?? "");
-  if (Number.isFinite(declared) && declared > WAITLIST_BODY_MAX_LENGTH) return null;
+  if (Number.isFinite(declared) && declared > WAITLIST_BODY_MAX_LENGTH) {
+    return { ok: false, kind: "too_large" };
+  }
   try {
     const bytes = await readBodyWithLimit(request.body, WAITLIST_BODY_MAX_LENGTH);
-    return new TextDecoder().decode(bytes);
-  } catch {
-    return null;
+    return { ok: true, text: new TextDecoder().decode(bytes) };
+  } catch (error) {
+    if (error instanceof ImportError && error.status === 413) {
+      return { ok: false, kind: "too_large" };
+    }
+    return { ok: false, kind: "read_error" };
   }
 }
 
 export async function POST(request: NextRequest): Promise<Response> {
-  const raw = await readBoundedText(request);
-  if (raw === null) return tooLarge();
+  const read = await readBoundedText(request);
+  if (!read.ok) {
+    return read.kind === "too_large"
+      ? tooLarge()
+      : errorResponse("Could not read request body.", "INVALID_REQUEST", 400);
+  }
 
   let body: unknown;
   try {
-    body = JSON.parse(raw);
+    body = JSON.parse(read.text);
   } catch {
     return errorResponse("Malformed or invalid JSON body", "INVALID_JSON", 400);
   }
 
-  const result = parseWaitlistSubmission(body, request.headers.get("referer"));
+  const headerReferrer = request.headers.get("referer");
+  const fallbackReferrer =
+    headerReferrer && !isWaitlistSelfReferrer(headerReferrer, request.url) ? headerReferrer : null;
+  const result = parseWaitlistSubmission(body, fallbackReferrer);
   if (result.kind === "invalid") {
     return errorResponse(result.error, "VALIDATION_FAILED", 400);
   }
 
   if (result.kind === "signup") {
+    const referrer =
+      result.signup.referrer && !isWaitlistSelfReferrer(result.signup.referrer, request.url)
+        ? result.signup.referrer
+        : null;
     try {
-      await addWaitlistSignup(result.signup);
+      await addWaitlistSignup({ ...result.signup, referrer });
     } catch (error) {
       console.error("[waitlist] could not store signup:", error);
       return errorResponse("Something went wrong. Please try again.", "INTERNAL_ERROR", 500);

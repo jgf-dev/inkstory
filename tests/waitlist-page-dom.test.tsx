@@ -98,11 +98,42 @@ describe("waitlist page", () => {
     );
   });
 
-  it("disables the button with a reason while submitting", async () => {
+  it("includes document.referrer when present", async () => {
+    const referrerDescriptor = Object.getOwnPropertyDescriptor(Document.prototype, "referrer");
+    Object.defineProperty(document, "referrer", {
+      configurable: true,
+      get: () => "https://news.ycombinator.com/",
+    });
+    try {
+      const fetchMock = mockFetch(async () =>
+        Response.json({ ok: true, message: "Thanks! You're on the list." }),
+      );
+      render(<WaitlistForm />);
+      submitEmail("writer@example.com");
+
+      await waitFor(() => expect(screen.getByRole("status").textContent).toContain("on the list"));
+      const [, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+      expect(JSON.parse(init.body as string)).toMatchObject({
+        email: "writer@example.com",
+        referrer: "https://news.ycombinator.com/",
+      });
+    } finally {
+      if (referrerDescriptor) {
+        Object.defineProperty(document, "referrer", referrerDescriptor);
+      } else {
+        delete (document as unknown as Record<string, unknown>).referrer;
+      }
+    }
+  });
+
+  it("disables the button with a reason and ignores duplicate submits while submitting", async () => {
     let resolve: (r: Response) => void = () => {};
-    mockFetch(() => new Promise<Response>((r) => (resolve = r)));
+    const fetchMock = mockFetch(() => new Promise<Response>((r) => (resolve = r)));
     render(<WaitlistForm />);
-    fireEvent.change(screen.getByLabelText("Website", { selector: "input" }), {
+    const honeypot = screen.getByLabelText("Website", { selector: "input" });
+    expect(honeypot.getAttribute("autocomplete")).toBe("new-password");
+    expect(honeypot.getAttribute("data-1p-ignore")).toBe("true");
+    fireEvent.change(honeypot, {
       target: { value: "bot" },
     });
     submitEmail("writer@example.com");
@@ -110,6 +141,12 @@ describe("waitlist page", () => {
     const button = await screen.findByRole("button", { name: "Joining…" });
     expect(button).toHaveProperty("disabled", true);
     expect(button.getAttribute("title")).toBe("Submitting your email…");
+
+    const form = button.closest("form");
+    if (!form) throw new Error("form not rendered");
+    fireEvent.submit(form);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
     resolve(Response.json({ ok: true, message: "done" }));
     await waitFor(() => expect(screen.getByRole("status").textContent).toBe("done"));
   });

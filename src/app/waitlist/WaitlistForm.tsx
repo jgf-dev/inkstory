@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { WAITLIST_EMAIL_MAX_LENGTH, WAITLIST_HONEYPOT_FIELD } from "@/lib/waitlist/validation";
 import { AuthTextField } from "@/lib/ui/AuthTextField";
 
@@ -12,12 +12,17 @@ export function WaitlistForm({ source }: { source?: string | null } = {}) {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const submittingRef = useRef(false);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (submittingRef.current) return;
+    submittingRef.current = true;
     setError(null);
     setMessage(null);
     setLoading(true);
+
+    const referrer = document.referrer;
 
     try {
       const response = await fetch("/api/waitlist", {
@@ -26,6 +31,7 @@ export function WaitlistForm({ source }: { source?: string | null } = {}) {
         body: JSON.stringify({
           email,
           source: source ?? undefined,
+          referrer: referrer || undefined,
           [WAITLIST_HONEYPOT_FIELD]: honeypot,
         }),
       });
@@ -43,6 +49,7 @@ export function WaitlistForm({ source }: { source?: string | null } = {}) {
     } catch {
       setError("Unable to reach the server. Please try again.");
     } finally {
+      submittingRef.current = false;
       setLoading(false);
     }
   }
@@ -66,7 +73,10 @@ export function WaitlistForm({ source }: { source?: string | null } = {}) {
           name={WAITLIST_HONEYPOT_FIELD}
           type="text"
           tabIndex={-1}
-          autoComplete="off"
+          autoComplete="new-password"
+          data-1p-ignore="true"
+          data-lpignore="true"
+          data-bwignore="true"
           value={honeypot}
           onChange={(e) => setHoneypot(e.target.value)}
         />
