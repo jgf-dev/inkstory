@@ -23,6 +23,7 @@ const DB_TEST_FILES = [
   "tests/novel-structure-lock.test.ts",
   "tests/prisma-8.test.ts",
   "tests/prompts-contracts-service.test.ts",
+  "tests/prompts-seed-race.test.ts",
   "tests/prompts-service.test.ts",
   "tests/supabase-auth.test.ts",
   "tests/waitlist-api.test.ts",
