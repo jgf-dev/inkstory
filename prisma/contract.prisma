@@ -46,6 +46,21 @@ namespace public {
     @@rls
   }
 
+  // Public waitlist / email signups from /waitlist. Emails are stored trimmed
+  // and lowercased; the unique constraint makes repeat signups a no-op.
+  model WaitlistSignup {
+    id        Uuid                 @id(map: "waitlist_signups_pkey") @default(sql`gen_random_uuid()`)
+    email     String               @unique
+    // Optional attribution: a short `?source=` tag and the Referer header.
+    source    String?
+    referrer  String?
+    createdAt TimestampTemporal(3) @default(now()) @map("created_at")
+
+    @@map("waitlist_signups")
+
+    @@rls
+  }
+
   model Series {
     id           String             @id(map: "series_pkey")
     title        String

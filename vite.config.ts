@@ -25,6 +25,7 @@ const DB_TEST_FILES = [
   "tests/prompts-contracts-service.test.ts",
   "tests/prompts-service.test.ts",
   "tests/supabase-auth.test.ts",
+  "tests/waitlist-api.test.ts",
   "tests/writing-service.test.ts",
 ];
 
