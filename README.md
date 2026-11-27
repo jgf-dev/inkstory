@@ -113,7 +113,7 @@ bun run deploy                  # deploy primary app via vinext-cloudflare
 bun run cf-typegen              # regenerate .cloudflare/types
 ```
 
-Store all secrets (`DATABASE_URL`, `DIRECT_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `BYOK_ENCRYPTION_KEY`, `AI_GATEWAY_API_KEY`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `TURNSTILE_SECRET`) as Cloudflare Worker secrets — never in plaintext `cloudflare.config.ts` bindings or `NEXT_PUBLIC_*` variables.
+Store all secrets (`DATABASE_URL`, `DIRECT_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `BYOK_ENCRYPTION_KEY`, `AI_GATEWAY_API_KEY`, `TOOLS_OPENROUTER_API_KEY`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `TURNSTILE_SECRET`) as Cloudflare Worker secrets — never in plaintext `cloudflare.config.ts` bindings or `NEXT_PUBLIC_*` variables.
 
 ### Observability targets & mode overrides
 

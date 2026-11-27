@@ -21,7 +21,7 @@ import {
   type SearchParamsRecord,
 } from "@/lib/tools/name-generator";
 import { FAQS, INTRO, OG_TITLE, PAGE_DESCRIPTION, PAGE_HEADING, PAGE_TITLE } from "./content";
-import { NameResults } from "./NameResults";
+import { NameResults, type BackstoryContext } from "./NameResults";
 
 export const metadata = toolMetadata({
   title: PAGE_TITLE,
@@ -57,7 +57,13 @@ export default async function CharacterNameGeneratorPage({
 } = {}) {
   const params = parseNameGeneratorParams(searchParams ? await searchParams : undefined);
   const seed = params.seed ?? createRandomSeed();
-  const names = generateNames({ ...params, seed }).map((entry) => entry.name);
+  const entries = generateNames({ ...params, seed });
+  const names = entries.map((entry) => entry.name);
+  const backstory: BackstoryContext = {
+    genre: params.genre,
+    flavor: params.flavor,
+    genders: Object.fromEntries(entries.map((entry) => [entry.name, entry.gender])),
+  };
   const shareHref = buildNameGeneratorHref(seed, params);
   const freshSeed = nextSeed(seed);
   const moreHref = buildNameGeneratorHref(freshSeed, params);
@@ -105,7 +111,13 @@ export default async function CharacterNameGeneratorPage({
         <SubmitRow label="Generate names" />
       </form>
 
-      <NameResults names={names} shareHref={shareHref} moreHref={moreHref} />
+      <NameResults
+        key={shareHref}
+        names={names}
+        shareHref={shareHref}
+        moreHref={moreHref}
+        backstory={backstory}
+      />
 
       <FaqSection heading="Character name generator FAQ" faqs={FAQS} />
 
