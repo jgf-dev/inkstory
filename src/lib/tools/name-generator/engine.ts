@@ -8,6 +8,7 @@ import {
   ANY_FLAVOR,
   type ConcreteGender,
   type Flavor,
+  type FlavorId,
   type GenderPresentation,
   type GeneratedName,
   type Genre,
@@ -44,7 +45,7 @@ export function getGenreDefinition(genre: Genre): GenreDefinition {
 }
 
 /** Whether `flavor` is `any` or one of the genre's flavor ids. */
-export function isFlavorForGenre(genre: Genre, flavor: string): boolean {
+export function isFlavorForGenre(genre: Genre, flavor: FlavorId): boolean {
   return (
     flavor === ANY_FLAVOR || getGenreDefinition(genre).flavors.some((entry) => entry.id === flavor)
   );
@@ -54,7 +55,7 @@ function resolveGender(rng: Rng, gender: GenderPresentation): ConcreteGender {
   return gender === "any" ? pickWeighted(rng, ANY_GENDER_WEIGHTS) : gender;
 }
 
-function resolveFlavor(rng: Rng, definition: GenreDefinition, flavor: string): Flavor {
+function resolveFlavor(rng: Rng, definition: GenreDefinition, flavor: FlavorId): Flavor {
   const match = definition.flavors.find((entry) => entry.id === flavor);
   return match ?? pickRanked(rng, definition.flavors);
 }
@@ -64,7 +65,7 @@ function capitalize(value: string): string {
 }
 
 /** Collapses runs of three or more identical letters to two ("Aaa" → "Aa"). */
-function tidy(value: string): string {
+function collapseTripleLetters(value: string): string {
   return value.replace(/(\p{L})\1{2,}/giu, "$1$1");
 }
 
@@ -100,7 +101,7 @@ export function buildSyllableName(
     name = joinSyllables(rng, name, pickRanked(rng, syllables.middles));
   }
   name = joinSyllables(rng, name, pickRanked(rng, syllables.endings[gender]));
-  name = tidy(name);
+  name = collapseTripleLetters(name);
   if (name.length > MAX_SYLLABLE_NAME_LENGTH) name = name.slice(0, MAX_SYLLABLE_NAME_LENGTH);
   return capitalize(name.toLowerCase());
 }
@@ -115,7 +116,7 @@ function buildFirstName(rng: Rng, flavor: Flavor, gender: ConcreteGender): strin
 function buildLastName(rng: Rng, flavor: Flavor): string {
   const parts = flavor.compoundSurnames;
   if (parts && rng() < (flavor.compoundShare ?? 0)) {
-    return tidy(pickRanked(rng, parts.heads) + pickRanked(rng, parts.tails));
+    return collapseTripleLetters(pickRanked(rng, parts.heads) + pickRanked(rng, parts.tails));
   }
   return pickRanked(rng, flavor.surnames);
 }

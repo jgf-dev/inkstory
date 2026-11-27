@@ -49,12 +49,14 @@ describe("story trope generator page", () => {
       title: OG_TITLE,
       description: PAGE_DESCRIPTION,
       siteName: "syncodex",
-      url: TROPE_GENERATOR_PATH,
+      url: `https://syncodex.xyz${TROPE_GENERATOR_PATH}`,
     });
     expect(OG_TITLE).toMatch(KEYWORD);
     expect(metadata.twitter).toMatchObject({ title: OG_TITLE });
     expect(String(metadata.metadataBase)).toBe(`${SITE_ORIGIN}/`);
-    expect(metadata.alternates).toEqual({ canonical: TROPE_GENERATOR_PATH });
+    expect(metadata.alternates).toEqual({
+      canonical: `https://syncodex.xyz${TROPE_GENERATOR_PATH}`,
+    });
     expect(PAGE_HEADING).toMatch(KEYWORD);
     expect(INTRO).toMatch(/story trope generator/i);
   });

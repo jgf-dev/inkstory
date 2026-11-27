@@ -53,3 +53,4 @@ worker-startup.cpuprofile
 .vitest/
 *.pyi
 .stubs/pyspark34
+.codeql-db/
