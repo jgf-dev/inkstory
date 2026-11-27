@@ -3,10 +3,13 @@
  * Unknown or malformed values fall back to defaults instead of erroring.
  */
 import {
+  allParams,
+  firstParam,
   normalizeSeed,
-  type SearchParamValue,
+  oneOf,
+  parseClampedCount,
   type SearchParamsRecord,
-} from "../name-generator/params";
+} from "@/lib/tools/shared/params";
 import { DEFAULT_COUNT, MAX_COUNT, clampCount, resolveLocks } from "./engine";
 import {
   ANY,
@@ -27,23 +30,6 @@ export interface ParsedTropeGeneratorParams extends TropeFilters {
   locked: string[];
 }
 
-function all(params: SearchParamsRecord | URLSearchParams | undefined, key: string): string[] {
-  if (params instanceof URLSearchParams) return params.getAll(key);
-  const value: SearchParamValue = params?.[key];
-  if (value === undefined) return [];
-  return Array.isArray(value) ? value : [value];
-}
-
-function oneOf<T extends string>(allowed: readonly T[], value: string | undefined): T | typeof ANY {
-  const normalized = value?.trim().toLowerCase() ?? "";
-  return (allowed as readonly string[]).includes(normalized) ? (normalized as T) : ANY;
-}
-
-function parseCount(value: string | undefined): number {
-  if (!value || !/^\d+$/.test(value.trim())) return DEFAULT_COUNT;
-  return clampCount(Number(value));
-}
-
 /** Accepts `lock=a,b` and/or repeated `lock=a&lock=b`; keeps only valid, compatible ids. */
 export function parseLockedIds(values: readonly string[]): string[] {
   const ids = values
@@ -57,13 +43,13 @@ export function parseLockedIds(values: readonly string[]): string[] {
 export function parseTropeGeneratorParams(
   params: SearchParamsRecord | URLSearchParams | undefined,
 ): ParsedTropeGeneratorParams {
-  const get = (key: string): string | undefined => all(params, key)[0];
+  const get = (key: string): string | undefined => firstParam(params, key);
   return {
     seed: normalizeSeed(get("seed")),
-    genre: oneOf(TROPE_GENRES, get("genre")) as GenreFilter,
-    category: oneOf(TROPE_CATEGORIES, get("category")) as CategoryFilter,
-    count: parseCount(get("count")),
-    locked: parseLockedIds(all(params, "lock")),
+    genre: oneOf(TROPE_GENRES, get("genre"), ANY) as GenreFilter,
+    category: oneOf(TROPE_CATEGORIES, get("category"), ANY) as CategoryFilter,
+    count: parseClampedCount(get("count"), DEFAULT_COUNT, clampCount),
+    locked: parseLockedIds(allParams(params, "lock")),
   };
 }
 

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import type { CopyFeedback } from "@/app/_components/tools/useCopyFeedback";
 
 export const COPY_BUTTON_CLASS =
   "rounded-md border border-ink-200 px-2 py-1 text-xs font-medium text-ink-700 hover:bg-ink-100";
@@ -11,20 +12,19 @@ export interface ResultActionsProps {
   shareHref: string;
   moreHref: string;
   moreLabel: string;
-  copied: string | null;
-  error: string | null;
-  copy: (key: string, text: string) => Promise<void>;
+  feedback: CopyFeedback;
 }
 
 /** "Generate more" link plus copy-all / copy-link buttons and a live status line. */
 export function ResultActions(props: ResultActionsProps) {
-  const { allText, copied, copy } = props;
+  const { allText, feedback } = props;
+  const { copied, error, copy } = feedback;
   return (
     <>
       <div className="mt-4 flex flex-wrap items-center gap-3">
         <Link
           href={props.moreHref}
-          className="bg-ink-900 rounded-md px-4 py-2 text-sm font-medium text-white"
+          className="bg-ink-900 text-ink-50 rounded-md px-4 py-2 text-sm font-medium"
           data-testid="generate-more"
         >
           {props.moreLabel}
@@ -49,7 +49,7 @@ export function ResultActions(props: ResultActionsProps) {
         </button>
       </div>
       <p role="status" aria-live="polite" className="text-ink-500 mt-2 min-h-5 text-sm">
-        {props.error ?? (copied ? "Copied to clipboard." : "")}
+        {error ?? (copied ? "Copied to clipboard." : "")}
       </p>
     </>
   );

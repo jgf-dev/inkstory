@@ -32,7 +32,7 @@ export function formatTrope(trope: Pick<TropeResultItem, "name" | "description">
  * copying needs it.
  */
 export function TropeResults({ tropes, shareHref, moreHref }: TropeResultsProps) {
-  const { copied, error, copy } = useCopyFeedback();
+  const feedback = useCopyFeedback();
 
   return (
     <section aria-labelledby="generated-tropes-heading" className="mt-6">
@@ -69,9 +69,9 @@ export function TropeResults({ tropes, shareHref, moreHref }: TropeResultsProps)
                     type="button"
                     className={COPY_BUTTON_CLASS}
                     aria-label={`Copy ${trope.name}`}
-                    onClick={() => void copy(trope.id, formatTrope(trope))}
+                    onClick={() => void feedback.copy(trope.id, formatTrope(trope))}
                   >
-                    {copied === trope.id ? "Copied" : "Copy"}
+                    {feedback.copied === trope.id ? "Copied" : "Copy"}
                   </button>
                 </div>
               </div>
@@ -88,9 +88,7 @@ export function TropeResults({ tropes, shareHref, moreHref }: TropeResultsProps)
         shareHref={shareHref}
         moreHref={moreHref}
         moreLabel="Generate more"
-        copied={copied}
-        error={error}
-        copy={copy}
+        feedback={feedback}
       />
     </section>
   );

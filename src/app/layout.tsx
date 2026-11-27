@@ -3,6 +3,7 @@ import { PREFERENCES_BOOTSTRAP_SCRIPT } from "@/lib/ui/preferences";
 import "./globals.css";
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://syncodex.xyz"),
   title: "InkStory",
   description: "A novel-writing and world-building platform with an AI-aware Codex.",
 };

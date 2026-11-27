@@ -12,6 +12,7 @@ import {
   PAGE_HEADING,
   PAGE_TITLE,
 } from "../src/app/tools/story-trope-generator/content";
+import { SelectField, SITE_ORIGIN } from "../src/app/_components/tools/ToolPage";
 import {
   TropeResults,
   formatTrope,
@@ -52,6 +53,7 @@ describe("story trope generator page", () => {
     });
     expect(OG_TITLE).toMatch(KEYWORD);
     expect(metadata.twitter).toMatchObject({ title: OG_TITLE });
+    expect(String(metadata.metadataBase)).toBe(`${SITE_ORIGIN}/`);
     expect(metadata.alternates).toEqual({ canonical: TROPE_GENERATOR_PATH });
     expect(PAGE_HEADING).toMatch(KEYWORD);
     expect(INTRO).toMatch(/story trope generator/i);
@@ -181,5 +183,23 @@ describe("TropeResults", () => {
     render(<TropeResults tropes={[]} shareHref={shareHref} moreHref="/more" />);
     expect(screen.getByText(/No tropes matched/)).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Copy all" })).toBeNull();
+  });
+
+  it("resyncs SelectField when the value prop changes across navigation", () => {
+    const view = render(
+      <SelectField id="genre" name="genre" label="Genre" value="fantasy">
+        <option value="fantasy">Fantasy</option>
+        <option value="horror">Horror</option>
+      </SelectField>,
+    );
+    expect(screen.getByLabelText("Genre")).toHaveProperty("value", "fantasy");
+
+    view.rerender(
+      <SelectField id="genre" name="genre" label="Genre" value="horror">
+        <option value="fantasy">Fantasy</option>
+        <option value="horror">Horror</option>
+      </SelectField>,
+    );
+    expect(screen.getByLabelText("Genre")).toHaveProperty("value", "horror");
   });
 });
