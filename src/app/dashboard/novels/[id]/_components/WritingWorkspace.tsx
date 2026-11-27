@@ -10,6 +10,7 @@ import { persistWorkspaceMode, readWorkspaceMode, type WorkspaceMode } from "@/l
 import { ThemeToggle } from "@/app/_components/ThemeToggle";
 import { apiDelete, apiGet, apiPatch, apiPost, ApiRequestError } from "./api";
 import { Outliner } from "./Outliner";
+import { PlanningGrid } from "./PlanningGrid";
 import { SceneEditor, type SaveStatus } from "./SceneEditor";
 import { MentionsPanel } from "./MentionsPanel";
 import { ContextInspectorDrawer } from "./ContextInspectorDrawer";
@@ -42,6 +43,9 @@ export interface InsertRequest {
 type RightDrawer = "ai" | null;
 
 type MobilePanel = "outline" | "tools" | null;
+
+/** Architect center pane: the scene editor or the Grid planning view (STO-1257). */
+type ArchitectView = "editor" | "grid";
 
 const MENTION_SCAN_DEBOUNCE_MS = 1200;
 
@@ -89,6 +93,7 @@ export function WritingWorkspace({
   const [linkerSource, setLinkerSource] = useState<{ id: string; name: string } | null>(null);
   const [importOpen, setImportOpen] = useState(false);
   const [inspectorOpen, setInspectorOpen] = useState(false);
+  const [architectView, setArchitectView] = useState<ArchitectView>("editor");
 
   const scanTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const activeSceneIdRef = useRef<string | null>(initialSceneId);
@@ -362,6 +367,31 @@ export function WritingWorkspace({
     );
   }
 
+  function renderPlanningGrid() {
+    return (
+      <div className="flex h-full flex-col">
+        {sceneError && (
+          <div className="border-red-200 bg-red-50 shrink-0 border-b px-6 py-2">
+            <p className="text-xs text-red-700">{sceneError}</p>
+          </div>
+        )}
+        <PlanningGrid
+          outline={outline}
+          selectedSceneId={selectedSceneId}
+          busy={busy}
+          onSelectScene={(id) => {
+            setSelectedSceneId(id);
+            void loadScene(id);
+            setArchitectView("editor");
+          }}
+          onCreateNode={(kind, parentId) => void createNode(kind, parentId)}
+          onMoveNode={(kind, id, direction) => void moveNode(kind, id, direction)}
+          onReorderNode={(kind, id, toIndex) => void reorderNode(kind, id, toIndex)}
+        />
+      </div>
+    );
+  }
+
   function renderCenter(chrome: "full" | "focus") {
     return (
       <>
@@ -437,6 +467,30 @@ export function WritingWorkspace({
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
           {OPERATING_MODES_ENABLED && <ModeSwitcher mode={effectiveMode} onChange={switchMode} />}
+          {effectiveMode === "architect" && (
+            <fieldset
+              aria-label="Architect view"
+              data-testid="architect-view-switcher"
+              className="m-0 flex items-center overflow-hidden rounded-md border border-ink-200 p-0"
+            >
+              {(["editor", "grid"] as const).map((view) => (
+                <button
+                  key={view}
+                  type="button"
+                  aria-pressed={architectView === view}
+                  onClick={() => setArchitectView(view)}
+                  data-testid={`architect-view-${view}`}
+                  className={`min-h-11 px-3 text-xs font-medium ${
+                    architectView === view
+                      ? "bg-ink-800 text-ink-50"
+                      : "text-ink-600 hover:bg-ink-100"
+                  }`}
+                >
+                  {view === "editor" ? "Editor" : "Grid"}
+                </button>
+              ))}
+            </fieldset>
+          )}
           <ProseFontToggle />
           <ThemeToggle />
           {OPERATING_MODES_ENABLED && effectiveMode === "architect" && (
@@ -562,8 +616,10 @@ export function WritingWorkspace({
             />
           )}
 
-          {/* Center: editor */}
-          <main className="min-w-0 flex-1 bg-card">{renderCenter("full")}</main>
+          {/* Center: editor, or the Grid planning view (STO-1257) */}
+          <main className="min-w-0 flex-1 bg-card">
+            {architectView === "grid" ? renderPlanningGrid() : renderCenter("full")}
+          </main>
 
           {/* Right rail: drawers */}
           {rightDrawer && scene && (
