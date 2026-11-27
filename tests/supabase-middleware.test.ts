@@ -128,7 +128,14 @@ describe("Supabase Middleware & Proxy", () => {
       expect(response.status).toBe(200);
       expect(mockGetUser).toHaveBeenCalled();
     });
-    it.each(["/waitlist", "/waitlist?source=x", "/api/waitlist"])(
+    it.each([
+      "/waitlist",
+      "/waitlist?source=x",
+      "/api/waitlist",
+      "/tools/character-name-generator",
+      "/tools/character-name-generator?seed=abc&genre=sci-fi",
+      "/tools/story-trope-generator",
+    ])(
       "lets anonymous visitors through to the public %s route without redirecting",
       async (path) => {
         mockGetUser.mockResolvedValue({ data: { user: null }, error: null });
