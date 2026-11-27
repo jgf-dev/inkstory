@@ -380,4 +380,50 @@ describe("Pages & Server Components", () => {
       expect(html).toContain("System prompts");
     });
   });
+
+  describe("Page metadata (STO-1321 / STO-1323)", () => {
+    const EXPECTED_METADATA = {
+      "/": {
+        load: () => import("../src/app/page"),
+        title: "Story Planning and Novel Writing Workspace | InkStory",
+        description:
+          "Plan novels in InkStory, an AI-aware writing workspace with a story bible, plot outliner, and autosaving scene editor.",
+      },
+      "/login": {
+        load: () => import("../src/app/login/page"),
+        title: "Log In to Your Writing Workspace | InkStory",
+        description:
+          "Log in to InkStory to return to your story projects, Codex entries, and scene drafts.",
+      },
+      "/signup": {
+        load: () => import("../src/app/signup/page"),
+        title: "Create Your Writing Workspace Account | InkStory",
+        description:
+          "Create an InkStory account to start planning your novel and organizing characters, locations, and lore in your story Codex.",
+      },
+    };
+
+    it.each(Object.entries(EXPECTED_METADATA))(
+      "%s sets its own descriptive title and meta description",
+      async (_route, spec) => {
+        const { metadata } = await spec.load();
+        expect(metadata.title).toBe(spec.title);
+        expect(metadata.description).toBe(spec.description);
+        expect(typeof metadata.title).toBe("string");
+        expect((metadata.title as string).length).toBeGreaterThan(10);
+      },
+    );
+
+    it("uses distinct titles and descriptions and does not fall back to the shared root values", async () => {
+      const { metadata: root } = await import("../src/app/layout");
+      const pages = await Promise.all(Object.values(EXPECTED_METADATA).map((spec) => spec.load()));
+      const titles = pages.map((p) => p.metadata.title);
+      const descriptions = pages.map((p) => p.metadata.description);
+
+      expect(new Set(titles).size).toBe(pages.length);
+      expect(new Set(descriptions).size).toBe(pages.length);
+      expect(titles).not.toContain(root.title);
+      expect(descriptions).not.toContain(root.description);
+    });
+  });
 });
