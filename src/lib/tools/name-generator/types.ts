@@ -45,13 +45,16 @@ export interface GenreDefinition {
   flavors: readonly Flavor[];
 }
 
-export interface NameGeneratorOptions {
-  seed: string;
+export interface NameGeneratorFilters {
   genre: Genre;
   gender: GenderPresentation;
   flavor: FlavorId;
   type: NameType;
   count: number;
+}
+
+export interface NameGeneratorOptions extends NameGeneratorFilters {
+  seed: string;
 }
 
 export interface GeneratedName {

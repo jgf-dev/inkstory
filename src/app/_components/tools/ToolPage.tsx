@@ -21,18 +21,19 @@ export function toolMetadata(input: {
   keywords: string[];
   path: string;
 }): Metadata {
+  const url = new URL(input.path, SITE_ORIGIN).toString();
   return {
     metadataBase: new URL(SITE_ORIGIN),
     title: input.title,
     description: input.description,
     keywords: input.keywords,
-    alternates: { canonical: input.path },
+    alternates: { canonical: url },
     openGraph: {
       title: input.ogTitle,
       description: input.description,
       siteName: "syncodex",
       type: "website",
-      url: input.path,
+      url,
     },
     twitter: { card: "summary", title: input.ogTitle, description: input.description },
   };

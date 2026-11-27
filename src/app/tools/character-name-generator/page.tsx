@@ -67,6 +67,7 @@ export default async function CharacterNameGeneratorPage({
       <ToolHeader heading={PAGE_HEADING} intro={INTRO} />
 
       <form
+        key={shareHref}
         method="get"
         action={NAME_GENERATOR_PATH}
         className="grid gap-4 sm:grid-cols-2"
