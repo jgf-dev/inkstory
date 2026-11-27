@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test"
 import AdultWritingPromptGeneratorPage, {
   metadata,
 } from "../src/app/tools/adult-writing-prompt-generator/page";
+import { SITE_ORIGIN } from "../src/app/_components/tools/ToolPage";
 import {
   ADULTS_ONLY_NOTICE,
   FAQS,
@@ -39,10 +40,11 @@ async function renderPage(params?: Record<string, string>) {
 }
 
 function decode(html: string) {
+  // Decode &#x27; and &quot; before &amp; so "&amp;#x27;" is not double-unescaped.
   return html
-    .replace(/&amp;/g, "&")
     .replace(/&#x27;/g, "'")
-    .replace(/&quot;/g, '"');
+    .replace(/&quot;/g, '"')
+    .replace(/&amp;/g, "&");
 }
 
 describe("adult writing prompt generator page", () => {
@@ -57,15 +59,16 @@ describe("adult writing prompt generator page", () => {
         "romance writing prompt generator",
       ]),
     );
+    const canonicalUrl = `${SITE_ORIGIN}${PROMPT_GENERATOR_PATH}`;
     expect(metadata.openGraph).toMatchObject({
       title: OG_TITLE,
       description: PAGE_DESCRIPTION,
       siteName: "syncodex",
-      url: PROMPT_GENERATOR_PATH,
+      url: canonicalUrl,
     });
     expect(OG_TITLE).toMatch(KEYWORD);
     expect(metadata.twitter).toMatchObject({ title: OG_TITLE });
-    expect(metadata.alternates).toEqual({ canonical: PROMPT_GENERATOR_PATH });
+    expect(metadata.alternates).toEqual({ canonical: canonicalUrl });
     expect(PAGE_HEADING).toMatch(KEYWORD);
     expect(INTRO).toMatch(KEYWORD);
     expect(INTRO).toMatch(/romance writing prompt/i);
