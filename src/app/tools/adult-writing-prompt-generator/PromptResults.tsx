@@ -30,7 +30,8 @@ export interface PromptResultsProps {
  * JavaScript; copying needs it.
  */
 export function PromptResults({ prompt, parts, shareHref, moreHref }: PromptResultsProps) {
-  const { copied, error, copy } = useCopyFeedback();
+  const feedback = useCopyFeedback();
+  const { copied, copy } = feedback;
 
   return (
     <section aria-labelledby="generated-prompt-heading" className="mt-6">
@@ -81,9 +82,7 @@ export function PromptResults({ prompt, parts, shareHref, moreHref }: PromptResu
         shareHref={shareHref}
         moreHref={moreHref}
         moreLabel="Generate more"
-        copied={copied}
-        error={error}
-        copy={copy}
+        feedback={feedback}
       />
     </section>
   );
