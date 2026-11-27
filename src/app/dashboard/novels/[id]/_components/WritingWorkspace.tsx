@@ -468,11 +468,10 @@ export function WritingWorkspace({
         <div className="flex flex-wrap items-center gap-1.5">
           {OPERATING_MODES_ENABLED && <ModeSwitcher mode={effectiveMode} onChange={switchMode} />}
           {effectiveMode === "architect" && (
-            <div
-              role="group"
+            <fieldset
               aria-label="Architect view"
               data-testid="architect-view-switcher"
-              className="flex items-center overflow-hidden rounded-md border border-ink-200"
+              className="m-0 flex items-center overflow-hidden rounded-md border border-ink-200 p-0"
             >
               {(["editor", "grid"] as const).map((view) => (
                 <button
@@ -490,7 +489,7 @@ export function WritingWorkspace({
                   {view === "editor" ? "Editor" : "Grid"}
                 </button>
               ))}
-            </div>
+            </fieldset>
           )}
           <ProseFontToggle />
           <ThemeToggle />

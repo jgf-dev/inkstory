@@ -75,7 +75,7 @@ export function PlanningGrid(props: Readonly<PlanningGridProps>) {
   }
 
   function hover(event: DragEvent, chapterId: string, targetId: string, targetIndex: number) {
-    if (!dragging || dragging.chapterId !== chapterId || dragging.id === targetId) return;
+    if (dragging?.chapterId !== chapterId || dragging?.id === targetId) return;
     event.preventDefault();
     event.dataTransfer.dropEffect = "move";
     const place = dropPlace(event);
@@ -90,14 +90,14 @@ export function PlanningGrid(props: Readonly<PlanningGridProps>) {
     event.preventDefault();
     const payload = readDrag(event);
     clearDrag();
-    if (!payload || payload.chapterId !== chapterId || payload.id === targetId) return;
+    if (payload?.chapterId !== chapterId || payload?.id === targetId) return;
     const toIndex = dropIndexForSibling(payload.index, targetIndex, dropPlace(event));
     if (toIndex === payload.index) return;
     props.onReorderNode("scene", payload.id, toIndex);
   }
 
   function hintClass(chapterId: string, sceneId: string): string {
-    if (!dropHint || dropHint.chapterId !== chapterId || dropHint.targetId !== sceneId) return "";
+    if (dropHint?.chapterId !== chapterId || dropHint?.targetId !== sceneId) return "";
     return dropHint.place === "before"
       ? "border-t-2 border-t-ink-800"
       : "border-b-2 border-b-ink-800";
