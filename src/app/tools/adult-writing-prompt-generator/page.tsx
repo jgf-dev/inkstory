@@ -16,6 +16,7 @@ import {
   PROMPT_GENERATOR_PATH,
   PROMPT_GENRES,
   PROMPT_TROPES,
+  SLOT_LABELS,
   buildPromptGeneratorHref,
   createRandomSeed,
   generatePrompt,
@@ -23,7 +24,6 @@ import {
   parsePromptGeneratorParams,
   toggleLock,
   type GenreFilter,
-  type PromptSlot,
   type PromptTrope,
   type SearchParamsRecord,
 } from "@/lib/tools/adult-prompts";
@@ -54,14 +54,6 @@ export const metadata = {
   // Held out of search until Jeremy clears the STO-1315 launch blockers
   // (age gate, /privacy and /terms, payments review). Remove to go live.
   robots: { index: false, follow: true },
-};
-
-const SLOT_LABELS: Record<PromptSlot, string> = {
-  setup: "Situation",
-  pairing: "Pairing",
-  setting: "Setting",
-  tension: "Tension",
-  tone: "Heat and tone",
 };
 
 const PAIRING_OPTIONS = [

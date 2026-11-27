@@ -146,6 +146,12 @@ describe("content guards", () => {
     "a teenager on holiday",
     "two eighteen-year-old seniors",
     "she is 17 years old",
+    "she is 9 years old",
+    "an 8-year-old prodigy",
+    "a 7yo neighbor",
+    "a character age 16",
+    "someone aged 17",
+    "a guest age 9",
     "a schoolgirl outfit",
     "a college dorm room",
     "the young-looking new hire",
@@ -174,6 +180,7 @@ describe("content guards", () => {
     expect(findViolations("a forced proximity romance between adults in their thirties")).toEqual(
       [],
     );
+    expect(findViolations("reunited after 5 years apart, both aged 28")).toEqual([]);
     expect(MINOR_PATTERNS.length).toBeGreaterThan(0);
     expect(NON_CONSENT_PATTERNS.length).toBeGreaterThan(0);
     expect(EXPLICIT_PATTERNS.length).toBeGreaterThan(0);
@@ -255,6 +262,17 @@ describe("generatePrompt", () => {
       expect(tension[0]).toBe("banter");
       expect(tension).toHaveLength(2);
       expect(tension[1]).not.toBe("banter");
+    }
+  });
+
+  it("keeps the other unlocked tension tag unchanged when locking one on the same seed", () => {
+    for (const seed of SEEDS) {
+      const unlocked = generatePrompt({ ...base, seed });
+      const [firstId, secondId] = slotIds(unlocked, "tension");
+      const lockFirst = generatePrompt({ ...base, seed, locked: [firstId] });
+      expect(slotIds(lockFirst, "tension")).toEqual([firstId, secondId]);
+      const lockSecond = generatePrompt({ ...base, seed, locked: [secondId] });
+      expect(slotIds(lockSecond, "tension")).toEqual([secondId, firstId]);
     }
   });
 
