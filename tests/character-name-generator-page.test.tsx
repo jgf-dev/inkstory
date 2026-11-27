@@ -15,9 +15,12 @@ import {
   PAGE_TITLE,
 } from "../src/app/tools/character-name-generator/content";
 import {
+  BACKSTORY_ENDPOINT,
   COPIED_FEEDBACK_MS,
   NameResults,
+  type BackstoryContext,
 } from "../src/app/tools/character-name-generator/NameResults";
+import { templateBackstory } from "../src/lib/tools/character-backstory/template";
 import {
   NAME_GENERATOR_PATH,
   NAME_GENERATOR_URL,
@@ -190,5 +193,114 @@ describe("NameResults", () => {
     render(<NameResults names={[]} shareHref={shareHref} moreHref="/more" />);
     expect(screen.getByText(/No names matched/)).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Copy all" })).toBeNull();
+  });
+});
+
+describe("NameResults backstory (AI mode)", () => {
+  const shareHref = `${NAME_GENERATOR_PATH}?seed=abc&genre=fantasy`;
+  const context: BackstoryContext = {
+    genre: "fantasy",
+    flavor: "lyrical",
+    genders: { Rook: "masculine" },
+  };
+
+  afterEach(() => {
+    cleanup();
+    vi.unstubAllGlobals();
+  });
+
+  it("does not server-render backstory controls (progressive enhancement)", () => {
+    const html = renderToStaticMarkup(
+      <NameResults names={["Rook"]} shareHref={shareHref} moreHref="/more" backstory={context} />,
+    );
+    expect(html).not.toContain("Backstory");
+    expect(html).toContain("Rook");
+  });
+
+  it("hides the control when the page does not enable AI mode", () => {
+    render(<NameResults names={["Rook"]} shareHref={shareHref} moreHref="/more" />);
+    expect(screen.queryByRole("button", { name: /backstory/i })).toBeNull();
+  });
+
+  it("posts the name and filters and shows the returned backstory", async () => {
+    let resolve: (response: Response) => void = () => {};
+    const fetchMock = vi.fn<typeof fetch>(() => new Promise<Response>((r) => (resolve = r)));
+    vi.stubGlobal("fetch", fetchMock);
+    render(
+      <NameResults
+        names={["Rook", "Mara"]}
+        shareHref={shareHref}
+        moreHref="/more"
+        backstory={context}
+      />,
+    );
+    fireEvent.click(await screen.findByRole("button", { name: "Write a backstory for Rook" }));
+    expect(await screen.findByText("Writing a backstory…")).toBeTruthy();
+    expect(fetchMock).toHaveBeenCalledWith(BACKSTORY_ENDPOINT, expect.anything());
+    const init = fetchMock.mock.calls[0][1];
+    expect(JSON.parse(init?.body as string)).toEqual({
+      name: "Rook",
+      genre: "fantasy",
+      flavor: "lyrical",
+      gender: "masculine",
+    });
+    await act(async () => {
+      resolve(Response.json({ backstory: "Rook was raised by crows.", source: "ai" }));
+    });
+    expect(await screen.findByText("Rook was raised by crows.")).toBeTruthy();
+    expect(screen.getByText("Backstory: Rook")).toBeTruthy();
+  });
+
+  it("falls back to the algorithmic backstory on network or HTTP errors", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn<typeof fetch>()
+        .mockRejectedValueOnce(new Error("offline"))
+        .mockResolvedValueOnce(new Response("nope", { status: 500 })),
+    );
+    render(
+      <NameResults names={["Mara"]} shareHref={shareHref} moreHref="/more" backstory={context} />,
+    );
+    const expected = templateBackstory({
+      name: "Mara",
+      genre: "fantasy",
+      flavor: "lyrical",
+      gender: "neutral",
+    });
+    fireEvent.click(await screen.findByRole("button", { name: "Write a backstory for Mara" }));
+    expect(await screen.findByText(expected)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Write a backstory for Mara" }));
+    await waitFor(() => expect(screen.getByText(expected)).toBeTruthy());
+    expect(screen.queryByText(/nope|offline/)).toBeNull();
+  });
+
+  it("disables the controls while loading and treats an empty backstory as a failure", async () => {
+    const pending: ((response: Response) => void)[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<typeof fetch>(() => new Promise<Response>((r) => pending.push(r))),
+    );
+    render(
+      <NameResults
+        names={["Rook", "Mara"]}
+        shareHref={shareHref}
+        moreHref="/more"
+        backstory={context}
+      />,
+    );
+    fireEvent.click(await screen.findByRole("button", { name: "Write a backstory for Rook" }));
+    const mara = screen.getByRole("button", { name: "Write a backstory for Mara" });
+    expect((mara as HTMLButtonElement).disabled).toBe(true);
+    await act(async () => {
+      pending[0](Response.json({ backstory: "" }));
+    });
+    const rookTemplate = templateBackstory({
+      name: "Rook",
+      genre: "fantasy",
+      flavor: "lyrical",
+      gender: "masculine",
+    });
+    expect(await screen.findByText(rookTemplate)).toBeTruthy();
   });
 });

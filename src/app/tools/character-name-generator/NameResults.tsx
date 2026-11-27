@@ -2,6 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { templateBackstory } from "@/lib/tools/character-backstory/template";
+import type { BackstoryInput } from "@/lib/tools/character-backstory/types";
+
+export const BACKSTORY_ENDPOINT = "/api/tools/character-backstory";
 
 export const COPIED_FEEDBACK_MS = 1500;
 
@@ -11,6 +15,37 @@ export interface NameResultsProps {
   shareHref: string;
   /** Relative URL for the next batch with the same filters. */
   moreHref: string;
+  /** Enables the optional AI backstory controls (progressive enhancement). */
+  backstory?: BackstoryContext;
+}
+
+export interface BackstoryContext {
+  genre: BackstoryInput["genre"];
+  flavor: string;
+  /** Resolved gender per generated name. */
+  genders: Readonly<Record<string, BackstoryInput["gender"]>>;
+}
+
+type BackstoryState =
+  | { status: "idle" }
+  | { status: "loading"; name: string }
+  | { status: "done"; name: string; text: string };
+
+async function fetchBackstory(input: BackstoryInput): Promise<string> {
+  try {
+    const response = await fetch(BACKSTORY_ENDPOINT, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(input),
+    });
+    if (response.ok) {
+      const body = (await response.json()) as { backstory?: unknown };
+      if (typeof body.backstory === "string" && body.backstory.trim()) return body.backstory;
+    }
+  } catch {
+    // Fall through to the algorithmic backstory; never surface provider errors.
+  }
+  return templateBackstory(input);
 }
 
 type CopiedTarget = { kind: "item"; name: string } | { kind: "all" } | { kind: "link" };
@@ -19,17 +54,31 @@ type CopiedTarget = { kind: "item"; name: string } | { kind: "all" } | { kind: "
  * Generated name list with copy controls. The list and the "Generate more"
  * link are server-rendered, so they work without JavaScript; copying needs it.
  */
-export function NameResults({ names, shareHref, moreHref }: NameResultsProps) {
+export function NameResults({ names, shareHref, moreHref, backstory }: NameResultsProps) {
   const [copied, setCopied] = useState<CopiedTarget | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [hydrated, setHydrated] = useState(false);
+  const [story, setStory] = useState<BackstoryState>({ status: "idle" });
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(
-    () => () => {
+  useEffect(() => {
+    setHydrated(true);
+    return () => {
       if (timer.current) clearTimeout(timer.current);
-    },
-    [],
-  );
+    };
+  }, []);
+
+  async function writeBackstory(context: BackstoryContext, name: string) {
+    // Backstory buttons are disabled while loading, so requests never overlap.
+    setStory({ status: "loading", name });
+    const text = await fetchBackstory({
+      name,
+      genre: context.genre,
+      flavor: context.flavor,
+      gender: context.genders[name] ?? "neutral",
+    });
+    setStory({ status: "done", name, text });
+  }
 
   async function copy(target: CopiedTarget, text: string) {
     try {
@@ -65,17 +114,42 @@ export function NameResults({ names, shareHref, moreHref }: NameResultsProps) {
               className="border-ink-200 bg-card flex items-center justify-between gap-2 rounded-lg border px-3 py-2"
             >
               <span className="font-medium">{name}</span>
-              <button
-                type="button"
-                className={buttonClass}
-                aria-label={`Copy ${name}`}
-                onClick={() => void copy({ kind: "item", name }, name)}
-              >
-                {copied?.kind === "item" && copied.name === name ? "Copied" : "Copy"}
-              </button>
+              <span className="flex gap-1">
+                {hydrated && backstory ? (
+                  <button
+                    type="button"
+                    className={buttonClass}
+                    aria-label={`Write a backstory for ${name}`}
+                    disabled={story.status === "loading"}
+                    onClick={() => void writeBackstory(backstory, name)}
+                  >
+                    Backstory
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  className={buttonClass}
+                  aria-label={`Copy ${name}`}
+                  onClick={() => void copy({ kind: "item", name }, name)}
+                >
+                  {copied?.kind === "item" && copied.name === name ? "Copied" : "Copy"}
+                </button>
+              </span>
             </li>
           ))}
         </ul>
+      )}
+      {story.status === "idle" ? null : (
+        <div
+          className="border-ink-200 bg-card mt-4 rounded-lg border p-4"
+          aria-live="polite"
+          data-testid="name-backstory"
+        >
+          <h3 className="mb-1 text-sm font-semibold">Backstory: {story.name}</h3>
+          <p className="text-ink-600 text-sm">
+            {story.status === "loading" ? "Writing a backstory…" : story.text}
+          </p>
+        </div>
       )}
       <div className="mt-4 flex flex-wrap items-center gap-3">
         <Link
