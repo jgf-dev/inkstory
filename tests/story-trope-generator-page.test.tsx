@@ -35,7 +35,8 @@ async function renderPage(params?: Record<string, string>) {
 }
 
 function decode(html: string) {
-  return html.replace(/&amp;/g, "&").replace(/&#x27;/g, "'");
+  // Decode &#x27; before & so "&#x27;" is not double-unescaped.
+  return html.replace(/&#x27;/g, "'").replace(/&/g, "&");
 }
 
 describe("story trope generator page", () => {
