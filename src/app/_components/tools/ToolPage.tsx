@@ -6,8 +6,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import type React from "react";
+import { SITE_URL } from "@/lib/seo/site";
 
-export const SITE_ORIGIN = "https://syncodex.xyz";
+export const SITE_ORIGIN = SITE_URL;
 
 export interface Faq {
   q: string;

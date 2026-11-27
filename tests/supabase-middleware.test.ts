@@ -193,6 +193,8 @@ describe("Supabase Middleware & Proxy", () => {
       expect(pattern.test("/api/health")).toBe(true);
       expect(pattern.test("/_next/static/chunk.js")).toBe(false);
       expect(pattern.test("/favicon.ico")).toBe(false);
+      expect(pattern.test("/robots.txt")).toBe(false);
+      expect(pattern.test("/sitemap.xml")).toBe(false);
       expect(pattern.test("/hero.png")).toBe(false);
       expect(pattern.test("/logo.svg")).toBe(false);
     });
