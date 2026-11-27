@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { PricingTable } from "./_components/PricingTable";
@@ -62,6 +63,12 @@ const FAQS = [
     a: "Your work is yours. Manuscripts and codex entries are private to your account, and Studio's series sharing is opt-in per series.",
   },
 ];
+
+export const metadata: Metadata = {
+  title: "Story Planning and Novel Writing Workspace | InkStory",
+  description:
+    "Plan novels in InkStory, an AI-aware writing workspace with a story bible, plot outliner, and autosaving scene editor.",
+};
 
 export default async function Home() {
   const supabase = await createSupabaseServerClient();

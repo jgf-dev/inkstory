@@ -1,8 +1,15 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getTurnstileSiteKey } from "@/lib/turnstile";
 import { LoginForm } from "./LoginForm";
+
+export const metadata: Metadata = {
+  title: "Log In to Your Writing Workspace | InkStory",
+  description:
+    "Log in to InkStory to return to your story projects, Codex entries, and scene drafts.",
+};
 
 export default async function LoginPage({
   searchParams,
