@@ -13,7 +13,7 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    // Skip Next.js internals and all static files.
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    // Skip Next.js internals, crawler metadata routes, and all static files.
+    "/((?!_next/static|_next/image|favicon.ico|robots\\.txt|sitemap\\.xml|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };
