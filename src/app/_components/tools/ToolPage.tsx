@@ -8,8 +8,7 @@ import Link from "next/link";
 import type React from "react";
 import { SITE_URL, publicPageSeo } from "@/lib/seo/site";
 
-/** Alias of `SITE_URL` from `@/lib/seo/site`. */
-export const SITE_ORIGIN = SITE_URL;
+export { SITE_URL as SITE_ORIGIN } from "@/lib/seo/site";
 
 export interface Faq {
   q: string;
