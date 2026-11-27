@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { publicPageSeo } from "@/lib/seo/site";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { PricingTable } from "./_components/PricingTable";
 import { ThemeToggle } from "./_components/ThemeToggle";
@@ -68,6 +69,7 @@ export const metadata: Metadata = {
   title: "Story Planning and Novel Writing Workspace | InkStory",
   description:
     "Plan novels in InkStory, an AI-aware writing workspace with a story bible, plot outliner, and autosaving scene editor.",
+  ...publicPageSeo("/"),
 };
 
 export default async function Home() {

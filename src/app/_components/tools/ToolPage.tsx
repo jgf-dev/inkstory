@@ -6,9 +6,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import type React from "react";
-import { SITE_URL } from "@/lib/seo/site";
+import { SITE_URL, publicPageSeo } from "@/lib/seo/site";
 
-export const SITE_ORIGIN = SITE_URL;
+export { SITE_URL as SITE_ORIGIN } from "@/lib/seo/site";
 
 export interface Faq {
   q: string;
@@ -22,19 +22,19 @@ export function toolMetadata(input: {
   keywords: string[];
   path: string;
 }): Metadata {
-  const url = new URL(input.path, SITE_ORIGIN).toString();
+  const seo = publicPageSeo(input.path);
   return {
-    metadataBase: new URL(SITE_ORIGIN),
+    metadataBase: new URL(SITE_URL),
     title: input.title,
     description: input.description,
     keywords: input.keywords,
-    alternates: { canonical: url },
+    ...seo,
     openGraph: {
       title: input.ogTitle,
       description: input.description,
       siteName: "syncodex",
       type: "website",
-      url,
+      ...seo.openGraph,
     },
     twitter: { card: "summary", title: input.ogTitle, description: input.description },
   };

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { publicPageSeo } from "@/lib/seo/site";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getTurnstileSiteKey } from "@/lib/turnstile";
 import { SignupForm } from "./SignupForm";
@@ -9,6 +10,7 @@ export const metadata: Metadata = {
   title: "Create Your Writing Workspace Account | InkStory",
   description:
     "Create an InkStory account to start planning your novel and organizing characters, locations, and lore in your story Codex.",
+  ...publicPageSeo("/signup"),
 };
 
 export default async function SignupPage() {
