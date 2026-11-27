@@ -21,6 +21,7 @@ import {
   NAME_TYPES,
   type GenderPresentation,
   type Genre,
+  type NameGeneratorFilters,
   type NameType,
 } from "./types";
 
@@ -37,14 +38,6 @@ export const NAME_GENERATOR_PATH = "/tools/character-name-generator";
 export const DEFAULT_GENRE: Genre = "fantasy";
 export const DEFAULT_GENDER: GenderPresentation = "any";
 export const DEFAULT_NAME_TYPE: NameType = "full";
-
-export interface NameGeneratorFilters {
-  genre: Genre;
-  gender: GenderPresentation;
-  flavor: string;
-  type: NameType;
-  count: number;
-}
 
 export interface ParsedNameGeneratorParams extends NameGeneratorFilters {
   /** Normalized seed, or `null` when absent or invalid. */
