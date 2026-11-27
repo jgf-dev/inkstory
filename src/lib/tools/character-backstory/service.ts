@@ -5,8 +5,6 @@
  */
 import {
   GLOBAL_RATE_LIMIT_KEY,
-  TOOL_AI_GLOBAL_WINDOWS,
-  TOOL_AI_IP_WINDOWS,
   createToolAiLimiters,
   type RateLimiter,
 } from "@/lib/tools/shared/rate-limit";
@@ -15,9 +13,11 @@ import { templateBackstory } from "./template";
 import type { BackstoryInput, BackstoryResult } from "./types";
 
 /** Per client IP: 5 a minute and 20 an hour. */
-export const BACKSTORY_IP_WINDOWS = TOOL_AI_IP_WINDOWS;
 /** Per isolate across all clients, to protect the shared free quota. */
-export const BACKSTORY_GLOBAL_WINDOWS = TOOL_AI_GLOBAL_WINDOWS;
+export {
+  TOOL_AI_IP_WINDOWS as BACKSTORY_IP_WINDOWS,
+  TOOL_AI_GLOBAL_WINDOWS as BACKSTORY_GLOBAL_WINDOWS,
+} from "@/lib/tools/shared/rate-limit";
 
 export type BackstoryFallbackReason =
   | "not_configured"

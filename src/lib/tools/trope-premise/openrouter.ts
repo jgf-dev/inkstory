@@ -43,7 +43,7 @@ const COPY_RULE_VIOLATIONS = [
   /\b(?:prices?|pricing|priced|discounts?|subscriptions?|subscribe|free trial|refunds?)\b/i,
   /\b(?:guarantee[sd]?|guaranteed|we promise|you will love|money back)\b/i,
   /\b(?:1\d|20)\d{2}\b/,
-  /\b(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\.? \d{1,2}(?:st|nd|rd|th)?\b/i,
+  /\b(?:january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|aug|sept|sep|oct|nov|dec)\.? \d{1,2}(?:st|nd|rd|th)?\b/i,
   /\b(?:launch(?:es|ing)? (?:date|day|soon)|coming soon|release date|available now|sign up|pre-?order)\b/i,
   /\b(?:syncodex|inkstory|openrouter)\b/i,
 ];
