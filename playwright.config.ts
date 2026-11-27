@@ -72,6 +72,8 @@ export default defineConfig({
       TURNSTILE_HOSTNAMES: "",
       NEXT_PUBLIC_TURNSTILE_KEY: "",
       NEXT_PUBLIC_TURNSTILE_SITE_KEY: "",
+      NEXT_PUBLIC_BETTERSTACK_TOKEN: "",
+      NEXT_PUBLIC_BETTERSTACK_ENV: "",
       NEXT_PUBLIC_INKSTORY_OPERATING_MODES: "",
       PORT: String(port),
       // The isolated E2E server must not claim or depend on the normal dev lock.
