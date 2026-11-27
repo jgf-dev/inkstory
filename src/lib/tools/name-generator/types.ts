@@ -56,6 +56,7 @@ export interface NameGeneratorFilters {
 export interface NameGeneratorOptions extends NameGeneratorFilters {
   seed: string;
 }
+
 export interface GeneratedName {
   name: string;
   first: string | null;

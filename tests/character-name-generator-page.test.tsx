@@ -20,6 +20,7 @@ import {
 } from "../src/app/tools/character-name-generator/NameResults";
 import {
   NAME_GENERATOR_PATH,
+  NAME_GENERATOR_URL,
   buildNameGeneratorHref,
   generateNames,
   nextSeed,
@@ -50,11 +51,11 @@ describe("character name generator page", () => {
       title: OG_TITLE,
       description: PAGE_DESCRIPTION,
       siteName: "syncodex",
-      url: NAME_GENERATOR_PATH,
+      url: NAME_GENERATOR_URL,
     });
     expect(OG_TITLE).toMatch(KEYWORD);
     expect(metadata.twitter).toMatchObject({ title: OG_TITLE });
-    expect(metadata.alternates).toEqual({ canonical: NAME_GENERATOR_PATH });
+    expect(metadata.alternates).toEqual({ canonical: NAME_GENERATOR_URL });
     expect(PAGE_HEADING).toMatch(KEYWORD);
   });
 

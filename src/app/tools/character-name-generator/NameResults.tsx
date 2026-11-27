@@ -39,9 +39,9 @@ export function NameResults({ names, shareHref, moreHref }: NameResultsProps) {
                 type="button"
                 className={COPY_BUTTON_CLASS}
                 aria-label={`Copy ${name}`}
-                onClick={() => void feedback.copy(name, name)}
+                onClick={() => void feedback.copy(`item:${name}`, name)}
               >
-                {feedback.copied === name ? "Copied" : "Copy"}
+                {feedback.copied === `item:${name}` ? "Copied" : "Copy"}
               </button>
             </li>
           ))}

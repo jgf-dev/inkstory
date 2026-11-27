@@ -35,6 +35,7 @@ export {
 };
 
 export const NAME_GENERATOR_PATH = "/tools/character-name-generator";
+export const NAME_GENERATOR_URL = `https://syncodex.xyz${NAME_GENERATOR_PATH}`;
 export const DEFAULT_GENRE: Genre = "fantasy";
 export const DEFAULT_GENDER: GenderPresentation = "any";
 export const DEFAULT_NAME_TYPE: NameType = "full";
