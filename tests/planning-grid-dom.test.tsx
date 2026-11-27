@@ -121,19 +121,27 @@ describe("PlanningGrid (STO-1257)", () => {
     fireEvent.click(screen.getAllByText("+ Scene")[1]);
     expect(p.onCreateNode).toHaveBeenCalledWith("scene", "chapter-2");
 
-    expect((screen.getByLabelText("Move The Quay up") as HTMLButtonElement).disabled).toBe(true);
-    expect((screen.getByLabelText("Move Storm down") as HTMLButtonElement).disabled).toBe(true);
+    const moveFirstSceneUp = screen.getByLabelText("Move The Quay up") as HTMLButtonElement;
+    const moveLastSceneDown = screen.getByLabelText("Move Storm down") as HTMLButtonElement;
+    expect(moveFirstSceneUp.disabled).toBe(true);
+    expect(moveFirstSceneUp.title).toBe("Already first scene");
+    expect(moveLastSceneDown.disabled).toBe(true);
+    expect(moveLastSceneDown.title).toBe("Already last scene");
     fireEvent.click(screen.getByLabelText("Move Storm up"));
     expect(p.onMoveNode).toHaveBeenCalledWith("scene", "scene-2", "up");
     fireEvent.click(screen.getByLabelText("Move The Quay down"));
     expect(p.onMoveNode).toHaveBeenCalledWith("scene", "scene-1", "down");
 
-    expect((screen.getByLabelText("Move Chapter One left") as HTMLButtonElement).disabled).toBe(
-      true,
-    );
-    expect((screen.getByLabelText("Move Chapter Two right") as HTMLButtonElement).disabled).toBe(
-      true,
-    );
+    const moveFirstChapterLeft = screen.getByLabelText(
+      "Move Chapter One left",
+    ) as HTMLButtonElement;
+    const moveLastChapterRight = screen.getByLabelText(
+      "Move Chapter Two right",
+    ) as HTMLButtonElement;
+    expect(moveFirstChapterLeft.disabled).toBe(true);
+    expect(moveFirstChapterLeft.title).toBe("Already first chapter");
+    expect(moveLastChapterRight.disabled).toBe(true);
+    expect(moveLastChapterRight.title).toBe("Already last chapter");
     fireEvent.click(screen.getByLabelText("Move Chapter One right"));
     expect(p.onMoveNode).toHaveBeenCalledWith("chapter", "chapter-1", "down");
     fireEvent.click(screen.getByLabelText("Move Chapter Two left"));
@@ -147,19 +155,53 @@ describe("PlanningGrid (STO-1257)", () => {
     expect(p.onCreateNode).toHaveBeenCalledWith("act");
   });
 
-  it("reorders scenes within a chapter via drag-and-drop", () => {
+  it("reorders scenes within a chapter via drag-and-drop (before and after)", () => {
     const p = setup();
     mockRect();
     const { store, dataTransfer } = makeTransfer();
-    const source = screen.getByTestId("grid-scene-scene-2");
-    const target = screen.getByTestId("grid-scene-scene-1");
-    act(() => fireDrag("dragStart", source, dataTransfer));
+    const first = screen.getByTestId("grid-scene-scene-1");
+    const second = screen.getByTestId("grid-scene-scene-2");
+    act(() => fireDrag("dragStart", second, dataTransfer));
     expect(store["application/x-inkstory-grid-scene"]).toContain("scene-2");
-    act(() => fireDrag("dragOver", target, dataTransfer, 110));
-    expect(target.className).toContain("border-t-2");
-    act(() => fireDrag("drop", target, dataTransfer, 110));
+    act(() => fireDrag("dragOver", first, dataTransfer, 110));
+    expect(first.className).toContain("border-t-2");
+    act(() => fireDrag("drop", first, dataTransfer, 110));
     expect(p.onReorderNode).toHaveBeenCalledWith("scene", "scene-2", 0);
-    expect(target.className).not.toContain("border-t-2");
+    expect(first.className).not.toContain("border-t-2");
+
+    // Drag first scene below second scene ("after" drop hint).
+    const afterTransfer = makeTransfer().dataTransfer;
+    act(() => fireDrag("dragStart", first, afterTransfer));
+    act(() => fireDrag("dragOver", second, afterTransfer, 130));
+    expect(second.className).toContain("border-b-2");
+    act(() => fireDrag("drop", second, afterTransfer, 130));
+    expect(p.onReorderNode).toHaveBeenCalledWith("scene", "scene-1", 1);
+    expect(second.className).not.toContain("border-b-2");
+  });
+
+  it("ignores cross-chapter drops and clears any stale drop hint on cross-chapter hover", () => {
+    const outline = makeOutline();
+    outline.acts[0].chapters[1].scenes = [
+      { id: "scene-3", title: "Harbor", label: null, position: 0, wordCount: 40 },
+    ];
+    const p = setup({ outline });
+    mockRect();
+    const { dataTransfer } = makeTransfer();
+    const source = screen.getByTestId("grid-scene-scene-2");
+    const sameChapterTarget = screen.getByTestId("grid-scene-scene-1");
+    const otherChapterTarget = screen.getByTestId("grid-scene-scene-3");
+
+    act(() => fireDrag("dragStart", source, dataTransfer));
+    act(() => fireDrag("dragOver", sameChapterTarget, dataTransfer, 110));
+    expect(sameChapterTarget.className).toContain("border-t-2");
+
+    // Hovering a scene in another chapter clears the stale hint and refuses the drop.
+    act(() => fireDrag("dragOver", otherChapterTarget, dataTransfer, 110));
+    expect(sameChapterTarget.className).not.toContain("border-t-2");
+    expect(otherChapterTarget.className).not.toContain("border-t-2");
+
+    act(() => fireDrag("drop", otherChapterTarget, dataTransfer, 110));
+    expect(p.onReorderNode).not.toHaveBeenCalled();
   });
 
   it("ignores no-op drops, self drops and drops without a payload", () => {
@@ -185,8 +227,18 @@ describe("PlanningGrid (STO-1257)", () => {
     expect(p.onReorderNode).not.toHaveBeenCalled();
   });
 
-  it("does not start drags while busy", () => {
+  it("does not start drags and annotates disabled buttons while busy", () => {
     setup({ busy: true });
+    expect((screen.getByText("+ Act") as HTMLButtonElement).title).toBe("Saving outline changes…");
+    expect((screen.getAllByText("+ Chapter")[0] as HTMLButtonElement).title).toBe(
+      "Saving outline changes…",
+    );
+    expect((screen.getAllByText("+ Scene")[0] as HTMLButtonElement).title).toBe(
+      "Saving outline changes…",
+    );
+    expect((screen.getByLabelText("Move Storm up") as HTMLButtonElement).title).toBe(
+      "Saving outline changes…",
+    );
     const { store, dataTransfer } = makeTransfer();
     const source = screen.getByTestId("grid-scene-scene-2");
     expect(source.getAttribute("draggable")).toBe("false");

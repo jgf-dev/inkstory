@@ -75,7 +75,10 @@ export function PlanningGrid(props: Readonly<PlanningGridProps>) {
   }
 
   function hover(event: DragEvent, chapterId: string, targetId: string, targetIndex: number) {
-    if (dragging?.chapterId !== chapterId || dragging?.id === targetId) return;
+    if (dragging?.chapterId !== chapterId || dragging?.id === targetId) {
+      setDropHint(null);
+      return;
+    }
     event.preventDefault();
     event.dataTransfer.dropEffect = "move";
     const place = dropPlace(event);
@@ -103,6 +106,14 @@ export function PlanningGrid(props: Readonly<PlanningGridProps>) {
       : "border-b-2 border-b-ink-800";
   }
 
+  const busyTitle = busy ? "Saving outline changes…" : undefined;
+
+  function moveTitle(actionLabel: string, atBoundary: boolean, boundaryReason: string): string {
+    if (busy) return "Saving outline changes…";
+    if (atBoundary) return boundaryReason;
+    return actionLabel;
+  }
+
   const iconButton =
     "min-h-7 min-w-7 rounded text-xs text-ink-500 hover:bg-ink-100 hover:text-ink-900 disabled:opacity-30";
 
@@ -114,6 +125,7 @@ export function PlanningGrid(props: Readonly<PlanningGridProps>) {
         <button
           type="button"
           disabled={busy}
+          title={busyTitle}
           onClick={() => props.onCreateNode("act")}
           className="mt-3 min-h-11 rounded bg-ink-800 px-3 py-1.5 text-xs font-medium text-ink-50 hover:bg-ink-900 disabled:opacity-50"
         >
@@ -124,7 +136,7 @@ export function PlanningGrid(props: Readonly<PlanningGridProps>) {
   }
 
   return (
-    <div className="h-full overflow-auto px-4 py-4" data-testid="planning-grid">
+    <div className="min-h-0 flex-1 overflow-auto px-4 py-4" data-testid="planning-grid">
       <div className="mb-3 flex items-center justify-between">
         <p className="text-ink-500 text-xs tabular-nums">
           {outline.totals.scenes} {outline.totals.scenes === 1 ? "scene" : "scenes"} ·{" "}
@@ -133,6 +145,7 @@ export function PlanningGrid(props: Readonly<PlanningGridProps>) {
         <button
           type="button"
           disabled={busy}
+          title={busyTitle}
           onClick={() => props.onCreateNode("act")}
           className="min-h-9 rounded border border-ink-200 px-2.5 text-xs font-medium text-ink-700 hover:bg-ink-50 disabled:opacity-50"
         >
@@ -149,13 +162,14 @@ export function PlanningGrid(props: Readonly<PlanningGridProps>) {
         >
           <header className="mb-2 flex items-baseline gap-2">
             <h2 className="text-sm font-semibold text-ink-900">{act.title}</h2>
-            <span className="text-ink-400 text-[11px] tabular-nums">
+            <span className="text-muted text-[11px] tabular-nums">
               {act.sceneCount} {act.sceneCount === 1 ? "scene" : "scenes"} ·{" "}
               {formatWordCount(act.wordCount)}
             </span>
             <button
               type="button"
               disabled={busy}
+              title={busyTitle}
               onClick={() => props.onCreateNode("chapter", act.id)}
               className="text-ink-500 hover:text-ink-900 ml-auto text-[11px] font-medium disabled:opacity-50"
             >
@@ -164,129 +178,138 @@ export function PlanningGrid(props: Readonly<PlanningGridProps>) {
           </header>
 
           {act.chapters.length === 0 ? (
-            <p className="text-ink-400 text-[11px] italic">No chapters</p>
+            <p className="text-muted text-[11px] italic">No chapters</p>
           ) : (
             <div className="flex gap-3 overflow-x-auto pb-2">
-              {act.chapters.map((chapter) => (
-                <div
-                  key={chapter.id}
-                  data-testid={`grid-chapter-${chapter.id}`}
-                  className="border-ink-200 flex w-60 shrink-0 flex-col rounded-lg border bg-elevated"
-                >
-                  <div className="border-ink-200 flex items-center gap-1 border-b px-2 py-1.5">
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-xs font-semibold text-ink-800">{chapter.title}</p>
-                      <p className="text-ink-400 text-[11px] tabular-nums">
-                        {formatWordCount(chapter.wordCount)}
-                      </p>
+              {act.chapters.map((chapter) => {
+                const isFirstChapter = chapter.siblingIndex === 0;
+                const isLastChapter = chapter.siblingIndex === chapter.siblingCount - 1;
+                return (
+                  <div
+                    key={chapter.id}
+                    data-testid={`grid-chapter-${chapter.id}`}
+                    className="border-ink-200 flex w-60 shrink-0 flex-col rounded-lg border bg-elevated"
+                  >
+                    <div className="border-ink-200 flex items-center gap-1 border-b px-2 py-1.5">
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-xs font-semibold text-ink-800">
+                          {chapter.title}
+                        </p>
+                        <p className="text-muted text-[11px] tabular-nums">
+                          {formatWordCount(chapter.wordCount)}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        aria-label={`Move ${chapter.title} left`}
+                        title={moveTitle("Move left", isFirstChapter, "Already first chapter")}
+                        disabled={busy || isFirstChapter}
+                        onClick={() => props.onMoveNode("chapter", chapter.id, "up")}
+                        className={iconButton}
+                      >
+                        ←
+                      </button>
+                      <button
+                        type="button"
+                        aria-label={`Move ${chapter.title} right`}
+                        title={moveTitle("Move right", isLastChapter, "Already last chapter")}
+                        disabled={busy || isLastChapter}
+                        onClick={() => props.onMoveNode("chapter", chapter.id, "down")}
+                        className={iconButton}
+                      >
+                        →
+                      </button>
                     </div>
+
+                    <ol className="flex flex-col gap-2 p-2">
+                      {chapter.scenes.map((scene) => {
+                        const selected = scene.id === selectedSceneId;
+                        const isFirstScene = scene.siblingIndex === 0;
+                        const isLastScene = scene.siblingIndex === chapter.scenes.length - 1;
+                        return (
+                          <li
+                            key={scene.id}
+                            draggable={!busy}
+                            data-testid={`grid-scene-${scene.id}`}
+                            onDragStart={(e) =>
+                              beginDrag(e, {
+                                id: scene.id,
+                                chapterId: chapter.id,
+                                index: scene.siblingIndex,
+                              })
+                            }
+                            onDragEnd={clearDrag}
+                            onDragOver={(e) => hover(e, chapter.id, scene.id, scene.siblingIndex)}
+                            onDrop={(e) => drop(e, chapter.id, scene.id, scene.siblingIndex)}
+                            className={`rounded-md border bg-card p-2 shadow-xs ${
+                              selected ? "border-ink-800" : "border-ink-200"
+                            } ${dragging?.id === scene.id ? "opacity-50" : ""} ${hintClass(
+                              chapter.id,
+                              scene.id,
+                            )}`}
+                          >
+                            <button
+                              type="button"
+                              onClick={() => props.onSelectScene(scene.id)}
+                              aria-current={selected ? "true" : undefined}
+                              className="block w-full text-left"
+                            >
+                              <span className="text-muted block text-[10px] font-medium tabular-nums">
+                                Scene {scene.number}
+                              </span>
+                              <span className="block truncate text-sm font-medium text-ink-900">
+                                {scene.title}
+                              </span>
+                              {scene.label && (
+                                <span className="mt-1 inline-block rounded bg-ink-100 px-1.5 py-0.5 text-[10px] text-ink-600">
+                                  {scene.label}
+                                </span>
+                              )}
+                              <span className="text-muted mt-1 block text-[11px] tabular-nums">
+                                {scene.wordCount > 0 ? formatWordCount(scene.wordCount) : "Empty"}
+                              </span>
+                            </button>
+                            <div className="mt-1 flex justify-end gap-0.5">
+                              <button
+                                type="button"
+                                aria-label={`Move ${scene.title} up`}
+                                title={moveTitle("Move up", isFirstScene, "Already first scene")}
+                                disabled={busy || isFirstScene}
+                                onClick={() => props.onMoveNode("scene", scene.id, "up")}
+                                className={iconButton}
+                              >
+                                ↑
+                              </button>
+                              <button
+                                type="button"
+                                aria-label={`Move ${scene.title} down`}
+                                title={moveTitle("Move down", isLastScene, "Already last scene")}
+                                disabled={busy || isLastScene}
+                                onClick={() => props.onMoveNode("scene", scene.id, "down")}
+                                className={iconButton}
+                              >
+                                ↓
+                              </button>
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ol>
+                    {chapter.scenes.length === 0 && (
+                      <p className="text-muted px-2 text-[11px] italic">Empty chapter</p>
+                    )}
                     <button
                       type="button"
-                      aria-label={`Move ${chapter.title} left`}
-                      title="Move left"
-                      disabled={busy || chapter.siblingIndex === 0}
-                      onClick={() => props.onMoveNode("chapter", chapter.id, "up")}
-                      className={iconButton}
+                      disabled={busy}
+                      title={busyTitle}
+                      onClick={() => props.onCreateNode("scene", chapter.id)}
+                      className="text-ink-500 hover:text-ink-900 m-2 mt-auto rounded border border-dashed border-ink-200 py-1.5 text-[11px] font-medium disabled:opacity-50"
                     >
-                      ←
-                    </button>
-                    <button
-                      type="button"
-                      aria-label={`Move ${chapter.title} right`}
-                      title="Move right"
-                      disabled={busy || chapter.siblingIndex === chapter.siblingCount - 1}
-                      onClick={() => props.onMoveNode("chapter", chapter.id, "down")}
-                      className={iconButton}
-                    >
-                      →
+                      + Scene
                     </button>
                   </div>
-
-                  <ol className="flex flex-col gap-2 p-2">
-                    {chapter.scenes.map((scene) => {
-                      const selected = scene.id === selectedSceneId;
-                      return (
-                        <li
-                          key={scene.id}
-                          draggable={!busy}
-                          data-testid={`grid-scene-${scene.id}`}
-                          onDragStart={(e) =>
-                            beginDrag(e, {
-                              id: scene.id,
-                              chapterId: chapter.id,
-                              index: scene.siblingIndex,
-                            })
-                          }
-                          onDragEnd={clearDrag}
-                          onDragOver={(e) => hover(e, chapter.id, scene.id, scene.siblingIndex)}
-                          onDrop={(e) => drop(e, chapter.id, scene.id, scene.siblingIndex)}
-                          className={`rounded-md border bg-card p-2 shadow-xs ${
-                            selected ? "border-ink-800" : "border-ink-200"
-                          } ${dragging?.id === scene.id ? "opacity-50" : ""} ${hintClass(
-                            chapter.id,
-                            scene.id,
-                          )}`}
-                        >
-                          <button
-                            type="button"
-                            onClick={() => props.onSelectScene(scene.id)}
-                            aria-current={selected ? "true" : undefined}
-                            className="block w-full text-left"
-                          >
-                            <span className="text-ink-400 block text-[10px] font-medium tabular-nums">
-                              Scene {scene.number}
-                            </span>
-                            <span className="block truncate text-sm font-medium text-ink-900">
-                              {scene.title}
-                            </span>
-                            {scene.label && (
-                              <span className="mt-1 inline-block rounded bg-ink-100 px-1.5 py-0.5 text-[10px] text-ink-600">
-                                {scene.label}
-                              </span>
-                            )}
-                            <span className="text-ink-400 mt-1 block text-[11px] tabular-nums">
-                              {scene.wordCount > 0 ? formatWordCount(scene.wordCount) : "Empty"}
-                            </span>
-                          </button>
-                          <div className="mt-1 flex justify-end gap-0.5">
-                            <button
-                              type="button"
-                              aria-label={`Move ${scene.title} up`}
-                              title="Move up"
-                              disabled={busy || scene.siblingIndex === 0}
-                              onClick={() => props.onMoveNode("scene", scene.id, "up")}
-                              className={iconButton}
-                            >
-                              ↑
-                            </button>
-                            <button
-                              type="button"
-                              aria-label={`Move ${scene.title} down`}
-                              title="Move down"
-                              disabled={busy || scene.siblingIndex === chapter.scenes.length - 1}
-                              onClick={() => props.onMoveNode("scene", scene.id, "down")}
-                              className={iconButton}
-                            >
-                              ↓
-                            </button>
-                          </div>
-                        </li>
-                      );
-                    })}
-                  </ol>
-                  {chapter.scenes.length === 0 && (
-                    <p className="text-ink-400 px-2 text-[11px] italic">Empty chapter</p>
-                  )}
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={() => props.onCreateNode("scene", chapter.id)}
-                    className="text-ink-500 hover:text-ink-900 m-2 mt-auto rounded border border-dashed border-ink-200 py-1.5 text-[11px] font-medium disabled:opacity-50"
-                  >
-                    + Scene
-                  </button>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </section>

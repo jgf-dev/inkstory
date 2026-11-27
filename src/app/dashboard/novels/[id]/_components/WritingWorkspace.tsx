@@ -369,9 +369,9 @@ export function WritingWorkspace({
 
   function renderPlanningGrid() {
     return (
-      <>
+      <div className="flex h-full flex-col">
         {sceneError && (
-          <div className="border-red-200 bg-red-50 border-b px-6 py-2">
+          <div className="border-red-200 bg-red-50 shrink-0 border-b px-6 py-2">
             <p className="text-xs text-red-700">{sceneError}</p>
           </div>
         )}
@@ -388,7 +388,7 @@ export function WritingWorkspace({
           onMoveNode={(kind, id, direction) => void moveNode(kind, id, direction)}
           onReorderNode={(kind, id, toIndex) => void reorderNode(kind, id, toIndex)}
         />
-      </>
+      </div>
     );
   }
 
