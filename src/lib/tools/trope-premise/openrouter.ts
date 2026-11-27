@@ -43,13 +43,50 @@ const COPY_RULE_VIOLATIONS = [
   /\b(?:prices?|pricing|priced|discounts?|subscriptions?|subscribe|free trial|refunds?)\b/i,
   /\b(?:guarantee[sd]?|guaranteed|we promise|you will love|money back)\b/i,
   /\b(?:1\d|20)\d{2}\b/,
-  /\b(?:january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|aug|sept|sep|oct|nov|dec)\.? \d{1,2}(?:st|nd|rd|th)?\b/i,
   /\b(?:launch(?:es|ing)? (?:date|day|soon)|coming soon|release date|available now|sign up|pre-?order)\b/i,
   /\b(?:syncodex|inkstory|openrouter)\b/i,
 ];
 
+const MONTHS = new Set([
+  "january",
+  "february",
+  "march",
+  "april",
+  "may",
+  "june",
+  "july",
+  "august",
+  "september",
+  "october",
+  "november",
+  "december",
+  "jan",
+  "feb",
+  "mar",
+  "apr",
+  "jun",
+  "jul",
+  "aug",
+  "sept",
+  "sep",
+  "oct",
+  "nov",
+  "dec",
+]);
+
+/** Written calendar dates like \"March 3rd\" or \"Jan. 12\". */
+const WRITTEN_DATE = /\b[A-Za-z]{3,9}\.? \d{1,2}(?:st|nd|rd|th)?\b/g;
+
+function hasWrittenDate(text: string): boolean {
+  for (const match of text.matchAll(WRITTEN_DATE)) {
+    const month = match[0].replace(".", "").split(" ")[0].toLowerCase();
+    if (MONTHS.has(month)) return true;
+  }
+  return false;
+}
+
 export function violatesCopyRules(text: string): boolean {
-  return COPY_RULE_VIOLATIONS.some((pattern) => pattern.test(text));
+  return hasWrittenDate(text) || COPY_RULE_VIOLATIONS.some((pattern) => pattern.test(text));
 }
 
 export function buildPremiseMessages(input: PremiseInput): ChatMessage[] {
