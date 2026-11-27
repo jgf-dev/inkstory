@@ -1,15 +1,25 @@
 /**
- * OpenRouter call for AI-mode backstories. Only free models are ever
- * requested, the output is capped and must match a JSON schema, and every
- * failure resolves to `null` so callers can fall back to the template. The
- * API key is sent only in the Authorization header and never logged.
+ * OpenRouter call for AI-mode backstories, on the shared free-tools client
+ * (see `@/lib/tools/shared/openrouter`). Every failure resolves to a reason
+ * code so callers can fall back to the template.
  */
 import { GENRE_DEFINITIONS } from "@/lib/tools/name-generator/wordlists";
+import {
+  parseStringFieldContent,
+  requestOpenRouterJson,
+  type AiFailureReason,
+  type OpenRouterOptions,
+} from "@/lib/tools/shared/openrouter";
 import type { BackstoryInput } from "./types";
 
-export const OPENROUTER_CHAT_URL = "https://openrouter.ai/api/v1/chat/completions";
-/** OpenRouter's Free Models Router: only ever routes to zero-cost models. */
-export const DEFAULT_FREE_MODEL = "openrouter/free";
+export {
+  DEFAULT_FREE_MODEL,
+  OPENROUTER_CHAT_URL,
+  isFreeModel,
+  resolveFreeModel,
+  type AiFailureReason,
+} from "@/lib/tools/shared/openrouter";
+
 export const BACKSTORY_MAX_TOKENS = 220;
 export const BACKSTORY_TIMEOUT_MS = 8000;
 export const BACKSTORY_MIN_LENGTH = 40;
@@ -31,36 +41,11 @@ export const BACKSTORY_JSON_SCHEMA = {
   },
 } as const;
 
-/** Why an AI attempt produced nothing; safe to log (never contains the key). */
-export type AiFailureReason =
-  | "quota"
-  | "rate_limited"
-  | "http_error"
-  | "timeout"
-  | "network"
-  | "invalid_output";
-
 export type AiBackstoryOutcome =
   | { ok: true; backstory: string; model: string | null }
   | { ok: false; reason: AiFailureReason };
 
-export interface AiBackstoryOptions {
-  apiKey: string;
-  model?: string;
-  fetch?: typeof fetch;
-  timeoutMs?: number;
-  appUrl?: string;
-}
-
-/** Only `openrouter/free` and `:free` variants are allowed, so a typo can't bill. */
-export function isFreeModel(model: string | undefined): model is string {
-  const trimmed = model?.trim() ?? "";
-  return trimmed === DEFAULT_FREE_MODEL || /^[\w.-]+\/[\w.:-]+:free$/.test(trimmed);
-}
-
-export function resolveFreeModel(model: string | undefined): string {
-  return isFreeModel(model) ? model.trim() : DEFAULT_FREE_MODEL;
-}
+export type AiBackstoryOptions = OpenRouterOptions;
 
 function flavorLabel(input: BackstoryInput): string | null {
   const genre = GENRE_DEFINITIONS.find((entry) => entry.id === input.genre);
@@ -87,90 +72,29 @@ export function buildBackstoryMessages(input: BackstoryInput) {
   ];
 }
 
-const DISALLOWED_OUTPUT = /https?:\/\/|www\.|\p{Sc}|<\/?[a-z]/iu;
-
-function stripCodeFence(text: string): string {
-  const trimmed = text.trim();
-  if (!trimmed.startsWith("```")) return trimmed;
-  return trimmed
-    .replace(/^```(?:json)?/i, "")
-    .replace(/```$/, "")
-    .trim();
-}
-
 /** Validates the model's message content against the backstory schema. */
 export function parseBackstoryContent(content: unknown): string | null {
-  if (typeof content !== "string") return null;
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(stripCodeFence(content));
-  } catch {
-    return null;
-  }
-  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
-  const keys = Object.keys(parsed);
-  const backstory = (parsed as { backstory?: unknown }).backstory;
-  if (keys.length !== 1 || typeof backstory !== "string") return null;
-  const text = backstory.replace(/\s+/g, " ").trim();
-  if (text.length < BACKSTORY_MIN_LENGTH || text.length > BACKSTORY_MAX_LENGTH) return null;
-  if (DISALLOWED_OUTPUT.test(text)) return null;
-  return text;
-}
-
-function reasonForStatus(status: number): AiFailureReason {
-  if (status === 402) return "quota";
-  if (status === 429) return "rate_limited";
-  return "http_error";
-}
-
-interface ChatCompletionBody {
-  model?: unknown;
-  choices?: { message?: { content?: unknown } }[];
+  return parseStringFieldContent(content, {
+    field: "backstory",
+    minLength: BACKSTORY_MIN_LENGTH,
+    maxLength: BACKSTORY_MAX_LENGTH,
+  });
 }
 
 export async function requestAiBackstory(
   input: BackstoryInput,
   options: AiBackstoryOptions,
 ): Promise<AiBackstoryOutcome> {
-  const fetchImpl = options.fetch ?? fetch;
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), options.timeoutMs ?? BACKSTORY_TIMEOUT_MS);
-  const headers: Record<string, string> = {
-    authorization: `Bearer ${options.apiKey}`,
-    "content-type": "application/json",
-    "x-title": "Character name generator",
-  };
-  if (options.appUrl) headers["http-referer"] = options.appUrl;
-
-  try {
-    const response = await fetchImpl(OPENROUTER_CHAT_URL, {
-      method: "POST",
-      headers,
-      signal: controller.signal,
-      body: JSON.stringify({
-        model: resolveFreeModel(options.model),
-        messages: buildBackstoryMessages(input),
-        max_tokens: BACKSTORY_MAX_TOKENS,
-        temperature: 0.9,
-        response_format: { type: "json_schema", json_schema: BACKSTORY_JSON_SCHEMA },
-      }),
-    });
-    if (!response.ok) {
-      await response.body?.cancel().catch(() => {});
-      return { ok: false, reason: reasonForStatus(response.status) };
-    }
-    let body: ChatCompletionBody;
-    try {
-      body = (await response.json()) as ChatCompletionBody;
-    } catch {
-      return { ok: false, reason: controller.signal.aborted ? "timeout" : "invalid_output" };
-    }
-    const backstory = parseBackstoryContent(body.choices?.[0]?.message?.content);
-    if (!backstory) return { ok: false, reason: "invalid_output" };
-    return { ok: true, backstory, model: typeof body.model === "string" ? body.model : null };
-  } catch {
-    return { ok: false, reason: controller.signal.aborted ? "timeout" : "network" };
-  } finally {
-    clearTimeout(timer);
-  }
+  const outcome = await requestOpenRouterJson({
+    ...options,
+    timeoutMs: options.timeoutMs ?? BACKSTORY_TIMEOUT_MS,
+    title: "Character name generator",
+    messages: buildBackstoryMessages(input),
+    maxTokens: BACKSTORY_MAX_TOKENS,
+    temperature: 0.9,
+    jsonSchema: BACKSTORY_JSON_SCHEMA,
+    parse: parseBackstoryContent,
+  });
+  if (!outcome.ok) return outcome;
+  return { ok: true, backstory: outcome.value, model: outcome.model };
 }

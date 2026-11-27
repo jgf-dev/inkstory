@@ -3,20 +3,21 @@
  * template is always the fallback: missing key, rate limit, quota, timeout,
  * provider error or invalid output all return the template silently.
  */
-import { createRateLimiter, type RateLimiter } from "./rate-limit";
+import {
+  GLOBAL_RATE_LIMIT_KEY,
+  createToolAiLimiters,
+  type RateLimiter,
+} from "@/lib/tools/shared/rate-limit";
 import { requestAiBackstory, type AiBackstoryOptions, type AiFailureReason } from "./openrouter";
 import { templateBackstory } from "./template";
 import type { BackstoryInput, BackstoryResult } from "./types";
 
 /** Per client IP: 5 a minute and 20 an hour. */
-export const BACKSTORY_IP_WINDOWS = [
-  { limit: 5, windowMs: 60_000 },
-  { limit: 20, windowMs: 3_600_000 },
-] as const;
 /** Per isolate across all clients, to protect the shared free quota. */
-export const BACKSTORY_GLOBAL_WINDOWS = [{ limit: 300, windowMs: 3_600_000 }] as const;
-
-const GLOBAL_KEY = "*";
+export {
+  TOOL_AI_IP_WINDOWS as BACKSTORY_IP_WINDOWS,
+  TOOL_AI_GLOBAL_WINDOWS as BACKSTORY_GLOBAL_WINDOWS,
+} from "@/lib/tools/shared/rate-limit";
 
 export type BackstoryFallbackReason =
   | "not_configured"
@@ -33,10 +34,7 @@ export interface BackstoryDeps extends Omit<AiBackstoryOptions, "apiKey"> {
 }
 
 export function createBackstoryLimiters(now?: () => number) {
-  return {
-    ipLimiter: createRateLimiter({ windows: BACKSTORY_IP_WINDOWS, now }),
-    globalLimiter: createRateLimiter({ windows: BACKSTORY_GLOBAL_WINDOWS, now }),
-  };
+  return createToolAiLimiters(now);
 }
 
 export async function getCharacterBackstory(
@@ -53,7 +51,7 @@ export async function getCharacterBackstory(
   const apiKey = rawApiKey?.trim();
   if (!apiKey) return fallback("not_configured");
   if (!ipLimiter.consume(clientIp)) return fallback("ip_rate_limited");
-  if (!globalLimiter.consume(GLOBAL_KEY)) return fallback("global_rate_limited");
+  if (!globalLimiter.consume(GLOBAL_RATE_LIMIT_KEY)) return fallback("global_rate_limited");
 
   const outcome = await requestAiBackstory(input, { ...aiOptions, apiKey });
   if (!outcome.ok) return fallback(outcome.reason);

@@ -124,7 +124,13 @@ export default async function StoryTropeGeneratorPage({
         <SubmitRow label="Generate tropes" />
       </form>
 
-      <TropeResults tropes={tropes} shareHref={shareHref} moreHref={moreHref} />
+      <TropeResults
+        key={shareHref}
+        tropes={tropes}
+        shareHref={shareHref}
+        moreHref={moreHref}
+        premise={{ genre: params.genre }}
+      />
 
       <FaqSection heading="Story trope generator FAQ" faqs={FAQS} />
 
