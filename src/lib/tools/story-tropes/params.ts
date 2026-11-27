@@ -2,14 +2,14 @@
  * Query-string parsing and URL building for the shareable trope generator.
  * Unknown or malformed values fall back to defaults instead of erroring.
  */
-import { normalizeSeed, type SearchParamsRecord } from "@/lib/tools/name-generator/params";
 import {
-  LOCK_SEPARATOR,
-  getParamValues,
-  parseFilterOption,
-  splitLockIds,
-  toggleLock,
-} from "@/lib/tools/query-params";
+  allParams,
+  firstParam,
+  normalizeSeed,
+  oneOf,
+  parseClampedCount,
+  type SearchParamsRecord,
+} from "@/lib/tools/shared/params";
 import { DEFAULT_COUNT, MAX_COUNT, clampCount, resolveLocks } from "./engine";
 import {
   ANY,
@@ -21,6 +21,7 @@ import {
 } from "./types";
 
 export const TROPE_GENERATOR_PATH = "/tools/story-trope-generator";
+const LOCK_SEPARATOR = ",";
 
 export interface ParsedTropeGeneratorParams extends TropeFilters {
   /** Normalized seed, or `null` when absent or invalid. */
@@ -29,27 +30,26 @@ export interface ParsedTropeGeneratorParams extends TropeFilters {
   locked: string[];
 }
 
-function parseCount(value: string | undefined): number {
-  if (!value || !/^\d+$/.test(value.trim())) return DEFAULT_COUNT;
-  return clampCount(Number(value));
-}
-
 /** Accepts `lock=a,b` and/or repeated `lock=a&lock=b`; keeps only valid, compatible ids. */
 export function parseLockedIds(values: readonly string[]): string[] {
-  const ids = splitLockIds(values, MAX_COUNT * 4);
+  const ids = values
+    .flatMap((value) => value.split(LOCK_SEPARATOR))
+    .map((id) => id.trim().toLowerCase())
+    .filter((id) => id.length > 0)
+    .slice(0, MAX_COUNT * 4);
   return resolveLocks(ids).map((trope) => trope.id);
 }
 
 export function parseTropeGeneratorParams(
   params: SearchParamsRecord | URLSearchParams | undefined,
 ): ParsedTropeGeneratorParams {
-  const get = (key: string): string | undefined => getParamValues(params, key)[0];
+  const get = (key: string): string | undefined => firstParam(params, key);
   return {
     seed: normalizeSeed(get("seed")),
-    genre: parseFilterOption(TROPE_GENRES, get("genre"), ANY) as GenreFilter,
-    category: parseFilterOption(TROPE_CATEGORIES, get("category"), ANY) as CategoryFilter,
-    count: parseCount(get("count")),
-    locked: parseLockedIds(getParamValues(params, "lock")),
+    genre: oneOf(TROPE_GENRES, get("genre"), ANY) as GenreFilter,
+    category: oneOf(TROPE_CATEGORIES, get("category"), ANY) as CategoryFilter,
+    count: parseClampedCount(get("count"), DEFAULT_COUNT, clampCount),
+    locked: parseLockedIds(allParams(params, "lock")),
   };
 }
 
@@ -67,4 +67,7 @@ export function buildTropeGeneratorHref(
   return `${TROPE_GENERATOR_PATH}?${query.toString()}`;
 }
 
-export { toggleLock };
+/** Locked ids with `id` added (appended) or removed. */
+export function toggleLock(locked: readonly string[], id: string): string[] {
+  return locked.includes(id) ? locked.filter((entry) => entry !== id) : [...locked, id];
+}

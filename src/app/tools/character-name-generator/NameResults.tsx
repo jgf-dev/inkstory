@@ -18,7 +18,7 @@ export interface NameResultsProps {
  * link are server-rendered, so they work without JavaScript; copying needs it.
  */
 export function NameResults({ names, shareHref, moreHref }: NameResultsProps) {
-  const { copied, error, copy } = useCopyFeedback();
+  const feedback = useCopyFeedback();
 
   return (
     <section aria-labelledby="generated-names-heading" className="mt-6">
@@ -39,9 +39,9 @@ export function NameResults({ names, shareHref, moreHref }: NameResultsProps) {
                 type="button"
                 className={COPY_BUTTON_CLASS}
                 aria-label={`Copy ${name}`}
-                onClick={() => void copy(name, name)}
+                onClick={() => void feedback.copy(name, name)}
               >
-                {copied === name ? "Copied" : "Copy"}
+                {feedback.copied === name ? "Copied" : "Copy"}
               </button>
             </li>
           ))}
@@ -52,9 +52,7 @@ export function NameResults({ names, shareHref, moreHref }: NameResultsProps) {
         shareHref={shareHref}
         moreHref={moreHref}
         moreLabel="Generate more"
-        copied={copied}
-        error={error}
-        copy={copy}
+        feedback={feedback}
       />
     </section>
   );

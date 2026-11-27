@@ -7,6 +7,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import type React from "react";
 
+export const SITE_ORIGIN = "https://syncodex.xyz";
+
 export interface Faq {
   q: string;
   a: string;
@@ -20,6 +22,7 @@ export function toolMetadata(input: {
   path: string;
 }): Metadata {
   return {
+    metadataBase: new URL(SITE_ORIGIN),
     title: input.title,
     description: input.description,
     keywords: input.keywords,
@@ -77,6 +80,7 @@ export function SelectField(props: {
         {props.label}
       </label>
       <select
+        key={props.value}
         id={props.id}
         name={props.name}
         defaultValue={props.value}
@@ -94,7 +98,7 @@ export function SubmitRow({ label }: { label: string }) {
     <div className="col-span-full">
       <button
         type="submit"
-        className="bg-ink-900 rounded-md px-4 py-2 text-sm font-medium text-white"
+        className="bg-ink-900 text-ink-50 rounded-md px-4 py-2 text-sm font-medium"
       >
         {label}
       </button>
@@ -159,7 +163,7 @@ export function WaitlistCta(props: { title: string; body: string; source: string
       <p className="text-ink-600 mb-4">{props.body}</p>
       <Link
         href={`/waitlist?source=${encodeURIComponent(props.source)}`}
-        className="bg-ink-900 inline-block rounded-md px-4 py-2 text-sm font-medium text-white"
+        className="bg-ink-900 text-ink-50 inline-block rounded-md px-4 py-2 text-sm font-medium"
       >
         Join the waitlist
       </Link>

@@ -3,7 +3,7 @@
  * weighted picks from the bundled catalog, driven by a seeded RNG so the same
  * seed + filters + count + locks always give the same combo.
  */
-import { createRng, pickWeighted, type Rng } from "../name-generator/rng";
+import { createRng, pickWeighted, type Rng } from "@/lib/tools/shared/rng";
 import { TROPE_CATALOG } from "./catalog";
 import {
   ANY,
@@ -63,6 +63,10 @@ export function matchesFilters(
   return genreOk && categoryOk;
 }
 
+function fits(trope: Trope, chosen: readonly Trope[], index: Map<string, Set<string>>): boolean {
+  return chosen.every((entry) => entry.id !== trope.id && !areExcluded(entry.id, trope.id, index));
+}
+
 /**
  * Valid locks in order: unknown ids, repeats and ids that clash with an
  * earlier lock are dropped, and at most `MAX_COUNT` are kept.
@@ -70,13 +74,13 @@ export function matchesFilters(
 export function resolveLocks(
   ids: readonly string[],
   catalog: TropeCatalog = TROPE_CATALOG,
+  index: Map<string, Set<string>> = buildExclusionIndex(catalog),
 ): Trope[] {
-  const index = buildExclusionIndex(catalog);
   const locked: Trope[] = [];
   for (const id of ids) {
     if (locked.length >= MAX_COUNT) break;
     const trope = findTrope(id, catalog);
-    if (!trope || locked.some((entry) => entry.id === id || areExcluded(entry.id, id, index))) {
+    if (!trope || !fits(trope, locked, index)) {
       continue;
     }
     locked.push(trope);
@@ -87,10 +91,6 @@ export function resolveLocks(
 /** Seed string mixed with the filters and count, so each setting has its own stream. */
 export function rngKey(options: TropeGeneratorOptions): string {
   return [options.seed, options.genre, options.category, clampCount(options.count)].join("|");
-}
-
-function fits(trope: Trope, chosen: readonly Trope[], index: Map<string, Set<string>>): boolean {
-  return chosen.every((entry) => entry.id !== trope.id && !areExcluded(entry.id, trope.id, index));
 }
 
 function drawFree(
@@ -127,7 +127,7 @@ export function generateTropes(
   catalog: TropeCatalog = TROPE_CATALOG,
 ): GeneratedTrope[] {
   const index = buildExclusionIndex(catalog);
-  const locked = resolveLocks(options.locked, catalog);
+  const locked = resolveLocks(options.locked, catalog, index);
   const count = Math.max(clampCount(options.count), locked.length);
   const chosen: Trope[] = [...locked];
   const pool = catalog.tropes.filter((trope) =>
