@@ -1,6 +1,6 @@
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 const mockRedirect = vi.fn();
 const mockPush = vi.fn();
@@ -98,7 +98,13 @@ describe("Pages & Server Components", () => {
   });
 
   describe("RootLayout", () => {
-    it("renders children wrapped in html and body tags with metadata", async () => {
+    afterEach(() => {
+      vi.unstubAllEnvs();
+    });
+
+    it("renders children wrapped in html and body tags with metadata and omits analytics in test env", async () => {
+      vi.stubEnv("NEXT_PUBLIC_BETTERSTACK_TOKEN", "TKXW6BinG9JpyjaRroQaZvnM");
+
       const { default: RootLayout, metadata } = await import("../src/app/layout");
       expect(metadata.title).toBe("InkStory");
       expect(metadata.description).toBeDefined();
@@ -111,6 +117,38 @@ describe("Pages & Server Components", () => {
       expect(html).toContain('lang="en"');
       expect(html).toContain("Hello InkStory");
       expect(html).toContain("child-test");
+      expect(html).not.toContain("betterstack-init");
+    });
+
+    it("injects the Better Stack script in production when configured and not in E2E", async () => {
+      vi.stubEnv("NODE_ENV", "production");
+      vi.stubEnv("NEXT_PUBLIC_BETTERSTACK_TOKEN", "TKXW6BinG9JpyjaRroQaZvnM");
+      vi.stubEnv("NEXT_PUBLIC_BETTERSTACK_ENV", "preview");
+
+      const { default: RootLayout } = await import("../src/app/layout");
+      const element = React.createElement(RootLayout, {
+        children: React.createElement("div", null, "Prod"),
+      });
+      const html = renderToStaticMarkup(element);
+
+      expect(html).toContain('id="betterstack-init"');
+      expect(html).toContain("https://betterstack.net/b.js?t=");
+      expect(html).toContain('"TKXW6BinG9JpyjaRroQaZvnM"');
+      expect(html).toContain('environment:"preview"');
+    });
+
+    it("omits the Better Stack script when NEXT_PUBLIC_E2E is true even in production", async () => {
+      vi.stubEnv("NODE_ENV", "production");
+      vi.stubEnv("NEXT_PUBLIC_BETTERSTACK_TOKEN", "TKXW6BinG9JpyjaRroQaZvnM");
+      vi.stubEnv("NEXT_PUBLIC_E2E", "true");
+
+      const { default: RootLayout } = await import("../src/app/layout");
+      const element = React.createElement(RootLayout, {
+        children: React.createElement("div", null, "E2E"),
+      });
+      const html = renderToStaticMarkup(element);
+
+      expect(html).not.toContain("betterstack-init");
     });
   });
 
