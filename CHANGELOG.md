@@ -2,6 +2,23 @@
 
 All notable changes to InkStory are tracked here. This file follows [Keep a Changelog](https://keepachangelog.com/) and the project adheres to [Semantic Versioning](https://semver.org/).
 
+## [PR-236](https://github.com/jgf-dev/inkstory/pull/236) - 2026-11-26
+
+### Summary
+
+Added the Better Stack browser analytics tag to the root layout with environment-driven token configuration, production-vs-preview environment tagging, and automatic suppression in local development, test, and Playwright E2E runs.
+
+### Added
+
+- `src/lib/analytics/betterstack.ts`: added `buildBetterStackInitScript` to validate the configured token, escape inline `<script>` values safely, suppress injection outside production builds or under `NEXT_PUBLIC_E2E="true"`, and resolve `production` (`syncodex.xyz`) vs `preview` / `development` at runtime when `NEXT_PUBLIC_BETTERSTACK_ENV` is not explicitly set.
+- `tests/betterstack-analytics.test.ts`: added unit tests covering environment gating, token validation, hostname environment classification, and inline-script escaping.
+
+### Changed
+
+- `src/app/layout.tsx`: replaced `next/script` and hardcoded Better Stack snippet with a conditional plain `<script id="betterstack-init">` generated per render from `buildBetterStackInitScript`.
+- `cloudflare.config.ts`, `.env.example`, and `playwright.config.ts`: bound `NEXT_PUBLIC_BETTERSTACK_TOKEN` in the Cloudflare Worker config, documented optional `NEXT_PUBLIC_BETTERSTACK_TOKEN` / `NEXT_PUBLIC_BETTERSTACK_ENV`, and explicitly blanked both in the isolated E2E web server.
+- `tests/pages.test.ts`: added `RootLayout` assertions verifying analytics omission in test/E2E runs and rendering in production.
+
 ## [PR-234](https://github.com/jgf-dev/inkstory/pull/234) - 2026-11-26
 
 ### Summary
