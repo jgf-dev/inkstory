@@ -60,7 +60,7 @@ const FAQ_JSON_LD = JSON.stringify({
     name: faq.q,
     acceptedAnswer: { "@type": "Answer", text: faq.a },
   })),
-}).replace(/</g, "\\u003c");
+}).replaceAll("<", String.raw`\u003c`);
 
 interface Option {
   value: string;
@@ -75,14 +75,16 @@ function renderOptions(options: readonly Option[]) {
   ));
 }
 
-function SelectField(props: {
-  id: string;
-  name: string;
-  label: string;
-  value: string;
-  hint?: string;
-  children: React.ReactNode;
-}) {
+function SelectField(
+  props: Readonly<{
+    id: string;
+    name: string;
+    label: string;
+    value: string;
+    hint?: string;
+    children: React.ReactNode;
+  }>,
+) {
   return (
     <div>
       <label htmlFor={props.id} className="text-ink-700 mb-1 block text-sm font-medium">

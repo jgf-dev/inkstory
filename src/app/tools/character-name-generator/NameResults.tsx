@@ -54,7 +54,7 @@ type CopiedTarget = { kind: "item"; name: string } | { kind: "all" } | { kind: "
  * Generated name list with copy controls. The list and the "Generate more"
  * link are server-rendered, so they work without JavaScript; copying needs it.
  */
-export function NameResults({ names, shareHref, moreHref, backstory }: NameResultsProps) {
+export function NameResults({ names, shareHref, moreHref, backstory }: Readonly<NameResultsProps>) {
   const [copied, setCopied] = useState<CopiedTarget | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [hydrated, setHydrated] = useState(false);
