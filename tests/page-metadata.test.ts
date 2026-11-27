@@ -6,21 +6,21 @@ vi.mock("../src/lib/supabase/server", () => ({ createSupabaseServerClient: vi.fn
 const EXPECTED = {
   "/": {
     load: () => import("../src/app/page"),
-    title: "Story Planning and Novel Writing Workspace | Syncodex",
+    title: "Story Planning and Novel Writing Workspace | InkStory",
     description:
-      "Plan novels in Syncodex, an AI-aware writing workspace with a story bible, plot outliner, and autosaving scene editor.",
+      "Plan novels in InkStory, an AI-aware writing workspace with a story bible, plot outliner, and autosaving scene editor.",
   },
   "/login": {
     load: () => import("../src/app/login/page"),
-    title: "Log In to Your Writing Workspace | Syncodex",
+    title: "Log In to Your Writing Workspace | InkStory",
     description:
-      "Log in to Syncodex to return to your story projects, Codex entries, and scene drafts.",
+      "Log in to InkStory to return to your story projects, Codex entries, and scene drafts.",
   },
   "/signup": {
     load: () => import("../src/app/signup/page"),
-    title: "Create Your Writing Workspace Account | Syncodex",
+    title: "Create Your Writing Workspace Account | InkStory",
     description:
-      "Create a Syncodex account to start planning your novel and organizing characters, locations, and lore in your story Codex.",
+      "Create an InkStory account to start planning your novel and organizing characters, locations, and lore in your story Codex.",
   },
 };
 

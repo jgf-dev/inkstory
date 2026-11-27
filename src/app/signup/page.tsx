@@ -6,9 +6,9 @@ import { getTurnstileSiteKey } from "@/lib/turnstile";
 import { SignupForm } from "./SignupForm";
 
 export const metadata: Metadata = {
-  title: "Create Your Writing Workspace Account | Syncodex",
+  title: "Create Your Writing Workspace Account | InkStory",
   description:
-    "Create a Syncodex account to start planning your novel and organizing characters, locations, and lore in your story Codex.",
+    "Create an InkStory account to start planning your novel and organizing characters, locations, and lore in your story Codex.",
 };
 
 export default async function SignupPage() {

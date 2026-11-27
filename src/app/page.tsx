@@ -65,9 +65,9 @@ const FAQS = [
 ];
 
 export const metadata: Metadata = {
-  title: "Story Planning and Novel Writing Workspace | Syncodex",
+  title: "Story Planning and Novel Writing Workspace | InkStory",
   description:
-    "Plan novels in Syncodex, an AI-aware writing workspace with a story bible, plot outliner, and autosaving scene editor.",
+    "Plan novels in InkStory, an AI-aware writing workspace with a story bible, plot outliner, and autosaving scene editor.",
 };
 
 export default async function Home() {
