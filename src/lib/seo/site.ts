@@ -7,6 +7,7 @@
  * so they show up in the sitemap.
  */
 import { NAME_GENERATOR_PATH } from "@/lib/tools/name-generator/params";
+import { TROPE_GENERATOR_PATH } from "@/lib/tools/story-tropes/params";
 
 export const SITE_URL = "https://syncodex.xyz";
 export const SITEMAP_URL = `${SITE_URL}/sitemap.xml`;
@@ -31,10 +32,13 @@ export interface PublicPage {
 export const PUBLIC_PAGES: readonly PublicPage[] = [
   { path: "/", changeFrequency: "weekly", priority: 1 },
   { path: NAME_GENERATOR_PATH, changeFrequency: "monthly", priority: 0.8 },
+  { path: TROPE_GENERATOR_PATH, changeFrequency: "monthly", priority: 0.8 },
   { path: "/waitlist", changeFrequency: "monthly", priority: 0.6 },
   { path: "/signup", changeFrequency: "yearly", priority: 0.4 },
   { path: "/login", changeFrequency: "yearly", priority: 0.3 },
 ];
+// `/tools/adult-writing-prompt-generator` stays out: that page is noindex
+// until the STO-1315 launch blockers (age gate, /privacy, /terms) clear.
 
 /** Signed-in app surfaces, API routes and auth callbacks: not for crawlers. */
 export const DISALLOWED_PREFIXES: readonly string[] = ["/api/", "/auth/", "/dashboard"];
@@ -46,6 +50,30 @@ export function absoluteUrl(path: string): string {
   }
   return path === "/" ? `${SITE_URL}/` : `${SITE_URL}${path}`;
 }
+
+function pathWithoutQueryOrHash(path: string): string {
+  const cut = path.search(/[?#]/);
+  return cut === -1 ? path : path.slice(0, cut);
+}
+
+/**
+ * Canonical URL and matching Open Graph URL for a public page.
+ * Query strings and hashes are stripped so shareable tool filters
+ * do not leak into `<link rel="canonical">` or `og:url`.
+ */
+export function publicPageSeo(path: string): {
+  alternates: { canonical: string };
+  openGraph: { url: string };
+} {
+  const url = absoluteUrl(pathWithoutQueryOrHash(path));
+  return {
+    alternates: { canonical: url },
+    openGraph: { url },
+  };
+}
+
+/** Authenticated app surfaces should not be indexed and get no canonical. */
+export const NOINDEX_ROBOTS = { index: false, follow: false } as const;
 
 export interface RobotsRule {
   userAgent: string;

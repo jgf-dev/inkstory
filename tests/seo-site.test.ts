@@ -6,12 +6,17 @@ import robots from "../src/app/robots";
 import sitemap from "../src/app/sitemap";
 import {
   DISALLOWED_PREFIXES,
+  NOINDEX_ROBOTS,
   PUBLIC_PAGES,
   SITEMAP_URL,
   SITE_URL,
   absoluteUrl,
   buildSitemap,
+  publicPageSeo,
 } from "../src/lib/seo/site";
+import { NAME_GENERATOR_PATH } from "../src/lib/tools/name-generator/params";
+import { TROPE_GENERATOR_PATH } from "../src/lib/tools/story-tropes/params";
+import { PROMPT_GENERATOR_PATH } from "../src/lib/tools/adult-prompts/params";
 
 describe("absoluteUrl", () => {
   it("joins paths onto the canonical origin", () => {
@@ -21,6 +26,40 @@ describe("absoluteUrl", () => {
 
   it("rejects relative paths", () => {
     expect(() => absoluteUrl("waitlist")).toThrow(/must start with/);
+  });
+});
+
+describe("publicPageSeo", () => {
+  it("returns a path-only canonical and matching Open Graph URL", () => {
+    expect(publicPageSeo("/")).toEqual({
+      alternates: { canonical: "https://syncodex.xyz/" },
+      openGraph: { url: "https://syncodex.xyz/" },
+    });
+    expect(publicPageSeo("/waitlist")).toEqual({
+      alternates: { canonical: "https://syncodex.xyz/waitlist" },
+      openGraph: { url: "https://syncodex.xyz/waitlist" },
+    });
+  });
+
+  it("strips query strings and hashes so shareable filters stay out of the canonical", () => {
+    expect(publicPageSeo("/tools/character-name-generator?genre=fantasy&seed=1")).toEqual(
+      publicPageSeo("/tools/character-name-generator"),
+    );
+    expect(publicPageSeo("/waitlist#form")).toEqual(publicPageSeo("/waitlist"));
+    expect(publicPageSeo("/login?error=confirmation_failed").alternates.canonical).toBe(
+      "https://syncodex.xyz/login",
+    );
+    expect(publicPageSeo("/signup?ref=1#top").openGraph.url).not.toMatch(/[?#]/);
+  });
+
+  it("rejects relative paths", () => {
+    expect(() => publicPageSeo("waitlist")).toThrow(/must start with/);
+  });
+});
+
+describe("NOINDEX_ROBOTS", () => {
+  it("asks crawlers not to index authenticated surfaces", () => {
+    expect(NOINDEX_ROBOTS).toEqual({ index: false, follow: false });
   });
 });
 
@@ -57,10 +96,14 @@ describe("sitemap.xml", () => {
     expect(urls).toEqual([
       "https://syncodex.xyz/",
       "https://syncodex.xyz/tools/character-name-generator",
+      "https://syncodex.xyz/tools/story-trope-generator",
       "https://syncodex.xyz/waitlist",
       "https://syncodex.xyz/signup",
       "https://syncodex.xyz/login",
     ]);
+    expect(urls).toContain(`https://syncodex.xyz${NAME_GENERATOR_PATH}`);
+    expect(urls).toContain(`https://syncodex.xyz${TROPE_GENERATOR_PATH}`);
+    expect(urls).not.toContain(`https://syncodex.xyz${PROMPT_GENERATOR_PATH}`);
     expect(new Set(urls).size).toBe(urls.length);
     for (const entry of entries) {
       expect(entry.priority).toBeGreaterThanOrEqual(0);

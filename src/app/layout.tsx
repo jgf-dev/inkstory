@@ -1,10 +1,11 @@
 import { buildBetterStackInitScript } from "@/lib/analytics/betterstack";
+import { SITE_URL } from "@/lib/seo/site";
 import { PREFERENCES_BOOTSTRAP_SCRIPT } from "@/lib/ui/preferences";
 import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://syncodex.xyz"),
+  metadataBase: new URL(SITE_URL),
   title: "InkStory",
   description: "A novel-writing and world-building platform with an AI-aware Codex.",
 };

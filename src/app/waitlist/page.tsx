@@ -1,19 +1,24 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { publicPageSeo } from "@/lib/seo/site";
 import { normalizeSource } from "@/lib/waitlist/validation";
 import { WaitlistForm } from "./WaitlistForm";
 
 const DESCRIPTION =
   "syncodex is a writing workspace for novelists: a story bible for your characters, places and lore, and a scene editor with an AI assistant that reads it.";
 
+const waitlistSeo = publicPageSeo("/waitlist");
+
 export const metadata: Metadata = {
   title: "Join the waitlist · syncodex",
   description: DESCRIPTION,
+  alternates: waitlistSeo.alternates,
   openGraph: {
     title: "Join the syncodex waitlist",
     description: DESCRIPTION,
     siteName: "syncodex",
     type: "website",
+    ...waitlistSeo.openGraph,
   },
   twitter: {
     card: "summary",
