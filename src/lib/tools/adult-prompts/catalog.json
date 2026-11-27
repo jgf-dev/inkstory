@@ -1,0 +1,994 @@
+{
+  "fragments": [
+    {
+      "id": "fake-family-wedding",
+      "slot": "setup",
+      "text": "They agree to pose as a couple for one week to get through a family wedding",
+      "pairings": [],
+      "heats": [],
+      "genres": [],
+      "tropes": ["fake-relationship"],
+      "weight": 3
+    },
+    {
+      "id": "fake-work-retreat",
+      "slot": "setup",
+      "text": "One needs a date for a work retreat and the other owes a favour, so they invent a relationship with written rules",
+      "pairings": [],
+      "heats": [],
+      "genres": ["contemporary", "romance"],
+      "tropes": ["fake-relationship"],
+      "weight": 2
+    },
+    {
+      "id": "storm-one-bed",
+      "slot": "setup",
+      "text": "A storm strands them overnight with one room and a single bed between them",
+      "pairings": [],
+      "heats": [],
+      "genres": [],
+      "tropes": ["forced-proximity"],
+      "weight": 3
+    },
+    {
+      "id": "binding-spell",
+      "slot": "setup",
+      "text": "A binding spell keeps them within a hundred paces of each other until a shared quest is done",
+      "pairings": [],
+      "heats": [],
+      "genres": ["fantasy"],
+      "tropes": ["forced-proximity"],
+      "weight": 2
+    },
+    {
+      "id": "public-feud-project",
+      "slot": "setup",
+      "text": "After years of publicly tearing down each other's work, they are assigned to the same project",
+      "pairings": [],
+      "heats": [],
+      "genres": [],
+      "tropes": ["enemies-to-lovers", "rivals"],
+      "weight": 3
+    },
+    {
+      "id": "feuding-families-truce",
+      "slot": "setup",
+      "text": "The heads of two feuding families meet in secret to negotiate a truce neither side trusts",
+      "pairings": [],
+      "heats": [],
+      "genres": ["dark-romance"],
+      "tropes": ["enemies-to-lovers", "forbidden-love"],
+      "weight": 2
+    },
+    {
+      "id": "ex-at-wedding",
+      "slot": "setup",
+      "text": "Former lovers meet again at a mutual friend's wedding, a decade after a breakup neither of them explained",
+      "pairings": [],
+      "heats": [],
+      "genres": [],
+      "tropes": ["second-chance"],
+      "weight": 3
+    },
+    {
+      "id": "return-from-war",
+      "slot": "setup",
+      "text": "A soldier comes home after years at war to find the person they left behind running the family estate",
+      "pairings": [],
+      "heats": [],
+      "genres": ["historical"],
+      "tropes": ["second-chance"],
+      "weight": 2
+    },
+    {
+      "id": "opposite-sides-deal",
+      "slot": "setup",
+      "text": "They sit on opposite sides of a hard-fought negotiation, and being seen together would end both careers",
+      "pairings": [],
+      "heats": [],
+      "genres": ["romance", "contemporary", "dark-romance"],
+      "tropes": ["forbidden-love"],
+      "weight": 2
+    },
+    {
+      "id": "rival-households",
+      "slot": "setup",
+      "text": "They belong to rival households, and being seen together would cost both of them their place",
+      "pairings": [],
+      "heats": [],
+      "genres": [],
+      "tropes": ["forbidden-love"],
+      "weight": 2
+    },
+    {
+      "id": "knight-and-envoy",
+      "slot": "setup",
+      "text": "A sworn knight falls for the rival court's envoy during a fragile peace summit",
+      "pairings": [],
+      "heats": [],
+      "genres": ["fantasy"],
+      "tropes": ["forbidden-love"],
+      "weight": 2
+    },
+    {
+      "id": "planner-of-the-match",
+      "slot": "setup",
+      "text": "A society match has been arranged for one of them, and the other has been hired to plan the engagement ball",
+      "pairings": [],
+      "heats": [],
+      "genres": ["historical"],
+      "tropes": ["forbidden-love"],
+      "weight": 2
+    },
+    {
+      "id": "cheerful-neighbour",
+      "slot": "setup",
+      "text": "A relentlessly cheerful new neighbour keeps knocking on the door of the most private person on the street",
+      "pairings": [],
+      "heats": [],
+      "genres": [],
+      "tropes": ["grumpy-sunshine"],
+      "weight": 2
+    },
+    {
+      "id": "bookshop-rescue",
+      "slot": "setup",
+      "text": "A gruff bookshop owner reluctantly hires an upbeat event planner to save the shop",
+      "pairings": [],
+      "heats": [],
+      "genres": ["contemporary"],
+      "tropes": ["grumpy-sunshine"],
+      "weight": 2
+    },
+    {
+      "id": "final-round",
+      "slot": "setup",
+      "text": "Two finalists in a high-stakes competition have to share a kitchen, a studio or a stage for one last round",
+      "pairings": [],
+      "heats": [],
+      "genres": [],
+      "tropes": ["rivals"],
+      "weight": 2
+    },
+    {
+      "id": "two-thieves",
+      "slot": "setup",
+      "text": "Two thieves hired for the same job realise only one of them can walk away with the prize",
+      "pairings": [],
+      "heats": [],
+      "genres": ["dark-romance"],
+      "tropes": ["rivals", "enemies-to-lovers"],
+      "weight": 2
+    },
+    {
+      "id": "anonymous-flirting",
+      "slot": "setup",
+      "text": "They have been flirting anonymously for months without knowing they already work together",
+      "pairings": [],
+      "heats": [],
+      "genres": ["romance", "contemporary", "dark-romance"],
+      "tropes": ["secret-identity"],
+      "weight": 2
+    },
+    {
+      "id": "masked-stranger",
+      "slot": "setup",
+      "text": "They spend one unforgettable evening with a masked stranger, then meet the face behind the mask the next morning",
+      "pairings": [],
+      "heats": [],
+      "genres": [],
+      "tropes": ["secret-identity"],
+      "weight": 2
+    },
+    {
+      "id": "masked-ruler",
+      "slot": "setup",
+      "text": "A masked stranger at the solstice festival turns out to be the ruler everyone fears",
+      "pairings": [],
+      "heats": [],
+      "genres": ["fantasy"],
+      "tropes": ["secret-identity"],
+      "weight": 2
+    },
+    {
+      "id": "alliance-marriage",
+      "slot": "setup",
+      "text": "A marriage of convenience seals an alliance, and the newlyweds agree to keep separate rooms",
+      "pairings": [],
+      "heats": [],
+      "genres": ["historical", "fantasy"],
+      "tropes": ["marriage-of-convenience"],
+      "weight": 2
+    },
+    {
+      "id": "inheritance-clause",
+      "slot": "setup",
+      "text": "A practical marriage settles an inheritance clause, on the strict understanding that nothing romantic will happen",
+      "pairings": [],
+      "heats": [],
+      "genres": ["contemporary"],
+      "tropes": ["marriage-of-convenience"],
+      "weight": 2
+    },
+    {
+      "id": "strangers-marry",
+      "slot": "setup",
+      "text": "Two strangers marry for a residency deal, a title or a will, and must convince everyone it is real",
+      "pairings": [],
+      "heats": [],
+      "genres": [],
+      "tropes": ["marriage-of-convenience", "fake-relationship"],
+      "weight": 2
+    },
+    {
+      "id": "flirting-practice",
+      "slot": "setup",
+      "text": "Friends of many years make a pact to help each other practise flirting before a big event",
+      "pairings": [],
+      "heats": [],
+      "genres": [],
+      "tropes": ["friends-to-lovers"],
+      "weight": 3
+    },
+    {
+      "id": "roommates",
+      "slot": "setup",
+      "text": "Two longtime roommates realise their arrangement stopped being platonic some time ago",
+      "pairings": [],
+      "heats": [],
+      "genres": ["contemporary", "romance"],
+      "tropes": ["friends-to-lovers", "forced-proximity"],
+      "weight": 2
+    },
+    {
+      "id": "late-night-spot",
+      "slot": "setup",
+      "text": "Every evening for a month they meet at the same late-night spot and never quite say what they mean",
+      "pairings": [],
+      "heats": [],
+      "genres": [],
+      "tropes": ["slow-burn"],
+      "weight": 2
+    },
+    {
+      "id": "bold-letters",
+      "slot": "setup",
+      "text": "Letters between two correspondents grow bolder until they finally agree to meet in person",
+      "pairings": [],
+      "heats": [],
+      "genres": ["historical"],
+      "tropes": ["slow-burn", "secret-identity"],
+      "weight": 2
+    },
+    {
+      "id": "detective-and-heir",
+      "slot": "setup",
+      "text": "A disgraced detective must protect the morally grey heir they spent years trying to arrest",
+      "pairings": [],
+      "heats": [],
+      "genres": ["dark-romance"],
+      "tropes": ["enemies-to-lovers", "forced-proximity"],
+      "weight": 2
+    },
+    {
+      "id": "spy-past",
+      "slot": "setup",
+      "text": "One of them is hiding a past as a hired spy, and the other is starting to piece it together",
+      "pairings": [],
+      "heats": [],
+      "genres": ["dark-romance"],
+      "tropes": ["secret-identity"],
+      "weight": 2
+    },
+    {
+      "id": "selling-the-house",
+      "slot": "setup",
+      "text": "An ex comes back to town to sell the house they once shared, and the other still lives next door",
+      "pairings": [],
+      "heats": [],
+      "genres": ["romance", "contemporary"],
+      "tropes": ["second-chance"],
+      "weight": 2
+    },
+    {
+      "id": "one-night-partner",
+      "slot": "setup",
+      "text": "A one-night stand they both swore to forget turns out to be their new business partner",
+      "pairings": [],
+      "heats": ["steamy", "spicy"],
+      "genres": [],
+      "tropes": ["second-chance", "forced-proximity"],
+      "weight": 1
+    },
+    {
+      "id": "vineyard-sommelier",
+      "slot": "pairing",
+      "text": "a widowed vineyard owner in her forties and the sommelier in his thirties who wants to buy her land",
+      "pairings": ["mf"],
+      "heats": [],
+      "genres": [],
+      "tropes": [],
+      "weight": 2
+    },
+    {
+      "id": "rugby-physio",
+      "slot": "pairing",
+      "text": "a retired rugby captain in his late thirties and the physiotherapist in her thirties who refuses to go easy on him",
+      "pairings": ["mf"],
+      "heats": [],
+      "genres": ["romance", "contemporary", "dark-romance"],
+      "tropes": [],
+      "weight": 2
+    },
+    {
+      "id": "architect-carpenter",
+      "slot": "pairing",
+      "text": "an architect in her thirties and the carpenter in his forties who keeps rewriting her plans",
+      "pairings": ["mf"],
+      "heats": [],
+      "genres": [],
+      "tropes": [],
+      "weight": 2
+    },
+    {
+      "id": "mage-captain",
+      "slot": "pairing",
+      "text": "a court mage in her thirties and the captain of the queen's guard, a veteran in his forties",
+      "pairings": ["mf"],
+      "heats": [],
+      "genres": ["fantasy"],
+      "tropes": [],
+      "weight": 2
+    },
+    {
+      "id": "novelist-detective",
+      "slot": "pairing",
+      "text": "a crime novelist in her fifties and the detective in his forties she keeps calling for research",
+      "pairings": ["mf"],
+      "heats": [],
+      "genres": [],
+      "tropes": [],
+      "weight": 2
+    },
+    {
+      "id": "duchess-magnate",
+      "slot": "pairing",
+      "text": "a duchess in her thirties and the self-made shipping magnate in his forties she is meant to snub",
+      "pairings": ["mf"],
+      "heats": [],
+      "genres": ["historical"],
+      "tropes": [],
+      "weight": 2
+    },
+    {
+      "id": "firefighter-nurse",
+      "slot": "pairing",
+      "text": "a firefighter in his thirties and the night-shift nurse in his thirties who patches him up more often than strictly necessary",
+      "pairings": ["mm"],
+      "heats": [],
+      "genres": ["romance", "contemporary", "dark-romance"],
+      "tropes": [],
+      "weight": 2
+    },
+    {
+      "id": "painter-gallerist",
+      "slot": "pairing",
+      "text": "a reclusive painter in his forties and the gallery owner in his thirties determined to show his work",
+      "pairings": ["mm"],
+      "heats": [],
+      "genres": [],
+      "tropes": [],
+      "weight": 2
+    },
+    {
+      "id": "coach-captain",
+      "slot": "pairing",
+      "text": "a hockey coach in his late thirties and the rival team's captain, also in his thirties",
+      "pairings": ["mm"],
+      "heats": [],
+      "genres": ["romance", "contemporary", "dark-romance"],
+      "tropes": [],
+      "weight": 2
+    },
+    {
+      "id": "bodyguard-scholar",
+      "slot": "pairing",
+      "text": "a sworn bodyguard in his thirties and the exiled scholar in his forties he is ordered to escort",
+      "pairings": ["mm"],
+      "heats": [],
+      "genres": ["fantasy", "dark-romance"],
+      "tropes": [],
+      "weight": 2
+    },
+    {
+      "id": "viscount-bookseller",
+      "slot": "pairing",
+      "text": "a viscount in his thirties and the bookseller in his thirties who knows his secret",
+      "pairings": ["mm"],
+      "heats": [],
+      "genres": ["historical"],
+      "tropes": [],
+      "weight": 2
+    },
+    {
+      "id": "chef-critic-mm",
+      "slot": "pairing",
+      "text": "a pastry chef in his late twenties and the food critic in his forties who panned his first menu",
+      "pairings": ["mm"],
+      "heats": [],
+      "genres": ["romance", "contemporary", "dark-romance"],
+      "tropes": [],
+      "weight": 2
+    },
+    {
+      "id": "chef-critic-ff",
+      "slot": "pairing",
+      "text": "a pastry chef in her thirties and the food critic in her forties who panned her bakery",
+      "pairings": ["ff"],
+      "heats": [],
+      "genres": ["romance", "contemporary", "dark-romance"],
+      "tropes": [],
+      "weight": 2
+    },
+    {
+      "id": "biologist-captain",
+      "slot": "pairing",
+      "text": "a marine biologist in her thirties and the ferry captain in her forties who runs the only boat to the island",
+      "pairings": ["ff"],
+      "heats": [],
+      "genres": ["romance", "contemporary", "dark-romance"],
+      "tropes": [],
+      "weight": 2
+    },
+    {
+      "id": "speechwriter-manager",
+      "slot": "pairing",
+      "text": "a political speechwriter in her thirties and the opposition's campaign manager, also in her thirties",
+      "pairings": ["ff"],
+      "heats": [],
+      "genres": ["romance", "contemporary", "dark-romance"],
+      "tropes": [],
+      "weight": 2
+    },
+    {
+      "id": "witch-knight",
+      "slot": "pairing",
+      "text": "a witch in her forties who runs a tea shop and the knight in her thirties sent to investigate it",
+      "pairings": ["ff"],
+      "heats": [],
+      "genres": ["fantasy"],
+      "tropes": [],
+      "weight": 2
+    },
+    {
+      "id": "hostess-painter",
+      "slot": "pairing",
+      "text": "a widowed society hostess in her thirties and the portrait painter in her thirties she commissions",
+      "pairings": ["ff"],
+      "heats": [],
+      "genres": ["historical"],
+      "tropes": [],
+      "weight": 2
+    },
+    {
+      "id": "tattoo-accountant",
+      "slot": "pairing",
+      "text": "a tattoo artist in her late twenties and the accountant in her thirties who walks in for her first tattoo",
+      "pairings": ["ff"],
+      "heats": [],
+      "genres": ["romance", "contemporary", "dark-romance"],
+      "tropes": [],
+      "weight": 2
+    },
+    {
+      "id": "keeper-cartographer",
+      "slot": "pairing",
+      "text": "a lighthouse keeper in her forties and the cartographer in her thirties who washes up on her shore",
+      "pairings": ["ff"],
+      "heats": [],
+      "genres": [],
+      "tropes": [],
+      "weight": 2
+    },
+    {
+      "id": "heiress-fixer",
+      "slot": "pairing",
+      "text": "a ruthless heiress in her thirties and the fixer in her forties who cleans up her family's messes",
+      "pairings": ["ff"],
+      "heats": [],
+      "genres": ["dark-romance"],
+      "tropes": [],
+      "weight": 2
+    },
+    {
+      "id": "boss-bodyguard",
+      "slot": "pairing",
+      "text": "a crime boss in his forties and the bodyguard in her thirties who answers to no one else",
+      "pairings": ["mf"],
+      "heats": [],
+      "genres": ["dark-romance"],
+      "tropes": [],
+      "weight": 2
+    },
+    {
+      "id": "rivals-mm-dark",
+      "slot": "pairing",
+      "text": "an art forger in his thirties and the insurance investigator in his forties closing in on him",
+      "pairings": ["mm"],
+      "heats": [],
+      "genres": ["dark-romance"],
+      "tropes": [],
+      "weight": 2
+    },
+    {
+      "id": "mountain-lodge",
+      "slot": "setting",
+      "text": "a snowed-in mountain lodge with a temperamental fireplace",
+      "pairings": [],
+      "heats": [],
+      "genres": [],
+      "tropes": [],
+      "weight": 2
+    },
+    {
+      "id": "rooftop-bar",
+      "slot": "setting",
+      "text": "a rooftop bar after closing, with the city still awake below",
+      "pairings": [],
+      "heats": [],
+      "genres": ["romance", "contemporary", "dark-romance"],
+      "tropes": [],
+      "weight": 2
+    },
+    {
+      "id": "rainy-villa",
+      "slot": "setting",
+      "text": "a rented villa on a rainy coast, booked for one person",
+      "pairings": [],
+      "heats": [],
+      "genres": [],
+      "tropes": [],
+      "weight": 2
+    },
+    {
+      "id": "bookshop-after-hours",
+      "slot": "setting",
+      "text": "a quiet bookshop after hours, lit only by reading lamps",
+      "pairings": [],
+      "heats": [],
+      "genres": [],
+      "tropes": [],
+      "weight": 2
+    },
+    {
+      "id": "harvest-vineyard",
+      "slot": "setting",
+      "text": "a small-town vineyard during the chaos of harvest week",
+      "pairings": [],
+      "heats": [],
+      "genres": ["contemporary", "romance"],
+      "tropes": [],
+      "weight": 2
+    },
+    {
+      "id": "tour-bus",
+      "slot": "setting",
+      "text": "a tour bus in the last week of a sold-out tour",
+      "pairings": [],
+      "heats": [],
+      "genres": ["contemporary"],
+      "tropes": [],
+      "weight": 2
+    },
+    {
+      "id": "double-booked-beach-house",
+      "slot": "setting",
+      "text": "a beach house two families rented by mistake for the same week",
+      "pairings": [],
+      "heats": [],
+      "genres": ["contemporary", "romance"],
+      "tropes": [],
+      "weight": 2
+    },
+    {
+      "id": "private-casino",
+      "slot": "setting",
+      "text": "a private casino where every table hides a debt",
+      "pairings": [],
+      "heats": [],
+      "genres": ["dark-romance"],
+      "tropes": [],
+      "weight": 2
+    },
+    {
+      "id": "old-money-city",
+      "slot": "setting",
+      "text": "a rain-slicked city of old money, older grudges and locked penthouses",
+      "pairings": [],
+      "heats": [],
+      "genres": ["dark-romance"],
+      "tropes": [],
+      "weight": 2
+    },
+    {
+      "id": "isolated-estate",
+      "slot": "setting",
+      "text": "an isolated estate with a long history of buried secrets",
+      "pairings": [],
+      "heats": [],
+      "genres": ["dark-romance", "historical"],
+      "tropes": [],
+      "weight": 2
+    },
+    {
+      "id": "floating-palace",
+      "slot": "setting",
+      "text": "a floating palace where the court holds its midwinter masquerade",
+      "pairings": [],
+      "heats": [],
+      "genres": ["fantasy"],
+      "tropes": [],
+      "weight": 2
+    },
+    {
+      "id": "moonless-inn",
+      "slot": "setting",
+      "text": "a borderland inn that only appears on moonless nights",
+      "pairings": [],
+      "heats": [],
+      "genres": ["fantasy"],
+      "tropes": [],
+      "weight": 2
+    },
+    {
+      "id": "mercenary-camp",
+      "slot": "setting",
+      "text": "a mercenary camp on the edge of a cursed forest",
+      "pairings": [],
+      "heats": [],
+      "genres": ["fantasy", "dark-romance"],
+      "tropes": [],
+      "weight": 2
+    },
+    {
+      "id": "sea-witch-lighthouse",
+      "slot": "setting",
+      "text": "a sea witch's lighthouse on a storm-battered cliff",
+      "pairings": [],
+      "heats": [],
+      "genres": ["fantasy"],
+      "tropes": [],
+      "weight": 2
+    },
+    {
+      "id": "regency-townhouse",
+      "slot": "setting",
+      "text": "a Regency townhouse at the height of the season",
+      "pairings": [],
+      "heats": [],
+      "genres": ["historical"],
+      "tropes": [],
+      "weight": 2
+    },
+    {
+      "id": "highland-castle",
+      "slot": "setting",
+      "text": "a Highland castle cut off by winter snow",
+      "pairings": [],
+      "heats": [],
+      "genres": ["historical"],
+      "tropes": [],
+      "weight": 2
+    },
+    {
+      "id": "speakeasy",
+      "slot": "setting",
+      "text": "a speakeasy hidden behind a florist's shop in the Jazz Age",
+      "pairings": [],
+      "heats": [],
+      "genres": ["historical"],
+      "tropes": [],
+      "weight": 2
+    },
+    {
+      "id": "steamship",
+      "slot": "setting",
+      "text": "a transatlantic steamship on a twelve-day crossing",
+      "pairings": [],
+      "heats": [],
+      "genres": ["historical"],
+      "tropes": [],
+      "weight": 2
+    },
+    {
+      "id": "wedding-venue",
+      "slot": "setting",
+      "text": "a wedding venue where both of them are working the same weekend",
+      "pairings": [],
+      "heats": [],
+      "genres": ["romance"],
+      "tropes": [],
+      "weight": 2
+    },
+    {
+      "id": "lighthouse-inn",
+      "slot": "setting",
+      "text": "a lighthouse turned bed and breakfast on a windy headland",
+      "pairings": [],
+      "heats": [],
+      "genres": ["romance", "contemporary"],
+      "tropes": [],
+      "weight": 2
+    },
+    {
+      "id": "lingering-touches",
+      "slot": "tension",
+      "text": "lingering touches neither of them mentions",
+      "pairings": [],
+      "heats": [],
+      "genres": [],
+      "tropes": [],
+      "weight": 2
+    },
+    {
+      "id": "dare",
+      "slot": "tension",
+      "text": "a dare that goes further than planned",
+      "pairings": [],
+      "heats": [],
+      "genres": [],
+      "tropes": [],
+      "weight": 2
+    },
+    {
+      "id": "proud-jealousy",
+      "slot": "tension",
+      "text": "jealousy they are too proud to admit",
+      "pairings": [],
+      "heats": [],
+      "genres": [],
+      "tropes": [],
+      "weight": 2
+    },
+    {
+      "id": "kept-secret",
+      "slot": "tension",
+      "text": "a secret one of them is keeping",
+      "pairings": [],
+      "heats": [],
+      "genres": [],
+      "tropes": [],
+      "weight": 2
+    },
+    {
+      "id": "deadline",
+      "slot": "tension",
+      "text": "a deadline that leaves no room to stall",
+      "pairings": [],
+      "heats": [],
+      "genres": [],
+      "tropes": [],
+      "weight": 2
+    },
+    {
+      "id": "banter",
+      "slot": "tension",
+      "text": "banter that keeps tipping into flirting",
+      "pairings": [],
+      "heats": [],
+      "genres": [],
+      "tropes": [],
+      "weight": 2
+    },
+    {
+      "id": "interrupted-kiss",
+      "slot": "tension",
+      "text": "an almost-kiss that keeps getting interrupted",
+      "pairings": [],
+      "heats": ["sweet", "steamy"],
+      "genres": [],
+      "tropes": [],
+      "weight": 2
+    },
+    {
+      "id": "strictly-professional",
+      "slot": "tension",
+      "text": "a pact to keep things strictly professional",
+      "pairings": [],
+      "heats": ["sweet", "steamy"],
+      "genres": [],
+      "tropes": [],
+      "weight": 2
+    },
+    {
+      "id": "shared-coat",
+      "slot": "tension",
+      "text": "one coat, one umbrella or one blanket between two people",
+      "pairings": [],
+      "heats": ["sweet"],
+      "genres": [],
+      "tropes": [],
+      "weight": 2
+    },
+    {
+      "id": "power-play",
+      "slot": "tension",
+      "text": "a clearly negotiated power play",
+      "pairings": [],
+      "heats": ["steamy", "spicy"],
+      "genres": [],
+      "tropes": [],
+      "weight": 2
+    },
+    {
+      "id": "praise",
+      "slot": "tension",
+      "text": "praise and reassurance",
+      "pairings": [],
+      "heats": ["steamy", "spicy"],
+      "genres": [],
+      "tropes": [],
+      "weight": 2
+    },
+    {
+      "id": "anticipation",
+      "slot": "tension",
+      "text": "teasing and drawn-out anticipation",
+      "pairings": [],
+      "heats": ["steamy", "spicy"],
+      "genres": [],
+      "tropes": [],
+      "weight": 2
+    },
+    {
+      "id": "safeword",
+      "slot": "tension",
+      "text": "a safeword agreed before anything starts",
+      "pairings": [],
+      "heats": ["spicy"],
+      "genres": [],
+      "tropes": [],
+      "weight": 2
+    },
+    {
+      "id": "agreed-restraint",
+      "slot": "tension",
+      "text": "restraint, talked through and agreed in advance",
+      "pairings": [],
+      "heats": ["spicy"],
+      "genres": [],
+      "tropes": [],
+      "weight": 2
+    },
+    {
+      "id": "planned-roleplay",
+      "slot": "tension",
+      "text": "a role-play scenario they planned together",
+      "pairings": [],
+      "heats": ["spicy"],
+      "genres": [],
+      "tropes": [],
+      "weight": 2
+    },
+    {
+      "id": "taking-the-lead",
+      "slot": "tension",
+      "text": "one of them taking the lead, by mutual agreement",
+      "pairings": [],
+      "heats": ["spicy"],
+      "genres": [],
+      "tropes": [],
+      "weight": 2
+    },
+    {
+      "id": "checking-in",
+      "slot": "tension",
+      "text": "slow undressing with plenty of checking in",
+      "pairings": [],
+      "heats": ["spicy"],
+      "genres": [],
+      "tropes": [],
+      "weight": 2
+    },
+    {
+      "id": "closed-door",
+      "slot": "tone",
+      "text": "sweet and closed-door: the heat lives in glances, and the scene fades out before anything explicit",
+      "pairings": [],
+      "heats": ["sweet"],
+      "genres": [],
+      "tropes": [],
+      "weight": 2
+    },
+    {
+      "id": "first-kiss",
+      "slot": "tone",
+      "text": "tender and funny, building to a first kiss",
+      "pairings": [],
+      "heats": ["sweet"],
+      "genres": [],
+      "tropes": [],
+      "weight": 2
+    },
+    {
+      "id": "restrained-yearning",
+      "slot": "tone",
+      "text": "yearning and restrained, with every touch counted",
+      "pairings": [],
+      "heats": ["sweet"],
+      "genres": [],
+      "tropes": [],
+      "weight": 2
+    },
+    {
+      "id": "sensual",
+      "slot": "tone",
+      "text": "steamy and sensual: the intimacy is on the page, more about feeling than detail",
+      "pairings": [],
+      "heats": ["steamy"],
+      "genres": [],
+      "tropes": [],
+      "weight": 2
+    },
+    {
+      "id": "door-half-open",
+      "slot": "tone",
+      "text": "charged and playful, with the door half open",
+      "pairings": [],
+      "heats": ["steamy"],
+      "genres": [],
+      "tropes": [],
+      "weight": 2
+    },
+    {
+      "id": "what-it-means",
+      "slot": "tone",
+      "text": "slow, heated and emotional, focused on what each touch means to them",
+      "pairings": [],
+      "heats": ["steamy"],
+      "genres": [],
+      "tropes": [],
+      "weight": 2
+    },
+    {
+      "id": "open-door",
+      "slot": "tone",
+      "text": "spicy and open-door: the intimate scene is on the page, written with care and enthusiastic consent",
+      "pairings": [],
+      "heats": ["spicy"],
+      "genres": [],
+      "tropes": [],
+      "weight": 2
+    },
+    {
+      "id": "say-what-they-want",
+      "slot": "tone",
+      "text": "bold and confident, with both characters saying exactly what they want",
+      "pairings": [],
+      "heats": ["spicy"],
+      "genres": [],
+      "tropes": [],
+      "weight": 2
+    },
+    {
+      "id": "all-at-once",
+      "slot": "tone",
+      "text": "intense and emotional, with the heat and the feelings arriving at once",
+      "pairings": [],
+      "heats": ["spicy"],
+      "genres": [],
+      "tropes": [],
+      "weight": 2
+    },
+    {
+      "id": "brooding",
+      "slot": "tone",
+      "text": "dark and brooding, with a happy ending earned the hard way",
+      "pairings": [],
+      "heats": ["steamy", "spicy"],
+      "genres": ["dark-romance"],
+      "tropes": [],
+      "weight": 2
+    }
+  ]
+}
