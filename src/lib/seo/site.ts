@@ -7,6 +7,7 @@
  * so they show up in the sitemap.
  */
 import { NAME_GENERATOR_PATH } from "@/lib/tools/name-generator/params";
+import { TROPE_GENERATOR_PATH } from "@/lib/tools/story-tropes";
 
 export const SITE_URL = "https://syncodex.xyz";
 export const SITEMAP_URL = `${SITE_URL}/sitemap.xml`;
@@ -31,6 +32,9 @@ export interface PublicPage {
 export const PUBLIC_PAGES: readonly PublicPage[] = [
   { path: "/", changeFrequency: "weekly", priority: 1 },
   { path: NAME_GENERATOR_PATH, changeFrequency: "monthly", priority: 0.8 },
+  { path: TROPE_GENERATOR_PATH, changeFrequency: "monthly", priority: 0.8 },
+  // /tools/adult-writing-prompt-generator stays out of the sitemap while it
+  // carries `robots: { index: false }` (STO-1315 launch blockers).
   { path: "/waitlist", changeFrequency: "monthly", priority: 0.6 },
   { path: "/signup", changeFrequency: "yearly", priority: 0.4 },
   { path: "/login", changeFrequency: "yearly", priority: 0.3 },
@@ -44,7 +48,7 @@ export function absoluteUrl(path: string): string {
   if (!path.startsWith("/")) {
     throw new Error(`Site paths must start with "/": ${path}`);
   }
-  return path === "/" ? `${SITE_URL}/` : `${SITE_URL}${path}`;
+  return `${SITE_URL}${path}`;
 }
 
 export interface RobotsRule {

@@ -57,6 +57,7 @@ describe("sitemap.xml", () => {
     expect(urls).toEqual([
       "https://syncodex.xyz/",
       "https://syncodex.xyz/tools/character-name-generator",
+      "https://syncodex.xyz/tools/story-trope-generator",
       "https://syncodex.xyz/waitlist",
       "https://syncodex.xyz/signup",
       "https://syncodex.xyz/login",
