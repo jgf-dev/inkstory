@@ -15,8 +15,8 @@ export const FAQS: readonly { q: string; a: string }[] = [
     a: "It combines hand-curated lists of first names, surnames and name parts for each genre and flavor. Fantasy and alien names are also assembled from syllables, so you get invented names that still sound like they belong to the same people. Common picks are weighted to show up a little more often than rare ones.",
   },
   {
-    q: "Why do I get the same names when I reload the page?",
-    a: "Each batch comes from a seed stored in the page link. The same seed with the same filters always produces the same names, which makes a batch easy to bookmark or share. Use Generate more to move to a new seed.",
+    q: "How do shareable name links and seeds work?",
+    a: "Each batch is generated from a seed and your active filters. When a link includes a seed—such as after you click Generate names, Generate more, or Copy share link—reloading or sharing that URL always produces the exact same names. Visiting the base page without a seed starts with a fresh batch.",
   },
   {
     q: "What do the gender options mean?",

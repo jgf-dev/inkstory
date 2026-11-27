@@ -13,12 +13,14 @@ export interface NameResultsProps {
   moreHref: string;
 }
 
+type CopiedTarget = { kind: "item"; name: string } | { kind: "all" } | { kind: "link" };
+
 /**
  * Generated name list with copy controls. The list and the "Generate more"
  * link are server-rendered, so they work without JavaScript; copying needs it.
  */
 export function NameResults({ names, shareHref, moreHref }: NameResultsProps) {
-  const [copied, setCopied] = useState<string | null>(null);
+  const [copied, setCopied] = useState<CopiedTarget | null>(null);
   const [error, setError] = useState<string | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -29,11 +31,11 @@ export function NameResults({ names, shareHref, moreHref }: NameResultsProps) {
     [],
   );
 
-  async function copy(key: string, text: string) {
+  async function copy(target: CopiedTarget, text: string) {
     try {
       await navigator.clipboard.writeText(text);
       setError(null);
-      setCopied(key);
+      setCopied(target);
       if (timer.current) clearTimeout(timer.current);
       timer.current = setTimeout(() => {
         timer.current = null;
@@ -67,9 +69,9 @@ export function NameResults({ names, shareHref, moreHref }: NameResultsProps) {
                 type="button"
                 className={buttonClass}
                 aria-label={`Copy ${name}`}
-                onClick={() => void copy(name, name)}
+                onClick={() => void copy({ kind: "item", name }, name)}
               >
-                {copied === name ? "Copied" : "Copy"}
+                {copied?.kind === "item" && copied.name === name ? "Copied" : "Copy"}
               </button>
             </li>
           ))}
@@ -78,7 +80,7 @@ export function NameResults({ names, shareHref, moreHref }: NameResultsProps) {
       <div className="mt-4 flex flex-wrap items-center gap-3">
         <Link
           href={moreHref}
-          className="bg-ink-900 rounded-md px-4 py-2 text-sm font-medium text-white"
+          className="bg-ink-900 text-ink-50 rounded-md px-4 py-2 text-sm font-medium"
           data-testid="generate-more"
         >
           Generate more
@@ -87,17 +89,19 @@ export function NameResults({ names, shareHref, moreHref }: NameResultsProps) {
           <button
             type="button"
             className={buttonClass}
-            onClick={() => void copy("all", names.join("\n"))}
+            onClick={() => void copy({ kind: "all" }, names.join("\n"))}
           >
-            {copied === "all" ? "Copied all" : "Copy all"}
+            {copied?.kind === "all" ? "Copied all" : "Copy all"}
           </button>
         ) : null}
         <button
           type="button"
           className={buttonClass}
-          onClick={() => void copy("link", new URL(shareHref, window.location.origin).toString())}
+          onClick={() =>
+            void copy({ kind: "link" }, new URL(shareHref, window.location.origin).toString())
+          }
         >
-          {copied === "link" ? "Link copied" : "Copy share link"}
+          {copied?.kind === "link" ? "Link copied" : "Copy share link"}
         </button>
       </div>
       <p role="status" aria-live="polite" className="text-ink-500 mt-2 min-h-5 text-sm">

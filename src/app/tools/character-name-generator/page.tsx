@@ -4,6 +4,7 @@ import {
   ANY_FLAVOR,
   GENRE_DEFINITIONS,
   NAME_GENERATOR_PATH,
+  NAME_GENERATOR_URL,
   buildNameGeneratorHref,
   createRandomSeed,
   generateNames,
@@ -23,13 +24,13 @@ export const metadata: Metadata = {
     "fantasy name generator",
     "sci-fi name generator",
   ],
-  alternates: { canonical: NAME_GENERATOR_PATH },
+  alternates: { canonical: NAME_GENERATOR_URL },
   openGraph: {
     title: OG_TITLE,
     description: PAGE_DESCRIPTION,
     siteName: "syncodex",
     type: "website",
-    url: NAME_GENERATOR_PATH,
+    url: NAME_GENERATOR_URL,
   },
   twitter: {
     card: "summary",
@@ -126,6 +127,7 @@ export default async function CharacterNameGeneratorPage({
       <p className="text-ink-600 mb-8">{INTRO}</p>
 
       <form
+        key={shareHref}
         method="get"
         action={NAME_GENERATOR_PATH}
         className="grid gap-4 sm:grid-cols-2"
@@ -163,7 +165,7 @@ export default async function CharacterNameGeneratorPage({
         <div className="sm:col-span-2">
           <button
             type="submit"
-            className="bg-ink-900 rounded-md px-4 py-2 text-sm font-medium text-white"
+            className="bg-ink-900 text-ink-50 rounded-md px-4 py-2 text-sm font-medium"
           >
             Generate names
           </button>
@@ -207,7 +209,7 @@ export default async function CharacterNameGeneratorPage({
         </p>
         <Link
           href="/waitlist?source=character-name-generator"
-          className="bg-ink-900 inline-block rounded-md px-4 py-2 text-sm font-medium text-white"
+          className="bg-ink-900 text-ink-50 inline-block rounded-md px-4 py-2 text-sm font-medium"
         >
           Join the waitlist
         </Link>
