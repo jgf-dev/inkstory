@@ -76,6 +76,7 @@ export default defineConfig({
       ),
       NEXT_PUBLIC_TURNSTILE_SITE_KEY: bindings.text("0x4AAAAAAGGPGpjMBFjy08CL"),
       TURNSTILE_SITE_KEY: bindings.text("0x4AAAAAAGGPGpjMBFjy08CL"),
+      NEXT_PUBLIC_BETTERSTACK_TOKEN: bindings.text("TKXW6BinG9JpyjaRroQaZvnM"),
     },
     observability: resolveObservabilityConfig(ctx),
   })),
