@@ -114,6 +114,7 @@ describe("premise prompt and output", () => {
     "A subscription unlocks more.",
     "Guaranteed to thrill.",
     "We promise a twist.",
+    "I promise a happy ending.",
     "Set in 2027.",
     "It begins on March 3rd.",
     "Coming soon to shelves.",

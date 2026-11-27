@@ -41,7 +41,7 @@ export const PREMISE_JSON_SCHEMA = {
  */
 const COPY_RULE_VIOLATIONS = [
   /\b(?:prices?|pricing|priced|discounts?|subscriptions?|subscribe|free trial|refunds?)\b/i,
-  /\b(?:guarantee[sd]?|guaranteed|we promise|you will love|money back)\b/i,
+  /\b(?:guarantee[sd]?|guaranteed|(?:we|i|they) promise|you will love|money back)\b/i,
   /\b(?:1\d|20)\d{2}\b/,
   /\b(?:launch(?:es|ing)? (?:date|day|soon)|coming soon|release date|available now|sign up|pre-?order)\b/i,
   /\b(?:syncodex|inkstory|openrouter)\b/i,
