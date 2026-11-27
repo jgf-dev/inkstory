@@ -86,3 +86,26 @@ export function clientIpFrom(headers: Headers): string {
   const forwarded = headers.get("x-forwarded-for")?.split(",")[0]?.trim();
   return forwarded || "unknown";
 }
+
+/** Per client IP for each public AI tool: 5 a minute and 20 an hour. */
+export const TOOL_AI_IP_WINDOWS = [
+  { limit: 5, windowMs: 60_000 },
+  { limit: 20, windowMs: 3_600_000 },
+] as const;
+/** Per isolate across all clients for each tool, to protect the shared free quota. */
+export const TOOL_AI_GLOBAL_WINDOWS = [{ limit: 300, windowMs: 3_600_000 }] as const;
+/** Key used with the global limiter. */
+export const GLOBAL_RATE_LIMIT_KEY = "*";
+
+export interface ToolAiLimiters {
+  ipLimiter: RateLimiter;
+  globalLimiter: RateLimiter;
+}
+
+/** A fresh per-IP and global limiter pair; create one per route module. */
+export function createToolAiLimiters(now?: () => number): ToolAiLimiters {
+  return {
+    ipLimiter: createRateLimiter({ windows: TOOL_AI_IP_WINDOWS, now }),
+    globalLimiter: createRateLimiter({ windows: TOOL_AI_GLOBAL_WINDOWS, now }),
+  };
+}

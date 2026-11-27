@@ -14,7 +14,9 @@ import {
 } from "../src/app/tools/story-trope-generator/content";
 import { SelectField, SITE_ORIGIN } from "../src/app/_components/tools/ToolPage";
 import {
+  PREMISE_ENDPOINT,
   TropeResults,
+  fetchPremise,
   formatTrope,
   type TropeResultItem,
 } from "../src/app/tools/story-trope-generator/TropeResults";
@@ -111,6 +113,14 @@ describe("story trope generator page", () => {
     expect(html).toMatch(/<option value="3" selected="">/);
   });
 
+  it("keeps the AI premise control out of the server-rendered markup", async () => {
+    const html = decode(await renderPage({ seed: "story", genre: "romance" }));
+    expect(html.match(/data-trope-id=/g)).toHaveLength(4);
+    expect(html).not.toContain("Write a premise");
+    expect(html).not.toContain('data-testid="trope-premise"');
+    expect(html).not.toContain(PREMISE_ENDPOINT);
+  });
+
   it("renders the same combo for the same shareable URL", async () => {
     const params = { seed: "repeat", genre: "horror", lock: "slow-dread" };
     expect(await renderPage(params)).toBe(await renderPage(params));
@@ -204,5 +214,106 @@ describe("TropeResults", () => {
       </SelectField>,
     );
     expect(screen.getByLabelText("Genre")).toHaveProperty("value", "horror");
+  });
+
+  describe("AI premise mode", () => {
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
+    function stubFetch(impl: (...args: Parameters<typeof fetch>) => Promise<Response>) {
+      const fn = vi.fn<typeof fetch>(impl);
+      vi.stubGlobal("fetch", fn);
+      return fn;
+    }
+
+    function renderWithPremise() {
+      return render(
+        <TropeResults
+          tropes={items}
+          shareHref={shareHref}
+          moreHref="/more"
+          premise={{ genre: "romance" }}
+        />,
+      );
+    }
+
+    it("shows no premise control without the premise context or tropes", () => {
+      render(<TropeResults tropes={items} shareHref={shareHref} moreHref="/more" />);
+      expect(screen.queryByRole("button", { name: /Write a premise/ })).toBeNull();
+      cleanup();
+      render(
+        <TropeResults
+          tropes={[]}
+          shareHref={shareHref}
+          moreHref="/more"
+          premise={{ genre: "any" }}
+        />,
+      );
+      expect(screen.queryByRole("button", { name: /Write a premise/ })).toBeNull();
+    });
+
+    it("posts the combo ids and renders the AI premise", async () => {
+      let resolve: (res: Response) => void = () => {};
+      const fetchMock = stubFetch(() => new Promise<Response>((r) => (resolve = r)));
+      renderWithPremise();
+      const button = await screen.findByRole("button", { name: "Write a premise (AI)" });
+      fireEvent.click(button);
+      expect(await screen.findByText("Writing a premise…")).toBeTruthy();
+      expect(button).toHaveProperty("disabled", true);
+      expect(button.getAttribute("title")).toMatch(/Waiting/);
+      const [url, init] = fetchMock.mock.calls[0];
+      expect(url).toBe(PREMISE_ENDPOINT);
+      expect(JSON.parse(init?.body as string)).toEqual({
+        tropes: ["heist", "slow-burn"],
+        genre: "romance",
+      });
+      resolve(Response.json({ source: "ai", premise: "A thief falls slowly for her mark." }));
+      expect(await screen.findByText("A thief falls slowly for her mark.")).toBeTruthy();
+      expect(button).toHaveProperty("disabled", false);
+    });
+
+    it("shows the algorithmic combo when the server falls back", async () => {
+      stubFetch(async () => Response.json({ source: "combo", premise: null, tropes: [] }));
+      renderWithPremise();
+      fireEvent.click(await screen.findByRole("button", { name: "Write a premise (AI)" }));
+      const panel = await screen.findByTestId("trope-premise");
+      await waitFor(() => expect(panel.textContent).toContain(formatTrope(items[0])));
+      expect(panel.textContent).toContain(formatTrope(items[1]));
+    });
+
+    it.each([
+      ["a network error", () => Promise.reject(new TypeError("offline"))],
+      ["an error status", async () => new Response("provider exploded", { status: 500 })],
+      ["a malformed body", async () => new Response("not json", { status: 200 })],
+      ["an empty premise", async () => Response.json({ source: "ai", premise: "  " })],
+    ])("falls back silently on %s", async (_label, impl) => {
+      stubFetch(impl as () => Promise<Response>);
+      const view = await fetchPremise(items, { genre: "any" });
+      expect(view).toEqual({
+        kind: "combo",
+        tropes: items.map(({ id, name, description }) => ({ id, name, description })),
+      });
+    });
+
+    it("never renders raw provider errors", async () => {
+      stubFetch(async () => new Response("upstream 402: quota exceeded", { status: 402 }));
+      renderWithPremise();
+      fireEvent.click(await screen.findByRole("button", { name: "Write a premise (AI)" }));
+      const panel = await screen.findByTestId("trope-premise");
+      await waitFor(() => expect(panel.textContent).toContain(formatTrope(items[0])));
+      expect(panel.textContent).not.toMatch(/quota|402|upstream/);
+    });
+
+    it("ignores a response that arrives after unmount", async () => {
+      let resolve: (res: Response) => void = () => {};
+      stubFetch(() => new Promise<Response>((r) => (resolve = r)));
+      const view = renderWithPremise();
+      fireEvent.click(await screen.findByRole("button", { name: "Write a premise (AI)" }));
+      view.unmount();
+      resolve(Response.json({ source: "ai", premise: "Too late." }));
+      await new Promise((r) => setTimeout(r, 0));
+      expect(screen.queryByText("Too late.")).toBeNull();
+    });
   });
 });
