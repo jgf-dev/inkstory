@@ -135,6 +135,7 @@ describe("Supabase Middleware & Proxy", () => {
       "/tools/character-name-generator",
       "/tools/character-name-generator?seed=abc&genre=sci-fi",
       "/tools/story-trope-generator",
+      "/tools/adult-writing-prompt-generator?seed=abc&heat=sweet",
     ])(
       "lets anonymous visitors through to the public %s route without redirecting",
       async (path) => {

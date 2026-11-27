@@ -1,0 +1,499 @@
+{
+  "tropes": [
+    {
+      "id": "enemies-to-lovers",
+      "name": "Enemies to lovers",
+      "description": "Two people who start out openly opposed find the friction turning into attraction, and neither wants to admit it first.",
+      "category": "romance",
+      "genres": ["romance", "fantasy", "contemporary", "historical"],
+      "weight": 3
+    },
+    {
+      "id": "friends-to-lovers",
+      "name": "Friends to lovers",
+      "description": "A long, comfortable friendship tips over into something more, and the risk is losing what they already had.",
+      "category": "romance",
+      "genres": ["romance", "contemporary"],
+      "weight": 3
+    },
+    {
+      "id": "fake-dating",
+      "name": "Fake dating",
+      "description": "Two characters pretend to be a couple for a practical reason, then have to keep up the act once real feelings get in the way.",
+      "category": "romance",
+      "genres": ["romance", "contemporary"],
+      "weight": 3
+    },
+    {
+      "id": "marriage-of-convenience",
+      "name": "Marriage of convenience",
+      "description": "A wedding arranged for land, money, politics or papers forces strangers to share a life before they share any affection.",
+      "category": "romance",
+      "genres": ["romance", "historical", "fantasy"],
+      "weight": 2
+    },
+    {
+      "id": "slow-burn",
+      "name": "Slow burn",
+      "description": "The attraction builds over most of the book, through small moments and near-misses, before anyone acts on it.",
+      "category": "romance",
+      "genres": [],
+      "weight": 2
+    },
+    {
+      "id": "love-at-first-sight",
+      "name": "Love at first sight",
+      "description": "One look is enough: the pair are certain almost immediately, and the story tests whether that certainty holds.",
+      "category": "romance",
+      "genres": ["romance", "fantasy", "historical"],
+      "weight": 1
+    },
+    {
+      "id": "second-chance-romance",
+      "name": "Second chance romance",
+      "description": "Former partners meet again years after it ended and have to face why it fell apart before trying again.",
+      "category": "romance",
+      "genres": ["romance", "contemporary"],
+      "weight": 2
+    },
+    {
+      "id": "forbidden-love",
+      "name": "Forbidden love",
+      "description": "Family, law, faith or rank says these two must not be together, which makes every meeting a risk.",
+      "category": "romance",
+      "genres": ["romance", "fantasy", "historical", "sci-fi"],
+      "weight": 2
+    },
+    {
+      "id": "love-triangle",
+      "name": "Love triangle",
+      "description": "One character is pulled between two people who each offer a different version of the future.",
+      "category": "romance",
+      "genres": ["romance", "fantasy", "contemporary"],
+      "weight": 1
+    },
+    {
+      "id": "forced-proximity",
+      "name": "Forced proximity",
+      "description": "A storm, a shared cabin or a single remaining room keeps two people close long enough for walls to come down.",
+      "category": "romance",
+      "genres": ["romance", "contemporary", "thriller"],
+      "weight": 2
+    },
+    {
+      "id": "grumpy-sunshine",
+      "name": "Grumpy and sunshine",
+      "description": "A guarded cynic and a stubbornly cheerful optimist rub off on each other in ways neither expected.",
+      "category": "romance",
+      "genres": ["romance", "contemporary", "fantasy"],
+      "weight": 2
+    },
+    {
+      "id": "rivals-to-lovers",
+      "name": "Workplace rivals",
+      "description": "Two competitors chasing the same promotion, prize or title keep trying to outdo each other until the rivalry turns personal.",
+      "category": "romance",
+      "genres": ["romance", "contemporary"],
+      "weight": 1
+    },
+    {
+      "id": "chosen-one",
+      "name": "The chosen one",
+      "description": "A prophecy, bloodline or strange mark singles out an ordinary person to face something far bigger than them.",
+      "category": "plot",
+      "genres": ["fantasy", "sci-fi"],
+      "weight": 2
+    },
+    {
+      "id": "quest",
+      "name": "The quest",
+      "description": "A group sets out to find, deliver or destroy one thing, and the road changes them more than the goal does.",
+      "category": "plot",
+      "genres": ["fantasy", "sci-fi", "historical"],
+      "weight": 3
+    },
+    {
+      "id": "heist",
+      "name": "The heist",
+      "description": "A crew with clashing skills plans an impossible theft, and the plan starts failing the moment it begins.",
+      "category": "plot",
+      "genres": ["thriller", "fantasy", "sci-fi", "contemporary"],
+      "weight": 2
+    },
+    {
+      "id": "locked-room-mystery",
+      "name": "Locked room mystery",
+      "description": "A crime happens somewhere no one could have entered or left, and the explanation has to be fair to the reader.",
+      "category": "plot",
+      "genres": ["mystery", "historical"],
+      "weight": 2
+    },
+    {
+      "id": "whodunit",
+      "name": "Whodunit",
+      "description": "A closed circle of suspects, each with something to hide, and a detective who has to work out which secret is the deadly one.",
+      "category": "plot",
+      "genres": ["mystery", "historical", "contemporary"],
+      "weight": 3
+    },
+    {
+      "id": "revenge-plot",
+      "name": "Revenge plot",
+      "description": "Someone who was badly wronged spends the story getting even, and has to decide what the payback is worth.",
+      "category": "plot",
+      "genres": ["thriller", "fantasy", "historical", "horror"],
+      "weight": 2
+    },
+    {
+      "id": "race-against-time",
+      "name": "Race against time",
+      "description": "A hard deadline hangs over everything: a bomb, a curse, a closing door, and each delay costs something.",
+      "category": "plot",
+      "genres": ["thriller", "sci-fi", "fantasy", "mystery"],
+      "weight": 2
+    },
+    {
+      "id": "rebellion",
+      "name": "Rise of the rebellion",
+      "description": "A scattered resistance tries to bring down a ruling power, and the protagonist is pulled into the fight.",
+      "category": "plot",
+      "genres": ["fantasy", "sci-fi"],
+      "weight": 2
+    },
+    {
+      "id": "fish-out-of-water",
+      "name": "Fish out of water",
+      "description": "A character lands in a world with rules they do not know, and their mistakes reveal how strange it really is.",
+      "category": "plot",
+      "genres": [],
+      "weight": 2
+    },
+    {
+      "id": "time-loop",
+      "name": "Time loop",
+      "description": "The same day keeps restarting, and only one person remembers. Getting out means finally doing it right.",
+      "category": "plot",
+      "genres": ["sci-fi", "fantasy", "thriller", "romance"],
+      "weight": 1
+    },
+    {
+      "id": "hidden-world",
+      "name": "The hidden world",
+      "description": "Behind ordinary life there is a secret society, magic or city, and the protagonist has just stumbled through the door.",
+      "category": "plot",
+      "genres": ["fantasy", "contemporary"],
+      "weight": 2
+    },
+    {
+      "id": "betrayal-from-within",
+      "name": "Betrayal from within",
+      "description": "Someone on the protagonist's own side has been working against them, and the reveal reshapes every earlier scene.",
+      "category": "plot",
+      "genres": ["fantasy", "sci-fi", "thriller"],
+      "weight": 2
+    },
+    {
+      "id": "survival",
+      "name": "Fight for survival",
+      "description": "Stranded, hunted or cut off, the characters have to keep each other alive with whatever they can find.",
+      "category": "plot",
+      "genres": ["horror", "thriller", "sci-fi"],
+      "weight": 2
+    },
+    {
+      "id": "conspiracy",
+      "name": "Conspiracy uncovered",
+      "description": "A small, wrong detail leads to a plan reaching far higher than anyone wanted to believe.",
+      "category": "plot",
+      "genres": ["thriller", "mystery", "sci-fi"],
+      "weight": 2
+    },
+    {
+      "id": "haunting",
+      "name": "The haunting",
+      "description": "Something unseen has claimed a house or a family, and it does not want the newcomers to leave.",
+      "category": "plot",
+      "genres": ["horror"],
+      "weight": 2
+    },
+    {
+      "id": "first-contact",
+      "name": "First contact",
+      "description": "Humans meet a mind that is truly not like theirs, and every misunderstanding could be the last one.",
+      "category": "plot",
+      "genres": ["sci-fi"],
+      "weight": 2
+    },
+    {
+      "id": "coming-of-age",
+      "name": "Coming of age",
+      "description": "A young character crosses from childhood to adulthood through one hard summer, loss or choice.",
+      "category": "plot",
+      "genres": ["contemporary", "fantasy", "historical"],
+      "weight": 2
+    },
+    {
+      "id": "mistaken-identity",
+      "name": "Mistaken identity",
+      "description": "Someone is taken for someone else and decides, for better or worse, to play along.",
+      "category": "plot",
+      "genres": ["romance", "historical", "mystery", "contemporary"],
+      "weight": 1
+    },
+    {
+      "id": "reluctant-hero",
+      "name": "Reluctant hero",
+      "description": "The person best placed to save the day would much rather be anywhere else, and keeps looking for a way out.",
+      "category": "character",
+      "genres": ["fantasy", "sci-fi", "thriller"],
+      "weight": 3
+    },
+    {
+      "id": "morally-grey-protagonist",
+      "name": "Morally grey protagonist",
+      "description": "The lead does questionable things for reasons the reader understands, and the story never fully lets them off the hook.",
+      "category": "character",
+      "genres": [],
+      "weight": 2
+    },
+    {
+      "id": "found-family",
+      "name": "Found family",
+      "description": "Misfits with nowhere else to belong slowly become the people who would do anything for each other.",
+      "category": "character",
+      "genres": [],
+      "weight": 3
+    },
+    {
+      "id": "mentor-dies",
+      "name": "The fallen mentor",
+      "description": "The person who taught the hero everything is gone at the worst moment, and the student has to stand alone.",
+      "category": "character",
+      "genres": ["fantasy", "sci-fi"],
+      "weight": 2
+    },
+    {
+      "id": "unreliable-narrator",
+      "name": "Unreliable narrator",
+      "description": "The voice telling the story is wrong, lying or hiding something, and the reader slowly learns to doubt them.",
+      "category": "character",
+      "genres": ["mystery", "thriller", "horror", "contemporary"],
+      "weight": 2
+    },
+    {
+      "id": "anti-hero",
+      "name": "Anti-hero",
+      "description": "A protagonist without classic virtues, selfish, blunt or ruthless, who still ends up on the right side for their own reasons.",
+      "category": "character",
+      "genres": ["fantasy", "thriller", "sci-fi"],
+      "weight": 2
+    },
+    {
+      "id": "secret-royalty",
+      "name": "Secret royalty",
+      "description": "An ordinary life hides a claim to a throne, and the people who know are not all friendly.",
+      "category": "character",
+      "genres": ["fantasy", "romance", "historical"],
+      "weight": 1
+    },
+    {
+      "id": "villain-redemption",
+      "name": "Redemption arc",
+      "description": "Someone who did real harm tries to become better, and the story makes them earn it.",
+      "category": "character",
+      "genres": ["fantasy", "sci-fi", "contemporary"],
+      "weight": 2
+    },
+    {
+      "id": "sympathetic-villain",
+      "name": "Sympathetic villain",
+      "description": "The antagonist's goal makes painful sense, and in another story they might have been the hero.",
+      "category": "character",
+      "genres": [],
+      "weight": 2
+    },
+    {
+      "id": "amnesiac",
+      "name": "The amnesiac",
+      "description": "A character wakes up without their past, and what they learn about who they were is not all welcome.",
+      "category": "character",
+      "genres": ["thriller", "mystery", "sci-fi", "fantasy"],
+      "weight": 1
+    },
+    {
+      "id": "lone-survivor",
+      "name": "Lone survivor",
+      "description": "Everyone else from their old life is gone, and the survivor carries both the memories and the guilt.",
+      "category": "character",
+      "genres": ["horror", "sci-fi", "fantasy"],
+      "weight": 1
+    },
+    {
+      "id": "impostor",
+      "name": "The impostor",
+      "description": "A character is living a borrowed identity, and every close relationship raises the stakes of being found out.",
+      "category": "character",
+      "genres": ["thriller", "historical", "fantasy", "romance"],
+      "weight": 1
+    },
+    {
+      "id": "child-prodigy",
+      "name": "Gifted outsider",
+      "description": "An unusually talented young person is treated as a tool by adults who do not see the cost.",
+      "category": "character",
+      "genres": ["sci-fi", "fantasy", "contemporary"],
+      "weight": 1
+    },
+    {
+      "id": "small-town",
+      "name": "Small town with secrets",
+      "description": "Everyone knows everyone, which means everyone is also keeping quiet about something.",
+      "category": "setting",
+      "genres": ["mystery", "romance", "horror", "contemporary"],
+      "weight": 2
+    },
+    {
+      "id": "sprawling-city",
+      "name": "The sprawling city",
+      "description": "A huge, crowded city where it is easy to vanish and hard to know who is watching.",
+      "category": "setting",
+      "genres": ["fantasy", "sci-fi", "thriller", "contemporary"],
+      "weight": 2
+    },
+    {
+      "id": "boarding-school",
+      "name": "Boarding school",
+      "description": "Students living away from home form their own society, with its own rules, rivalries and secrets.",
+      "category": "setting",
+      "genres": ["fantasy", "mystery", "contemporary", "historical"],
+      "weight": 2
+    },
+    {
+      "id": "generation-ship",
+      "name": "Generation ship",
+      "description": "A sealed ship crossing the dark for centuries, where no one aboard has ever seen the world it left.",
+      "category": "setting",
+      "genres": ["sci-fi"],
+      "weight": 1
+    },
+    {
+      "id": "isolated-manor",
+      "name": "Isolated manor",
+      "description": "A grand old house cut off by weather or distance, with too many rooms and too few ways out.",
+      "category": "setting",
+      "genres": ["mystery", "horror", "historical", "romance"],
+      "weight": 2
+    },
+    {
+      "id": "post-apocalyptic",
+      "name": "After the collapse",
+      "description": "The old world ended and the story happens in what grew in its place, with scarcity shaping every choice.",
+      "category": "setting",
+      "genres": ["sci-fi", "horror", "thriller"],
+      "weight": 2
+    },
+    {
+      "id": "royal-court",
+      "name": "The royal court",
+      "description": "A palace full of etiquette, alliances and whispered threats, where a wrong word can cost a life.",
+      "category": "setting",
+      "genres": ["fantasy", "historical", "romance"],
+      "weight": 2
+    },
+    {
+      "id": "road-trip",
+      "name": "On the road",
+      "description": "The story keeps moving, town to town or planet to planet, so the characters never get to settle.",
+      "category": "setting",
+      "genres": ["contemporary", "romance", "sci-fi", "fantasy"],
+      "weight": 1
+    },
+    {
+      "id": "cozy-low-stakes",
+      "name": "Cozy and low stakes",
+      "description": "Warm, gentle and comforting: the problems are personal and small, and kindness usually wins.",
+      "category": "tone",
+      "genres": ["fantasy", "mystery", "romance", "contemporary"],
+      "weight": 2
+    },
+    {
+      "id": "grimdark",
+      "name": "Grimdark",
+      "description": "A harsh world where power corrupts, victories are costly and the good guys are not always good.",
+      "category": "tone",
+      "genres": ["fantasy", "sci-fi"],
+      "weight": 1
+    },
+    {
+      "id": "comedic",
+      "name": "Comedy of errors",
+      "description": "Misunderstandings stack on top of each other until the whole situation collapses in a funny way.",
+      "category": "tone",
+      "genres": ["romance", "fantasy", "contemporary", "historical"],
+      "weight": 1
+    },
+    {
+      "id": "slow-dread",
+      "name": "Creeping dread",
+      "description": "Nothing obviously wrong happens for a long time, but the feeling that something is off keeps growing.",
+      "category": "tone",
+      "genres": ["horror", "thriller", "mystery"],
+      "weight": 2
+    },
+    {
+      "id": "hopeful",
+      "name": "Hope against the odds",
+      "description": "Things are bleak, but the story believes people can make them better and shows them trying.",
+      "category": "tone",
+      "genres": [],
+      "weight": 1
+    },
+    {
+      "id": "tragic-ending",
+      "name": "Tragic ending",
+      "description": "The story is heading toward loss, and the reader feels it coming long before the characters do.",
+      "category": "tone",
+      "genres": ["historical", "fantasy", "romance", "horror"],
+      "weight": 1
+    },
+    {
+      "id": "happily-ever-after",
+      "name": "Happily ever after",
+      "description": "However hard the journey, the ending is warm and the main couple or family ends up together.",
+      "category": "tone",
+      "genres": ["romance", "fantasy", "contemporary"],
+      "weight": 2
+    }
+  ],
+  "exclusions": [
+    ["enemies-to-lovers", "friends-to-lovers"],
+    ["enemies-to-lovers", "love-at-first-sight"],
+    ["slow-burn", "love-at-first-sight"],
+    ["fake-dating", "marriage-of-convenience"],
+    ["friends-to-lovers", "rivals-to-lovers"],
+    ["friends-to-lovers", "second-chance-romance"],
+    ["small-town", "sprawling-city"],
+    ["small-town", "generation-ship"],
+    ["small-town", "royal-court"],
+    ["small-town", "road-trip"],
+    ["sprawling-city", "generation-ship"],
+    ["sprawling-city", "isolated-manor"],
+    ["boarding-school", "generation-ship"],
+    ["boarding-school", "road-trip"],
+    ["isolated-manor", "generation-ship"],
+    ["isolated-manor", "road-trip"],
+    ["generation-ship", "royal-court"],
+    ["generation-ship", "post-apocalyptic"],
+    ["locked-room-mystery", "road-trip"],
+    ["cozy-low-stakes", "grimdark"],
+    ["cozy-low-stakes", "slow-dread"],
+    ["cozy-low-stakes", "tragic-ending"],
+    ["cozy-low-stakes", "post-apocalyptic"],
+    ["grimdark", "comedic"],
+    ["grimdark", "happily-ever-after"],
+    ["tragic-ending", "happily-ever-after"],
+    ["tragic-ending", "comedic"],
+    ["comedic", "slow-dread"],
+    ["hopeful", "grimdark"]
+  ]
+}
