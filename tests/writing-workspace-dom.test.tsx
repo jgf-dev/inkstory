@@ -8,6 +8,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { WritingWorkspace } from "../src/app/dashboard/novels/[id]/_components/WritingWorkspace";
@@ -336,6 +337,41 @@ describe("WritingWorkspace", () => {
       ),
     );
     expect(screen.getByTestId("scene-editor")).toBeTruthy();
+  });
+
+  it("toggles the Architect Grid planning view and opens a scene from a card (STO-1257)", async () => {
+    const outline = makeOutline();
+    const calls: Array<[string, string, any]> = [];
+    routeFetch((url, init) => {
+      calls.push([init.method, url, init.body ? JSON.parse(init.body) : null]);
+      if (url === "/api/scenes/scene-2")
+        return { status: 200, body: { scene: makeScene("scene-2") } };
+      if (url === "/api/novels/novel-1/outline" && init.method === "GET")
+        return { status: 200, body: { outline } };
+      if (url === "/api/novels/novel-1/outline" && init.method === "PATCH")
+        return { status: 500, body: { error: "Move refused" } };
+      return undefined;
+    });
+    render(React.createElement(WritingWorkspace, { outline, initialSceneId: null }));
+
+    expect(screen.getByTestId("architect-view-editor").getAttribute("aria-pressed")).toBe("true");
+    fireEvent.click(screen.getByTestId("architect-view-grid"));
+    const grid = await screen.findByTestId("planning-grid");
+    expect(screen.queryByText("No scene selected")).toBeNull();
+
+    fireEvent.click(within(grid).getByLabelText("Move Storm up"));
+    expect(await within(grid.parentElement!).findByText("Move refused")).toBeTruthy();
+    expect(
+      calls.some((c) => c[0] === "PATCH" && c[2]?.id === "scene-2" && c[2]?.direction === "up"),
+    ).toBe(true);
+
+    await waitFor(() =>
+      expect(within(grid).getByText("Storm").closest("button") as HTMLButtonElement).toBeTruthy(),
+    );
+    fireEvent.click(within(grid).getByText("Storm"));
+    expect(await screen.findByTestId("scene-editor")).toBeTruthy();
+    expect(screen.queryByTestId("planning-grid")).toBeNull();
+    expect(screen.getByTestId("architect-view-editor").getAttribute("aria-pressed")).toBe("true");
   });
 
   it("reorders outline siblings via drag-and-drop in WritingWorkspace", async () => {

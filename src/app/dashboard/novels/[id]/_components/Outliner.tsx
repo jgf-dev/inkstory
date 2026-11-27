@@ -45,7 +45,7 @@ const DRAG_MIME = "application/x-inkstory-outline";
  * Novel & Chapter Outliner (launch phase 3 / STO-1161 polish): acts → chapters
  * → scenes tree with quick create, inline rename, up/down buttons, sibling
  * drag-and-drop reorder, delete, and word-count rollups. Keyboard-friendly:
- * rename commits on Enter, cancels on Escape. Grid/Matrix views are deferred.
+ * rename commits on Enter, cancels on Escape. The Grid view lives in PlanningGrid (STO-1257); Matrix is deferred.
  */
 export function Outliner(props: OutlinerProps) {
   const { outline, selectedSceneId, busy } = props;
