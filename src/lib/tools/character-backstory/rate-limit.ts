@@ -55,7 +55,11 @@ export function createRateLimiter(options: RateLimiterOptions): RateLimiter {
   return {
     consume(key) {
       const at = now();
-      let allowed = true;
+      for (const window of windows) {
+        const counter = window.counters.get(key);
+        const currentCount = counter && counter.resetAt > at ? counter.count : 0;
+        if (currentCount >= window.limit) return false;
+      }
       for (const window of windows) {
         let counter = window.counters.get(key);
         if (!counter || counter.resetAt <= at) {
@@ -65,9 +69,8 @@ export function createRateLimiter(options: RateLimiterOptions): RateLimiter {
           window.counters.set(key, counter);
         }
         counter.count += 1;
-        if (counter.count > window.limit) allowed = false;
       }
-      return allowed;
+      return true;
     },
   };
 }

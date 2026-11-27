@@ -275,7 +275,7 @@ describe("NameResults backstory (AI mode)", () => {
     expect(screen.queryByText(/nope|offline/)).toBeNull();
   });
 
-  it("disables the controls while loading and treats an empty backstory as a failure", async () => {
+  it("disables the controls with a tooltip while loading and treats blank backstory as a failure", async () => {
     const pending: ((response: Response) => void)[] = [];
     vi.stubGlobal(
       "fetch",
@@ -292,8 +292,9 @@ describe("NameResults backstory (AI mode)", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Write a backstory for Rook" }));
     const mara = screen.getByRole("button", { name: "Write a backstory for Mara" });
     expect((mara as HTMLButtonElement).disabled).toBe(true);
+    expect(mara.getAttribute("title")).toBe("Waiting for the current backstory to finish");
     await act(async () => {
-      pending[0](Response.json({ backstory: "" }));
+      pending[0](Response.json({ backstory: "   " }));
     });
     const rookTemplate = templateBackstory({
       name: "Rook",
@@ -302,5 +303,24 @@ describe("NameResults backstory (AI mode)", () => {
       gender: "masculine",
     });
     expect(await screen.findByText(rookTemplate)).toBeTruthy();
+    expect(mara.getAttribute("title")).toBeNull();
+  });
+
+  it("aborts an in-flight backstory request on unmount", async () => {
+    let capturedSignal: AbortSignal | null | undefined;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<typeof fetch>((_url, init) => {
+        capturedSignal = init?.signal;
+        return new Promise<Response>(() => {});
+      }),
+    );
+    const view = render(
+      <NameResults names={["Rook"]} shareHref={shareHref} moreHref="/more" backstory={context} />,
+    );
+    fireEvent.click(await screen.findByRole("button", { name: "Write a backstory for Rook" }));
+    expect(capturedSignal?.aborted).toBe(false);
+    view.unmount();
+    expect(capturedSignal?.aborted).toBe(true);
   });
 });

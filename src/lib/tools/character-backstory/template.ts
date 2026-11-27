@@ -3,8 +3,8 @@
  * fails. Pure and deterministic: the same name and filters always produce the
  * same paragraph, on the server and in the browser.
  */
-import { createRng, randomInt, type Rng } from "../name-generator/rng";
-import type { Genre } from "../name-generator/types";
+import { createRng, randomInt, type Rng } from "@/lib/tools/name-generator/rng";
+import type { Genre } from "@/lib/tools/name-generator/types";
 import type { BackstoryInput } from "./types";
 
 interface GenreFragments {
@@ -30,9 +30,9 @@ const FRAGMENTS: Readonly<Record<Genre, GenreFragments>> = {
       "They walked away from a war that everyone else remembers as a victory.",
     ],
     wants: [
-      "Now they want to return the relic before its curse finds the people they love.",
+      "Now they want to settle an old debt before it catches up with the people they love.",
       "Now they want a place where nobody knows their family name.",
-      "Now they want to prove the old oath can still be kept.",
+      "Now they want to prove that honor still means something in a broken realm.",
       "Now they want answers, even if the truth costs them their place in the world.",
       "Now they want to earn back the trust they spent too freely.",
     ],
@@ -54,8 +54,8 @@ const FRAGMENTS: Readonly<Record<Genre, GenreFragments>> = {
     ],
     wants: [
       "Now they want to buy back their freedom one risky job at a time.",
-      "Now they want to trace the signal to its source.",
-      "Now they want to find out who erased that year, and why.",
+      "Now they want to reach the edge of charted space before anyone else does.",
+      "Now they want to uncover who has been rewriting the official logs, and why.",
       "Now they want a crew they can trust with their life.",
       "Now they want to bring their people somewhere they can finally call home.",
     ],
@@ -78,7 +78,7 @@ const FRAGMENTS: Readonly<Record<Genre, GenreFragments>> = {
     wants: [
       "Now they want to make things right before someone else gets hurt.",
       "Now they want to start over without lying about where they came from.",
-      "Now they want to know who the stranger was and what they owed them.",
+      "Now they want to untangle the past before it costs them the life they built.",
       "Now they want one honest relationship that survives the truth.",
       "Now they want to stop running and finally face the people they left behind.",
     ],
@@ -99,9 +99,9 @@ const FRAGMENTS: Readonly<Record<Genre, GenreFragments>> = {
       "They kept a forbidden correspondence that someone has started reading.",
     ],
     wants: [
-      "Now they want to free their friend without becoming a traitor themselves.",
+      "Now they want to protect the people they care about without becoming a traitor.",
       "Now they want to decide whether justice is worth the scandal.",
-      "Now they want to find their sibling, or at least the truth.",
+      "Now they want the truth, no matter which powerful house it embarrasses.",
       "Now they want to clear their name before the next assize.",
       "Now they want to choose their own future instead of the one arranged for them.",
     ],

@@ -4,7 +4,7 @@
  * provider error or invalid output all return the template silently.
  */
 import { createRateLimiter, type RateLimiter } from "./rate-limit";
-import { requestAiBackstory, type AiBackstoryOptions } from "./openrouter";
+import { requestAiBackstory, type AiBackstoryOptions, type AiFailureReason } from "./openrouter";
 import { templateBackstory } from "./template";
 import type { BackstoryInput, BackstoryResult } from "./types";
 
@@ -18,16 +18,18 @@ export const BACKSTORY_GLOBAL_WINDOWS = [{ limit: 300, windowMs: 3_600_000 }] as
 
 const GLOBAL_KEY = "*";
 
-export interface BackstoryDeps {
+export type BackstoryFallbackReason =
+  | "not_configured"
+  | "ip_rate_limited"
+  | "global_rate_limited"
+  | AiFailureReason;
+
+export interface BackstoryDeps extends Omit<AiBackstoryOptions, "apiKey"> {
   apiKey: string | undefined;
-  model?: string;
-  appUrl?: string;
   ipLimiter: RateLimiter;
   globalLimiter: RateLimiter;
-  fetch?: typeof fetch;
-  timeoutMs?: number;
   /** Receives a short reason code when AI mode falls back. */
-  onFallback?: (reason: string) => void;
+  onFallback?: (reason: BackstoryFallbackReason) => void;
 }
 
 export function createBackstoryLimiters(now?: () => number) {
@@ -42,24 +44,18 @@ export async function getCharacterBackstory(
   clientIp: string,
   deps: BackstoryDeps,
 ): Promise<BackstoryResult> {
-  const fallback = (reason: string): BackstoryResult => {
-    deps.onFallback?.(reason);
+  const { apiKey: rawApiKey, ipLimiter, globalLimiter, onFallback, ...aiOptions } = deps;
+  const fallback = (reason: BackstoryFallbackReason): BackstoryResult => {
+    onFallback?.(reason);
     return { backstory: templateBackstory(input), source: "template" };
   };
 
-  const apiKey = deps.apiKey?.trim();
+  const apiKey = rawApiKey?.trim();
   if (!apiKey) return fallback("not_configured");
-  if (!deps.ipLimiter.consume(clientIp)) return fallback("ip_rate_limited");
-  if (!deps.globalLimiter.consume(GLOBAL_KEY)) return fallback("global_rate_limited");
+  if (!ipLimiter.consume(clientIp)) return fallback("ip_rate_limited");
+  if (!globalLimiter.consume(GLOBAL_KEY)) return fallback("global_rate_limited");
 
-  const options: AiBackstoryOptions = {
-    apiKey,
-    model: deps.model,
-    appUrl: deps.appUrl,
-    fetch: deps.fetch,
-    timeoutMs: deps.timeoutMs,
-  };
-  const outcome = await requestAiBackstory(input, options);
+  const outcome = await requestAiBackstory(input, { ...aiOptions, apiKey });
   if (!outcome.ok) return fallback(outcome.reason);
   return { backstory: outcome.backstory, source: "ai" };
 }

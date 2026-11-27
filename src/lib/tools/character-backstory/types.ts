@@ -1,4 +1,4 @@
-import type { ConcreteGender, FlavorId, Genre } from "../name-generator/types";
+import type { ConcreteGender, FlavorId, Genre } from "@/lib/tools/name-generator/types";
 
 /** Validated request for one character backstory. */
 export interface BackstoryInput {

@@ -111,7 +111,13 @@ export default async function CharacterNameGeneratorPage({
         <SubmitRow label="Generate names" />
       </form>
 
-      <NameResults names={names} shareHref={shareHref} moreHref={moreHref} backstory={backstory} />
+      <NameResults
+        key={shareHref}
+        names={names}
+        shareHref={shareHref}
+        moreHref={moreHref}
+        backstory={backstory}
+      />
 
       <FaqSection heading="Character name generator FAQ" faqs={FAQS} />
 

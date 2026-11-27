@@ -163,9 +163,11 @@ run `npm install` or `vp install`). If installing with `--ignore-scripts`, run
   aborts (`INKSTORY_UNSAFE_TEST_DATABASE`) on non-loopback hosts or Supabase
   project refs (`wntgnjrrzfndunqaiobo`, `oobhhexdoufnwdltoren`).
 
-## UI & Accessibility Rules
+## Code, Commit & UI Rules
 
-- Any front-end form input or interactive element that can have the `disabled` state must also have a tool-tip on hover or annotation indicating the reason why.
+- **Imports**: Always use the `@/` path alias (`./src/*`) for cross-module imports inside `src/` (avoid `../` across module boundaries; relative `./` is fine only within the same directory).
+- **Commits**: Use Conventional Commits (`feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `chore:`) in imperative mood for commit messages (e.g., `feat: add AI backstory mode for character name generator`, not `STO-1313: ...` or `Fix ...`).
+- **UI & Accessibility**: Any front-end form input or interactive element that can have the `disabled` state must also have a tool-tip on hover or annotation indicating the reason why.
 
 ## Available skills
 

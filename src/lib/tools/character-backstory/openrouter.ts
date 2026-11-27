@@ -4,7 +4,7 @@
  * failure resolves to `null` so callers can fall back to the template. The
  * API key is sent only in the Authorization header and never logged.
  */
-import { GENRE_DEFINITIONS } from "../name-generator/wordlists";
+import { GENRE_DEFINITIONS } from "@/lib/tools/name-generator/wordlists";
 import type { BackstoryInput } from "./types";
 
 export const OPENROUTER_CHAT_URL = "https://openrouter.ai/api/v1/chat/completions";
@@ -87,7 +87,7 @@ export function buildBackstoryMessages(input: BackstoryInput) {
   ];
 }
 
-const DISALLOWED_OUTPUT = /https?:\/\/|www\.|[$€£¥]|<\/?[a-z]/i;
+const DISALLOWED_OUTPUT = /https?:\/\/|www\.|\p{Sc}|<\/?[a-z]/iu;
 
 function stripCodeFence(text: string): string {
   const trimmed = text.trim();
@@ -159,7 +159,12 @@ export async function requestAiBackstory(
       await response.body?.cancel().catch(() => {});
       return { ok: false, reason: reasonForStatus(response.status) };
     }
-    const body = (await response.json()) as ChatCompletionBody;
+    let body: ChatCompletionBody;
+    try {
+      body = (await response.json()) as ChatCompletionBody;
+    } catch {
+      return { ok: false, reason: controller.signal.aborted ? "timeout" : "invalid_output" };
+    }
     const backstory = parseBackstoryContent(body.choices?.[0]?.message?.content);
     if (!backstory) return { ok: false, reason: "invalid_output" };
     return { ok: true, backstory, model: typeof body.model === "string" ? body.model : null };

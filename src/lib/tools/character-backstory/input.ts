@@ -3,8 +3,13 @@
  * vocabulary is rejected or normalized so arbitrary text never reaches the
  * prompt beyond a short, letters-only name.
  */
-import { isFlavorForGenre } from "../name-generator/engine";
-import { ANY_FLAVOR, GENRES, type ConcreteGender, type Genre } from "../name-generator/types";
+import { isFlavorForGenre } from "@/lib/tools/name-generator/engine";
+import {
+  ANY_FLAVOR,
+  GENRES,
+  type ConcreteGender,
+  type Genre,
+} from "@/lib/tools/name-generator/types";
 import type { BackstoryInput } from "./types";
 
 export const BACKSTORY_NAME_MAX_LENGTH = 60;

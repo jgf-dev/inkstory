@@ -114,7 +114,7 @@ describe("templateBackstory", () => {
 });
 
 describe("createRateLimiter", () => {
-  it("enforces every window per key and resets after the window", () => {
+  it("enforces every window per key without burning longer windows on rejections", () => {
     let now = 0;
     const limiter = createRateLimiter({
       windows: [
@@ -125,10 +125,12 @@ describe("createRateLimiter", () => {
     });
     expect(limiter.consume("a")).toBe(true);
     expect(limiter.consume("a")).toBe(true);
+    expect(limiter.consume("a")).toBe(false); // rejected by short window; does not consume long window
     expect(limiter.consume("a")).toBe(false);
     expect(limiter.consume("b")).toBe(true);
     now = 1000;
-    expect(limiter.consume("a")).toBe(false); // hour-style window still exhausted
+    expect(limiter.consume("a")).toBe(true); // 3rd allowed hit in the 10s window
+    expect(limiter.consume("a")).toBe(false); // 10s window now exhausted
     now = 10_000;
     expect(limiter.consume("a")).toBe(true);
   });
@@ -234,6 +236,11 @@ describe("OpenRouter request", () => {
       ok: false,
       reason: "invalid_output",
     });
+    const malformedBody = mockFetch(async () => new Response("<html>oops</html>", { status: 200 }));
+    expect(await requestAiBackstory(INPUT, { apiKey: SECRET, fetch: malformedBody })).toEqual({
+      ok: false,
+      reason: "invalid_output",
+    });
     const noModel = mockFetch(async () =>
       Response.json({
         choices: [{ message: { content: JSON.stringify({ backstory: AI_TEXT }) } }],
@@ -256,6 +263,7 @@ describe("OpenRouter request", () => {
     [JSON.stringify({ backstory: "x".repeat(800) }), null],
     [JSON.stringify({ backstory: `${AI_TEXT} Visit https://spam.example now.` }), null],
     [JSON.stringify({ backstory: `${AI_TEXT} It cost $5.` }), null],
+    [JSON.stringify({ backstory: `${AI_TEXT} It cost ₹500.` }), null],
     ["```json\n" + JSON.stringify({ backstory: `  ${AI_TEXT}\n` }) + "\n```", AI_TEXT],
     [JSON.stringify({ backstory: AI_TEXT }), AI_TEXT],
   ])("parses content %#", (content, expected) => {

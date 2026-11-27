@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { COPY_BUTTON_CLASS, ResultActions } from "@/app/_components/tools/ResultActions";
 import { useCopyFeedback } from "@/app/_components/tools/useCopyFeedback";
 import { templateBackstory } from "@/lib/tools/character-backstory/template";
@@ -22,7 +22,7 @@ export interface NameResultsProps {
 
 export interface BackstoryContext {
   genre: BackstoryInput["genre"];
-  flavor: string;
+  flavor: BackstoryInput["flavor"];
   /** Resolved gender per generated name. */
   genders: Readonly<Record<string, BackstoryInput["gender"]>>;
 }
@@ -32,12 +32,13 @@ type BackstoryState =
   | { status: "loading"; name: string }
   | { status: "done"; name: string; text: string };
 
-async function fetchBackstory(input: BackstoryInput): Promise<string> {
+async function fetchBackstory(input: BackstoryInput, signal?: AbortSignal): Promise<string> {
   try {
     const response = await fetch(BACKSTORY_ENDPOINT, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(input),
+      signal,
     });
     if (response.ok) {
       const body = (await response.json()) as { backstory?: unknown };
@@ -57,20 +58,31 @@ export function NameResults({ names, shareHref, moreHref, backstory }: Readonly<
   const feedback = useCopyFeedback();
   const [hydrated, setHydrated] = useState(false);
   const [story, setStory] = useState<BackstoryState>({ status: "idle" });
+  const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     setHydrated(true);
+    return () => {
+      abortRef.current?.abort();
+    };
   }, []);
 
   async function writeBackstory(context: BackstoryContext, name: string) {
     // Backstory buttons are disabled while loading, so requests never overlap.
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
     setStory({ status: "loading", name });
-    const text = await fetchBackstory({
-      name,
-      genre: context.genre,
-      flavor: context.flavor,
-      gender: context.genders[name] ?? "neutral",
-    });
+    const text = await fetchBackstory(
+      {
+        name,
+        genre: context.genre,
+        flavor: context.flavor,
+        gender: context.genders[name] ?? "neutral",
+      },
+      controller.signal,
+    );
+    if (controller.signal.aborted) return;
     setStory({ status: "done", name, text });
   }
 
@@ -93,9 +105,14 @@ export function NameResults({ names, shareHref, moreHref, backstory }: Readonly<
                 {hydrated && backstory ? (
                   <button
                     type="button"
-                    className={COPY_BUTTON_CLASS}
+                    className={`${COPY_BUTTON_CLASS} disabled:cursor-not-allowed disabled:opacity-50`}
                     aria-label={`Write a backstory for ${name}`}
                     disabled={story.status === "loading"}
+                    title={
+                      story.status === "loading"
+                        ? "Waiting for the current backstory to finish"
+                        : undefined
+                    }
                     onClick={() => void writeBackstory(backstory, name)}
                   >
                     Backstory
