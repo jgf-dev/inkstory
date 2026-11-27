@@ -3,11 +3,12 @@
  * each slot is a weighted pick from the bundled catalog, driven by a seeded
  * RNG, so the same seed + filters + locks always give the same prompt.
  */
-import { createRng, pickWeighted, type Rng } from "../name-generator/rng";
+import { createRng, pickWeighted, type Rng } from "@/lib/tools/name-generator/rng";
 import { PROMPT_CATALOG } from "./catalog";
 import {
   ANY,
   PROMPT_SLOTS,
+  SLOT_LABELS,
   SLOT_SIZES,
   type GeneratedPrompt,
   type GeneratedSlot,
@@ -149,22 +150,25 @@ function texts(slots: readonly GeneratedSlot[], slot: PromptSlot): string[] {
 /** Joins the slot fragments into one copy-ready prompt. Missing slots are skipped. */
 export function assemblePrompt(slots: readonly GeneratedSlot[], genre: GenreFilter): string {
   const lines = [`Write a scene for ${GENRE_PHRASES[genre]}.`];
-  const add = (label: string, values: string[]) => {
-    if (values.length > 0) lines.push(`${label}: ${capitalize(values.join("; "))}.`);
+  const add = (slot: PromptSlot) => {
+    const values = texts(slots, slot);
+    if (values.length > 0) lines.push(`${SLOT_LABELS[slot]}: ${capitalize(values.join("; "))}.`);
   };
-  add("Characters", texts(slots, "pairing"));
-  add("Situation", texts(slots, "setup"));
-  add("Setting", texts(slots, "setting"));
-  add("Tension", texts(slots, "tension"));
-  add("Heat and tone", texts(slots, "tone"));
+  add("pairing");
+  add("setup");
+  add("setting");
+  add("tension");
+  add("tone");
   lines.push("Every character is a fictional, consenting adult.");
   return lines.join(" ");
 }
 
 /**
- * Builds one prompt: per slot, locked fragments first, then weighted picks
- * from the filtered pool with no repeats. Each slot draws from its own seeded
- * stream, so locking or unlocking one slot never changes another.
+ * Builds one prompt: per slot, draws the full base sequence from the slot's
+ * seeded stream, keeps locked fragments first, and fills remaining positions
+ * from the base draw without repeats. Locking one fragment in a multi-item
+ * slot (such as `tension`) therefore never mutates the other unlocked item
+ * until the seed changes.
  */
 export function generatePrompt(
   options: PromptGeneratorOptions,
@@ -173,15 +177,13 @@ export function generatePrompt(
   const locked = resolveLocks(options.locked, options, catalog);
   const slots: GeneratedSlot[] = PROMPT_SLOTS.map((slot) => {
     const keep = locked.filter((fragment) => fragment.slot === slot);
-    const pool = slotPool(slot, options, catalog).filter(
-      (fragment) => !keep.some((entry) => entry.id === fragment.id),
-    );
-    const drawn = drawDistinct(
-      createRng(rngKey(options, slot)),
-      pool,
-      SLOT_SIZES[slot] - keep.length,
-      options.genre,
-    );
+    const keepIds = new Set(keep.map((fragment) => fragment.id));
+    const size = SLOT_SIZES[slot];
+    const pool = slotPool(slot, options, catalog);
+    const baseDraw = drawDistinct(createRng(rngKey(options, slot)), pool, size, options.genre);
+    const drawn = baseDraw
+      .filter((fragment) => !keepIds.has(fragment.id))
+      .slice(0, Math.max(0, size - keep.length));
     return {
       slot,
       fragments: [

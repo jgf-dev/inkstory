@@ -13,6 +13,15 @@ export const SLOT_SIZES: Record<PromptSlot, number> = {
   tone: 1,
 };
 
+/** Display labels shared between assembled prompt text and UI cards. */
+export const SLOT_LABELS: Record<PromptSlot, string> = {
+  setup: "Situation",
+  pairing: "Characters",
+  setting: "Setting",
+  tension: "Tension",
+  tone: "Heat and tone",
+};
+
 export const PAIRINGS = ["mf", "mm", "ff"] as const;
 export type Pairing = (typeof PAIRINGS)[number];
 

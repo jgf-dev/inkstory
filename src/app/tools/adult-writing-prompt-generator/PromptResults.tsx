@@ -30,7 +30,7 @@ export interface PromptResultsProps {
  * JavaScript; copying needs it.
  */
 export function PromptResults({ prompt, parts, shareHref, moreHref }: PromptResultsProps) {
-  const { copied, error, copy } = useCopyFeedback();
+  const feedback = useCopyFeedback();
 
   return (
     <section aria-labelledby="generated-prompt-heading" className="mt-6">
@@ -44,9 +44,9 @@ export function PromptResults({ prompt, parts, shareHref, moreHref }: PromptResu
         <button
           type="button"
           className={`${COPY_BUTTON_CLASS} mt-3`}
-          onClick={() => void copy("prompt", prompt)}
+          onClick={() => void feedback.copy("prompt", prompt)}
         >
-          {copied === "prompt" ? "Copied prompt" : "Copy prompt"}
+          {feedback.copied === "prompt" ? "Copied prompt" : "Copy prompt"}
         </button>
       </div>
       <ul className="mt-4 grid gap-2" data-testid="prompt-parts">
@@ -81,9 +81,7 @@ export function PromptResults({ prompt, parts, shareHref, moreHref }: PromptResu
         shareHref={shareHref}
         moreHref={moreHref}
         moreLabel="Generate more"
-        copied={copied}
-        error={error}
-        copy={copy}
+        feedback={feedback}
       />
     </section>
   );

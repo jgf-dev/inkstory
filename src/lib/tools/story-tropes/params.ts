@@ -2,6 +2,7 @@
  * Query-string parsing and URL building for the shareable trope generator.
  * Unknown or malformed values fall back to defaults instead of erroring.
  */
+import { LOCK_SEPARATOR, splitLockIds, toggleLock } from "@/lib/tools/query-params";
 import {
   allParams,
   firstParam,
@@ -21,7 +22,6 @@ import {
 } from "./types";
 
 export const TROPE_GENERATOR_PATH = "/tools/story-trope-generator";
-const LOCK_SEPARATOR = ",";
 
 export interface ParsedTropeGeneratorParams extends TropeFilters {
   /** Normalized seed, or `null` when absent or invalid. */
@@ -32,11 +32,7 @@ export interface ParsedTropeGeneratorParams extends TropeFilters {
 
 /** Accepts `lock=a,b` and/or repeated `lock=a&lock=b`; keeps only valid, compatible ids. */
 export function parseLockedIds(values: readonly string[]): string[] {
-  const ids = values
-    .flatMap((value) => value.split(LOCK_SEPARATOR))
-    .map((id) => id.trim().toLowerCase())
-    .filter((id) => id.length > 0)
-    .slice(0, MAX_COUNT * 4);
+  const ids = splitLockIds(values, MAX_COUNT * 4);
   return resolveLocks(ids).map((trope) => trope.id);
 }
 
@@ -67,7 +63,4 @@ export function buildTropeGeneratorHref(
   return `${TROPE_GENERATOR_PATH}?${query.toString()}`;
 }
 
-/** Locked ids with `id` added (appended) or removed. */
-export function toggleLock(locked: readonly string[], id: string): string[] {
-  return locked.includes(id) ? locked.filter((entry) => entry !== id) : [...locked, id];
-}
+export { toggleLock };

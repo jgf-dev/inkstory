@@ -8,4 +8,4 @@ export {
   nextSeed,
   normalizeSeed,
   type SearchParamsRecord,
-} from "../name-generator/params";
+} from "@/lib/tools/name-generator/params";
